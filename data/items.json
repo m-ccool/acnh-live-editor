@@ -1,0 +1,464 @@
+[
+  {
+    "name": "30,000 Bells",
+    "category": "Local",
+    "icon_url": "/assets/items/30%2C000_Bells_NH_Inv_Icon.png",
+    "image_url": "/assets/items/30%2C000_Bells_NH_Inv_Icon.png",
+    "internal_id": 1,
+    "file_name": "30,000_Bells",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "30,000_Bells_NH_Inv_Icon.png"
+    ]
+  },
+  {
+    "name": "64px-Ladder Set-Up Kit",
+    "category": "Tool",
+    "icon_url": "/assets/items/64px-Ladder_Set-Up_Kit_NH_Inv_Icon.png",
+    "image_url": "/assets/items/64px-Ladder_Set-Up_Kit_NH_Inv_Icon.png",
+    "internal_id": 2,
+    "file_name": "64px-Ladder_Set-Up_Kit",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "64px-Ladder_Set-Up_Kit_NH_Inv_Icon.png"
+    ]
+  },
+  {
+    "name": "64px-Vine",
+    "category": "Local",
+    "icon_url": "/assets/items/64px-Vine_NH_Inv_Icon.png",
+    "image_url": "/assets/items/64px-Vine_NH_Inv_Icon.png",
+    "internal_id": 3,
+    "file_name": "64px-Vine",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "64px-Vine_NH_Inv_Icon.png"
+    ]
+  },
+  {
+    "name": "99k Bells",
+    "category": "Local",
+    "icon_url": "/assets/items/99k_Bells_NH_Inv_Icon.png",
+    "image_url": "/assets/items/99k_Bells_NH_Inv_Icon.png",
+    "internal_id": 4,
+    "file_name": "99k_Bells",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "99k_Bells_NH_Inv_Icon.png"
+    ]
+  },
+  {
+    "name": "Bob",
+    "category": "Villager",
+    "icon_url": "/assets/items/Bob_NH_Villager_Icon.png",
+    "image_url": "/assets/items/Bob_NH.png",
+    "internal_id": 5,
+    "file_name": "Bob",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Bob_NH_Villager_Icon.png",
+      "Bob_NH.png"
+    ]
+  },
+  {
+    "name": "Clay",
+    "category": "Material",
+    "icon_url": "/assets/items/Clay_NH_Inv_Icon.png",
+    "image_url": "/assets/items/Clay_NH_Icon.png",
+    "internal_id": 6,
+    "file_name": "Clay",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Clay_NH_Icon.png",
+      "Clay_NH_Inv_Icon.png"
+    ]
+  },
+  {
+    "name": "Gold Nugget",
+    "category": "Material",
+    "icon_url": "/assets/items/Gold_Nugget_NH_Inv_Icon.png",
+    "image_url": "/assets/items/Gold_Nugget_NH_Icon.png",
+    "internal_id": 7,
+    "file_name": "Gold_Nugget",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Gold_Nugget_NH_Icon.png",
+      "Gold_Nugget_NH_Inv_Icon.png"
+    ]
+  },
+  {
+    "name": "Golden Axe",
+    "category": "Tool",
+    "icon_url": "/assets/items/Golden_Axe_NH_Icon.png",
+    "image_url": "/assets/items/Golden_Axe_NH_Icon.png",
+    "internal_id": 8,
+    "file_name": "Golden_Axe",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Golden_Axe_NH_Icon.png"
+    ]
+  },
+  {
+    "name": "Golden Ladder Set-Up Kit",
+    "category": "Tool",
+    "icon_url": "/assets/items/Golden_Ladder_Set-Up_Kit_NH_Icon.png",
+    "image_url": "/assets/items/Golden_Ladder_Set-Up_Kit_NH_Icon.png",
+    "internal_id": 9,
+    "file_name": "Golden_Ladder_Set-Up_Kit",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Golden_Ladder_Set-Up_Kit_NH_Icon.png"
+    ]
+  },
+  {
+    "name": "Golden Net",
+    "category": "Tool",
+    "icon_url": "/assets/items/Golden_Net_NH_Icon.png",
+    "image_url": "/assets/items/Golden_Net_NH_Icon.png",
+    "internal_id": 10,
+    "file_name": "Golden_Net",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Golden_Net_NH_Icon.png"
+    ]
+  },
+  {
+    "name": "Golden Rod",
+    "category": "Tool",
+    "icon_url": "/assets/items/Golden_Rod_NH_Icon.png",
+    "image_url": "/assets/items/Golden_Rod_NH_Icon.png",
+    "internal_id": 11,
+    "file_name": "Golden_Rod",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Golden_Rod_NH_Icon.png"
+    ]
+  },
+  {
+    "name": "Golden Shovel",
+    "category": "Tool",
+    "icon_url": "/assets/items/Golden_Shovel_NH_Icon.png",
+    "image_url": "/assets/items/Golden_Shovel_NH_Icon.png",
+    "internal_id": 12,
+    "file_name": "Golden_Shovel",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Golden_Shovel_NH_Icon.png"
+    ]
+  },
+  {
+    "name": "Golden Slingshot",
+    "category": "Tool",
+    "icon_url": "/assets/items/Golden_Slingshot_NH_Icon.png",
+    "image_url": "/assets/items/Golden_Slingshot_NH_Icon.png",
+    "internal_id": 13,
+    "file_name": "Golden_Slingshot",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Golden_Slingshot_NH_Icon.png"
+    ]
+  },
+  {
+    "name": "Golden Wand",
+    "category": "Tool",
+    "icon_url": "/assets/items/Golden_Wand_NH_Icon.png",
+    "image_url": "/assets/items/Golden_Wand_NH_Icon.png",
+    "internal_id": 14,
+    "file_name": "Golden_Wand",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Golden_Wand_NH_Icon.png"
+    ]
+  },
+  {
+    "name": "Golden Watering Can",
+    "category": "Tool",
+    "icon_url": "/assets/items/Golden_Watering_Can_NH_Icon.png",
+    "image_url": "/assets/items/Golden_Watering_Can_NH_Icon.png",
+    "internal_id": 15,
+    "file_name": "Golden_Watering_Can",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Golden_Watering_Can_NH_Icon.png"
+    ]
+  },
+  {
+    "name": "Hardwood",
+    "category": "Material",
+    "icon_url": "/assets/items/Hardwood_NH_Icon.png",
+    "image_url": "/assets/items/Hardwood_NH_Icon.png",
+    "internal_id": 16,
+    "file_name": "Hardwood",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Hardwood_NH_Icon.png"
+    ]
+  },
+  {
+    "name": "Iron Nugget",
+    "category": "Material",
+    "icon_url": "/assets/items/Iron_Nugget_NH_Inv_Icon.png",
+    "image_url": "/assets/items/Iron_Nugget_NH_Icon.png",
+    "internal_id": 17,
+    "file_name": "Iron_Nugget",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Iron_Nugget_NH_Icon.png",
+      "Iron_Nugget_NH_Inv_Icon.png"
+    ]
+  },
+  {
+    "name": "Mini DIY Workbench NH DIY",
+    "category": "Local",
+    "icon_url": "/assets/items/Mini_DIY_Workbench_NH_DIY_Icon.png",
+    "image_url": "/assets/items/Mini_DIY_Workbench_NH_DIY_Icon.png",
+    "internal_id": 18,
+    "file_name": "Mini_DIY_Workbench_NH_DIY",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Mini_DIY_Workbench_NH_DIY_Icon.png"
+    ]
+  },
+  {
+    "name": "Mom's Hand-Knit Sweater (Quilted Pattern)",
+    "category": "Clothing",
+    "icon_url": "/assets/items/Mom's_Hand-Knit_Sweater_(Quilted_Pattern)_NH_Icon.png",
+    "image_url": "/assets/items/Mom's_Hand-Knit_Sweater_(Quilted_Pattern)_NH_Icon.png",
+    "internal_id": 19,
+    "file_name": "Mom's_Hand-Knit_Sweater_(Quilted_Pattern)",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Mom's_Hand-Knit_Sweater_(Quilted_Pattern)_NH_Icon.png"
+    ]
+  },
+  {
+    "name": "Moon Jellyfish",
+    "category": "Local",
+    "icon_url": "/assets/items/Moon_Jellyfish_NH_Icon.png",
+    "image_url": "/assets/items/Moon_Jellyfish_NH_Icon.png",
+    "internal_id": 20,
+    "file_name": "Moon_Jellyfish",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Moon_Jellyfish_NH_Icon.png"
+    ]
+  },
+  {
+    "name": "Ocarina",
+    "category": "Local",
+    "icon_url": "/assets/items/Ocarina_NH_Icon.png",
+    "image_url": "/assets/items/Ocarina_NH_Icon.png",
+    "internal_id": 21,
+    "file_name": "Ocarina",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Ocarina_NH_Icon.png"
+    ]
+  },
+  {
+    "name": "Ocarina of Time",
+    "category": "Local",
+    "icon_url": "/assets/items/Ocarina_of_Time_NH_Icon.png",
+    "image_url": "/assets/items/Ocarina_of_Time_NH_Icon.png",
+    "internal_id": 22,
+    "file_name": "Ocarina_of_Time",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Ocarina_of_Time_NH_Icon.png"
+    ]
+  },
+  {
+    "name": "Pocketbook (Novel)",
+    "category": "Local",
+    "icon_url": "/assets/items/Pocketbook_(Novel)_NH_Icon.png",
+    "image_url": "/assets/items/Pocketbook_(Novel)_NH_Icon.png",
+    "internal_id": 23,
+    "file_name": "Pocketbook_(Novel)",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Pocketbook_(Novel)_NH_Icon.png"
+    ]
+  },
+  {
+    "name": "Rainbow Sweater (Red)",
+    "category": "Clothing",
+    "icon_url": "/assets/items/Rainbow_Sweater_(Red)_NH_Icon.png",
+    "image_url": "/assets/items/Rainbow_Sweater_(Red)_NH_Icon.png",
+    "internal_id": 24,
+    "file_name": "Rainbow_Sweater_(Red)",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Rainbow_Sweater_(Red)_NH_Icon.png"
+    ]
+  },
+  {
+    "name": "Sea Anemone",
+    "category": "Sea creature",
+    "icon_url": "/assets/items/Sea_Anemone_NH_Icon.png",
+    "image_url": "/assets/items/Sea_Anemone_NH_Icon.png",
+    "internal_id": 25,
+    "file_name": "Sea_Anemone",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Sea_Anemone_NH_Icon.png"
+    ]
+  },
+  {
+    "name": "Sea Cucumber",
+    "category": "Sea creature",
+    "icon_url": "/assets/items/Sea_Cucumber_NH_Icon.png",
+    "image_url": "/assets/items/Sea_Cucumber_NH_Icon.png",
+    "internal_id": 26,
+    "file_name": "Sea_Cucumber",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Sea_Cucumber_NH_Icon.png"
+    ]
+  },
+  {
+    "name": "Sea Grapes",
+    "category": "Sea creature",
+    "icon_url": "/assets/items/Sea_Grapes_NH_Icon.png",
+    "image_url": "/assets/items/Sea_Grapes_NH_Icon.png",
+    "internal_id": 27,
+    "file_name": "Sea_Grapes",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Sea_Grapes_NH_Icon.png"
+    ]
+  },
+  {
+    "name": "Sea Pig",
+    "category": "Sea creature",
+    "icon_url": "/assets/items/Sea_Pig_NH_Icon.png",
+    "image_url": "/assets/items/Sea_Pig_NH_Icon.png",
+    "internal_id": 28,
+    "file_name": "Sea_Pig",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Sea_Pig_NH_Icon.png"
+    ]
+  },
+  {
+    "name": "Sea Slug",
+    "category": "Sea creature",
+    "icon_url": "/assets/items/Sea_Slug_NH_Icon.png",
+    "image_url": "/assets/items/Sea_Slug_NH_Icon.png",
+    "internal_id": 29,
+    "file_name": "Sea_Slug",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Sea_Slug_NH_Icon.png"
+    ]
+  },
+  {
+    "name": "Sea Star",
+    "category": "Sea creature",
+    "icon_url": "/assets/items/Sea_Star_NH_Icon.png",
+    "image_url": "/assets/items/Sea_Star_NH_Icon.png",
+    "internal_id": 30,
+    "file_name": "Sea_Star",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Sea_Star_NH_Icon.png"
+    ]
+  },
+  {
+    "name": "Sea Urchin",
+    "category": "Sea creature",
+    "icon_url": "/assets/items/Sea_Urchin_NH_Icon.png",
+    "image_url": "/assets/items/Sea_Urchin_NH_Icon.png",
+    "internal_id": 31,
+    "file_name": "Sea_Urchin",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Sea_Urchin_NH_Icon.png"
+    ]
+  },
+  {
+    "name": "Seaweed",
+    "category": "Local",
+    "icon_url": "/assets/items/Seaweed_NH_Icon.png",
+    "image_url": "/assets/items/Seaweed_NH_Icon.png",
+    "internal_id": 32,
+    "file_name": "Seaweed",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Seaweed_Icon.png",
+      "Seaweed_NH_Icon.png"
+    ]
+  },
+  {
+    "name": "Slate Pencil Urchin",
+    "category": "Local",
+    "icon_url": "/assets/items/Slate_Pencil_Urchin_NH_Icon.png",
+    "image_url": "/assets/items/Slate_Pencil_Urchin_NH_Icon.png",
+    "internal_id": 33,
+    "file_name": "Slate_Pencil_Urchin",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Slate_Pencil_Urchin_NH_Icon.png"
+    ]
+  },
+  {
+    "name": "Softwood",
+    "category": "Material",
+    "icon_url": "/assets/items/Softwood_NH_Icon.png",
+    "image_url": "/assets/items/Softwood_NH_Icon.png",
+    "internal_id": 34,
+    "file_name": "Softwood",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Softwood_NH_Icon.png"
+    ]
+  },
+  {
+    "name": "Stone",
+    "category": "Material",
+    "icon_url": "/assets/items/Stone_NH_Inv_Icon.png",
+    "image_url": "/assets/items/Stone_NH_Icon.png",
+    "internal_id": 35,
+    "file_name": "Stone",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Stone_NH_Icon.png",
+      "Stone_NH_Inv_Icon.png"
+    ]
+  },
+  {
+    "name": "Vine",
+    "category": "Local",
+    "icon_url": "/assets/items/Vine_NH_Icon.png",
+    "image_url": "/assets/items/Vine_NH_Icon.png",
+    "internal_id": 36,
+    "file_name": "Vine",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Vine_NH_Icon.png"
+    ]
+  },
+  {
+    "name": "Vine Ladder Set-Up Kit (Light Brown)",
+    "category": "Tool",
+    "icon_url": "/assets/items/Vine_Ladder_Set-Up_Kit_(Light_Brown)_NH_Icon.png",
+    "image_url": "/assets/items/Vine_Ladder_Set-Up_Kit_(Light_Brown)_NH_Icon.png",
+    "internal_id": 37,
+    "file_name": "Vine_Ladder_Set-Up_Kit_(Light_Brown)",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Vine_Ladder_Set-Up_Kit_(Light_Brown)_NH_Icon.png"
+    ]
+  },
+  {
+    "name": "Wood",
+    "category": "Material",
+    "icon_url": "/assets/items/Wood_NH_Icon.png",
+    "image_url": "/assets/items/Wood_NH_Icon.png",
+    "internal_id": 38,
+    "file_name": "Wood",
+    "source_notes": "local offline asset",
+    "source_files": [
+      "Wood_NH_Icon.png"
+    ]
+  }
+]

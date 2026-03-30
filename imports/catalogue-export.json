@@ -1,0 +1,23 @@
+[
+  {
+    "id": "0001",
+    "name": "Apple",
+    "category": "fruit",
+    "resolvedImageUrl": "https://dummyimage.com/256x256/0e0e0e/3aa8ff.png&text=Apple",
+    "catalogueKey": "apple"
+  },
+  {
+    "id": "1000",
+    "name": "Famous Painting",
+    "category": "art",
+    "resolvedImageUrl": "https://dummyimage.com/256x256/0e0e0e/3aa8ff.png&text=Famous+Painting",
+    "catalogueKey": "famous-painting"
+  },
+  {
+    "id": "1001",
+    "name": "Academic Painting",
+    "category": "art",
+    "resolvedImageUrl": "https://dummyimage.com/256x256/0e0e0e/3aa8ff.png&text=Academic+Painting",
+    "catalogueKey": "academic-painting"
+  }
+]
