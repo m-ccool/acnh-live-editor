@@ -2,255 +2,994 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  />
   <title>ACNH Live Editor</title>
+  <meta
+    name="description"
+    content="ACNH Live Editor — offline inventory MVP for SteamOS and Ryujinx workflow."
+  />
+  <link rel="icon" type="image/png" href="/assets/icons/Apple_NL_Icon.png" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <meta name="theme-color" content="#09090b" />
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <div id="loading-screen" class="loading-screen">
+  <div id="loading-screen" class="loading-screen" aria-hidden="true">
     <div class="loading-center">
-      <div class="loading-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" class="loading-svg">
-          <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2">
-            <path
-              stroke-dasharray="2 4"
-              stroke-dashoffset="6"
-              d="M12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3"
-            >
-              <animate
-                attributeName="stroke-dashoffset"
-                dur="0.6s"
-                repeatCount="indefinite"
-                values="6;0"
-              />
-            </path>
-            <path
-              stroke-dasharray="2 4"
-              stroke-dashoffset="6"
-              d="M12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21"
-            >
-              <animate
-                attributeName="stroke-dashoffset"
-                dur="0.6s"
-                repeatCount="indefinite"
-                values="6;0"
-              />
-            </path>
-            <path
-              stroke-dasharray="2 4"
-              stroke-dashoffset="6"
-              d="M4.92893 4.92893L19.0711 19.0711"
-            >
-              <animate
-                attributeName="stroke-dashoffset"
-                dur="0.6s"
-                repeatCount="indefinite"
-                values="6;0"
-              />
-            </path>
-            <path
-              stroke-dasharray="2 4"
-              stroke-dashoffset="6"
-              d="M19.0711 4.92893L4.92893 19.0711"
-            >
-              <animate
-                attributeName="stroke-dashoffset"
-                dur="0.6s"
-                repeatCount="indefinite"
-                values="6;0"
-              />
-            </path>
-          </g>
-        </svg>
-      </div>
+      <div class="loading-ring" aria-hidden="true"></div>
     </div>
   </div>
 
+  <div class="sky-layer sky-layer-sunrise" aria-hidden="true"></div>
+  <div class="sky-layer sky-layer-night" aria-hidden="true"></div>
+  <div id="aurora-layer" class="aurora-layer" aria-hidden="true"></div>
+  <div class="moon-layer" aria-hidden="true">
+    <div class="moon-body">
+      <span class="moon-crater crater-a"></span>
+      <span class="moon-crater crater-b"></span>
+      <span class="moon-crater crater-c"></span>
+    </div>
+  </div>
+  <div class="background-noise" aria-hidden="true"></div>
+  <div id="clouds-layer" class="clouds-layer" aria-hidden="true"></div>
+  <div id="stars-layer" class="stars-layer" aria-hidden="true"></div>
+  <div id="shooting-stars-layer" class="shooting-stars-layer" aria-hidden="true"></div>
+
   <div id="app-root" class="app-shell app-hidden">
-    <header class="topbar">
-      <div class="topbar-left">
+    <header class="topbar shell-card">
+      <div class="topbar-main">
         <div class="brand-title">ACNH Live Editor</div>
+
         <div class="brand-subline">
           <span>Catalog</span>
-          <span id="catalog-status" class="status-pair">✓</span>
+          <span id="catalog-status" class="status-pair is-ok">✓</span>
           <span>Bridge</span>
-          <span id="bridge-status-inline" class="status-pair">✕</span>
+          <span id="bridge-status-inline" class="status-pair is-bad">✕</span>
+        </div>
+
+        <div class="brand-datetime" aria-live="polite">
+          <span id="date-display" class="meta-chip">Loading date</span>
+          <span id="time-display" class="meta-chip">Loading time</span>
         </div>
       </div>
 
-      <button id="settings-button" class="settings-button" type="button" aria-label="Settings">
-        <svg viewBox="0 0 24 24" class="settings-icon">
-          <path
-            fill="currentColor"
-            d="M19.14,12.94A7.43,7.43,0,0,0,19.19,12A7.43,7.43,0,0,0,19.14,11.06l2.11-1.65a.5.5,0,0,0,.12-.63l-2-3.46a.51.51,0,0,0-.6-.22l-2.49,1a7.28,7.28,0,0,0-1.63-.94L14.27,2.5A.5.5,0,0,0,13.78,2H10.22a.5.5,0,0,0-.49.5L9.35,5.16a7.28,7.28,0,0,0-1.63.94l-2.49-1a.51.51,0,0,0-.6.22l-2,3.46a.5.5,0,0,0,.12.63L4.86,11.06A7.43,7.43,0,0,0,4.81,12a7.43,7.43,0,0,0,.05.94L2.75,14.59a.5.5,0,0,0-.12.63l2,3.46a.51.51,0,0,0,.6.22l2.49-1a7.28,7.28,0,0,0,1.63.94l.38,2.66a.5.5,0,0,0,.49.5h3.56a.5.5,0,0,0,.49-.5l.38-2.66a7.28,7.28,0,0,0,1.63-.94l2.49,1a.51.51,0,0,0,.6-.22l2-3.46a.5.5,0,0,0-.12-.63ZM12,15.5A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z"
+      <div class="topbar-actions">
+        <button
+          id="theme-toggle"
+          class="theme-switch"
+          type="button"
+          aria-label="Switch to Night theme"
+        >
+          <span class="theme-switch-track">
+            <span class="theme-switch-thumb">
+              <img
+                id="theme-toggle-icon"
+                src="/assets/icons/line-md--sun-rising-filled-loop.svg"
+                alt=""
+                class="theme-switch-icon"
+                onerror="this.style.display='none';this.parentNode.textContent='☼';"
+              />
+            </span>
+            <span class="theme-switch-copy">
+              <span id="theme-toggle-label" class="theme-switch-label">Sun rise</span>
+              <span id="theme-toggle-hint" class="theme-switch-hint">Switch to Night</span>
+            </span>
+          </span>
+        </button>
+
+        <button
+          id="bridge-toggle"
+          class="toggle-button"
+          type="button"
+          aria-label="Bridge toggle"
+          aria-pressed="false"
+        >
+          <span class="toggle-track">
+            <span class="toggle-thumb"></span>
+          </span>
+        </button>
+
+        <button
+          id="settings-button"
+          class="icon-button settings-button"
+          type="button"
+          aria-label="Open settings"
+        >
+          <img
+            src="/assets/icons/line-md--cog-loop.svg"
+            alt=""
+            class="icon-img icon-white"
+            onerror="this.style.display='none';this.parentNode.textContent='⚙';"
           />
-        </svg>
-      </button>
+        </button>
+      </div>
     </header>
 
-    <section class="log-panel">
+    <section class="log-panel shell-card">
       <div class="log-panel-head">
         <span>CMD / Log view</span>
         <span id="ip-display">IP Address: 00.00.00.00</span>
       </div>
-      <pre id="bridge-status" class="code-block">{}</pre>
+
+      <div class="log-console-wrap">
+        <pre id="bridge-status" class="code-block">{}</pre>
+        <div class="console-corner-actions">
+          <span
+            id="log-connection-indicator"
+            class="console-status-indicator is-offline"
+            role="status"
+            aria-live="polite"
+            aria-label="Bridge disconnected"
+            title="Bridge disconnected"
+          >
+            <img
+              id="log-connection-icon"
+              src="/assets/icons/codicon--debug-disconnect.svg"
+              alt=""
+              class="icon-img icon-white console-status-icon"
+              onerror="this.style.display='none';this.parentNode.textContent='×';"
+            />
+          </span>
+
+          <button
+            id="log-refresh-button"
+            class="corner-icon-button"
+            type="button"
+            aria-label="Refresh status"
+          >
+            <img
+              src="/assets/icons/line-md--downloading-loop.svg"
+              alt=""
+              class="icon-img icon-white"
+              onerror="this.style.display='none';this.parentNode.textContent='↻';"
+            />
+          </button>
+        </div>
+      </div>
     </section>
 
-    <main class="main-workspace">
-      <section class="player-panel">
+    <section class="player-panel shell-card">
+      <div class="player-panel-head">
         <div class="panel-label">Player</div>
 
-        <div class="player-card">
+        <div class="player-toolbar">
+          <div class="player-toolbar-label">
+            <img
+              src="/assets/icons/line-md--speed.svg"
+              alt=""
+              class="icon-img icon-white player-toolbar-speed-icon"
+              onerror="this.style.display='none';this.parentNode.textContent='Quick cheats';"
+            />
+            <span>Quick cheats</span>
+          </div>
+
+          <div class="player-toolbar-actions" role="group" aria-label="Quick cheat toggles">
+            <button
+              type="button"
+              class="toolbar-icon-btn quick-cheat-btn"
+              data-quick-cheat="halfSpeed"
+              data-tooltip="Slow the island clock to 0.5x for relaxed testing."
+              aria-label="Toggle half-speed cheat"
+              aria-pressed="false"
+            >
+              <img
+                src="/assets/icons/material-symbols--speed-0-5x.svg"
+                alt=".5x"
+                class="icon-img icon-white"
+                onerror="this.style.display='none';this.parentNode.textContent='.5X';"
+              />
+            </button>
+
+            <button
+              type="button"
+              class="toolbar-icon-btn quick-cheat-btn"
+              data-quick-cheat="doubleSpeed"
+              data-tooltip="Run the island clock at 2x to fast-forward routines."
+              aria-label="Toggle double-speed cheat"
+              aria-pressed="false"
+            >
+              <img
+                src="/assets/icons/material-symbols--speed-2x.svg"
+                alt="2x"
+                class="icon-img icon-white"
+                onerror="this.style.display='none';this.parentNode.textContent='2X';"
+              />
+            </button>
+
+            <button
+              type="button"
+              class="toolbar-icon-btn quick-cheat-btn"
+              data-quick-cheat="wallWalk"
+              data-tooltip="Phase through collision edges for movement testing."
+              aria-label="Toggle wall walk cheat"
+              aria-pressed="false"
+            >
+              <img
+                src="/assets/icons/line-md--map-marker-radius.svg"
+                alt="Wall walk"
+                class="icon-img icon-white"
+                onerror="this.style.display='none';this.parentNode.textContent='◎';"
+              />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="player-card">
+        <div class="player-left">
+          <div class="selected-item-preview">
+            <div class="selected-item-label">
+              <span>Selected Item</span>
+              <span id="selected-item-name" class="selected-item-name">Empty slot</span>
+            </div>
+
+            <div
+              id="selected-item-artbox"
+              class="selected-item-artbox"
+              title="Double-click to clear selected slot"
+            >
+              <img id="selected-preview-image" alt="" />
+            </div>
+
+            <div class="selected-item-actions">
+              <button
+                id="open-selected-search-button"
+                class="toolbar-icon-btn square"
+                type="button"
+                aria-label="Search selected item"
+              >
+                <span class="search-glyph">⌕</span>
+              </button>
+
+              <button
+                id="copy-selected-button"
+                class="toolbar-icon-btn square"
+                type="button"
+                aria-label="Copy selected item"
+              >
+                <img
+                  id="copy-selected-icon"
+                  src="/assets/icons/line-md--clipboard.svg"
+                  alt=""
+                  class="icon-img icon-white"
+                  onerror="this.style.display='none';this.parentNode.textContent='⧉';"
+                />
+              </button>
+
+              <button
+                id="paste-selected-button"
+                class="toolbar-icon-btn square"
+                type="button"
+                aria-label="Paste copied item"
+              >
+                <img
+                  src="/assets/icons/line-md--clipboard-check.svg"
+                  alt=""
+                  class="icon-img icon-white"
+                  onerror="this.style.display='none';this.parentNode.textContent='⎘';"
+                />
+              </button>
+
+            </div>
+          </div>
+
           <div class="player-meta">
             <div class="meta-row">
               <span class="meta-key">Player Name:</span>
-              <span id="player-name" class="meta-value">[field]</span>
+              <input id="player-name" class="meta-value meta-input" type="text" aria-label="Player Name" />
             </div>
             <div class="meta-row">
               <span class="meta-key">Town Name:</span>
-              <span id="town-name" class="meta-value">[field]</span>
+              <input id="town-name" class="meta-value meta-input" type="text" aria-label="Town Name" />
             </div>
             <div class="meta-row">
               <span class="meta-key">Wallet:</span>
-              <span id="wallet-value" class="meta-value">[field]</span>
+              <input id="wallet-value" class="meta-value meta-input" type="text" inputmode="numeric" aria-label="Wallet" />
             </div>
             <div class="meta-row">
               <span class="meta-key">Bank Bells:</span>
-              <span id="bank-value" class="meta-value">[field]</span>
+              <input id="bank-value" class="meta-value meta-input" type="text" inputmode="numeric" aria-label="Bank Bells" />
             </div>
             <div class="meta-row">
               <span class="meta-key">Nook Miles:</span>
-              <span id="miles-value" class="meta-value">[field]</span>
+              <input id="miles-value" class="meta-value meta-input" type="text" inputmode="numeric" aria-label="Nook Miles" />
             </div>
 
-            <div class="player-actions">
-              <button type="button" class="action-btn">Edit Player</button>
-              <button type="button" class="action-btn">Edit Items</button>
-            </div>
           </div>
+        </div>
 
-          <div class="player-avatar-wrap">
-            <div class="avatar-label">Image:</div>
-            <div class="avatar-box">
+        <div class="player-avatar-wrap">
+          <button
+            id="player-avatar-button"
+            class="avatar-box avatar-button"
+            type="button"
+            aria-label="Open Edit Player modal"
+          >
+            <img
+              id="player-avatar"
+              class="player-avatar"
+              alt="Player avatar"
+              src="/assets/items/Bob_NH.png"
+            />
+            <span class="avatar-edit-chip" aria-hidden="true">
               <img
-                id="player-avatar"
-                class="player-avatar"
-                alt="Player avatar"
-                src="/assets/items/Bob_NH.png"
+                src="/assets/icons/line-md--pencil.svg"
+                alt=""
+                class="icon-img icon-white"
+                onerror="this.style.display='none';this.parentNode.textContent='✎';"
               />
-            </div>
+            </span>
+          </button>
+        </div>
+      </div>
+
+        <div class="inventory-area">
+          <div id="inventory-card" class="inventory-card">
+            <div id="inventory-grid" class="inventory-grid"></div>
           </div>
-        </div>
 
-        <div class="inventory-card">
-          <div id="inventory-grid" class="inventory-grid"></div>
-        </div>
-
-        <div class="inventory-foot">
-          <div id="connection-line">No connection active</div>
-          <div id="selection-line">No item selected</div>
+          <div class="shortcut-column">
+            <button type="button" class="shortcut-btn" data-filter="Tool">tools</button>
+            <button type="button" class="shortcut-btn" data-filter="Material">material</button>
+            <button type="button" class="shortcut-btn" data-filter="Sea creature">sea</button>
+          </div>
         </div>
       </section>
 
-      <section class="search-panel">
-        <div class="search-strip">
-          <input
-            id="search-input"
-            class="search-input"
-            type="text"
-            placeholder="Search"
-            autocomplete="off"
+    <section class="tabs-panel shell-card">
+      <div class="tab-bar" role="tablist" aria-label="Editor sections">
+        <button
+          id="tab-village"
+          class="tab-btn is-active"
+          type="button"
+          role="tab"
+          aria-selected="true"
+          aria-controls="tab-panel-village"
+          data-tab="village"
+        >
+          Village
+        </button>
+
+        <button
+          id="tab-villagers"
+          class="tab-btn"
+          type="button"
+          role="tab"
+          aria-selected="false"
+          aria-controls="tab-panel-villagers"
+          data-tab="villagers"
+        >
+          Villagers
+        </button>
+
+        <button
+          id="tab-map"
+          class="tab-btn"
+          type="button"
+          role="tab"
+          aria-selected="false"
+          aria-controls="tab-panel-map"
+          data-tab="map"
+        >
+          Map
+        </button>
+      </div>
+
+      <div class="tab-panels">
+        <section
+          id="tab-panel-village"
+          class="tab-panel is-active"
+          role="tabpanel"
+          aria-labelledby="tab-village"
+        >
+          <div class="tab-layout">
+            <div class="tab-panel-copy">
+              <h3>Village Overview</h3>
+              <p>Offline pocket session, category mix, and current item focus.</p>
+            </div>
+
+            <div class="tab-stat-grid">
+              <article class="tab-stat-card">
+                <span class="tab-stat-label">Filled Slots</span>
+                <strong id="tab-filled-slots">0 / 40</strong>
+              </article>
+
+              <article class="tab-stat-card">
+                <span class="tab-stat-label">Stack Total</span>
+                <strong id="tab-stack-total">0</strong>
+              </article>
+
+              <article class="tab-stat-card">
+                <span class="tab-stat-label">Selected Category</span>
+                <strong id="tab-active-category">Empty</strong>
+              </article>
+            </div>
+
+            <div class="tab-dual-grid">
+              <article class="tab-card">
+                <h4>Category Mix</h4>
+                <div id="tab-category-list" class="tab-list"></div>
+              </article>
+
+              <article class="tab-card">
+                <h4>Selected Slot</h4>
+                <div class="tab-kv-list">
+                  <div class="tab-kv-row">
+                    <span>Item</span>
+                    <strong id="tab-selection-name">Empty slot</strong>
+                  </div>
+                  <div class="tab-kv-row">
+                    <span>Hex</span>
+                    <strong id="tab-selection-hex">00000000</strong>
+                  </div>
+                  <div class="tab-kv-row">
+                    <span>Source</span>
+                    <strong id="tab-selection-source">No source</strong>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="tab-panel-villagers"
+          class="tab-panel"
+          role="tabpanel"
+          aria-labelledby="tab-villagers"
+          hidden
+        >
+          <div class="tab-layout">
+            <div class="tab-panel-copy">
+              <h3>Villagers Workbench</h3>
+              <p>The villager-specific editor is still queued, but the session shell now tracks the live player profile and what is already wired.</p>
+            </div>
+
+            <div class="tab-dual-grid">
+              <article class="tab-card">
+                <h4>Player Snapshot</h4>
+                <div class="tab-kv-list">
+                  <div class="tab-kv-row">
+                    <span>Name</span>
+                    <strong id="tab-player-summary-name">Barbara</strong>
+                  </div>
+                  <div class="tab-kv-row">
+                    <span>Town</span>
+                    <strong id="tab-player-summary-town">Okemos</strong>
+                  </div>
+                  <div class="tab-kv-row">
+                    <span>Wallet</span>
+                    <strong id="tab-player-summary-wallet">1,246</strong>
+                  </div>
+                  <div class="tab-kv-row">
+                    <span>Nook Miles</span>
+                    <strong id="tab-player-summary-miles">9,999,999</strong>
+                  </div>
+                </div>
+              </article>
+
+              <article class="tab-card">
+                <h4>Editor Queue</h4>
+                <div class="tab-bullet-list">
+                  <div class="tab-bullet-row">
+                    <span class="status-dot is-live"></span>
+                    <span>Pocket item assignment is live</span>
+                  </div>
+                  <div class="tab-bullet-row">
+                    <span class="status-dot is-live"></span>
+                    <span>Player values persist locally</span>
+                  </div>
+                  <div class="tab-bullet-row">
+                    <span class="status-dot"></span>
+                    <span>Villager roster editing is next in line</span>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="tab-panel-map"
+          class="tab-panel"
+          role="tabpanel"
+          aria-labelledby="tab-map"
+          hidden
+        >
+          <div class="tab-layout">
+            <div class="tab-panel-copy">
+              <h3>Map Diagnostics</h3>
+              <p>Bridge readiness, cache state, and the exact selected slot payload that would be used for sync work.</p>
+            </div>
+
+            <div class="tab-dual-grid">
+              <article class="tab-card">
+                <h4>Bridge State</h4>
+                <div class="tab-kv-list">
+                  <div class="tab-kv-row">
+                    <span>Status</span>
+                    <strong id="tab-bridge-state">Offline</strong>
+                  </div>
+                  <div class="tab-kv-row">
+                    <span>Mode</span>
+                    <strong id="tab-bridge-mode">offline inventory</strong>
+                  </div>
+                  <div class="tab-kv-row">
+                    <span>Cache</span>
+                    <strong id="tab-storage-state">Ready</strong>
+                  </div>
+                </div>
+              </article>
+
+              <article class="tab-card">
+                <h4>Selected Payload</h4>
+                <pre id="tab-session-json" class="mini-code-block">{}</pre>
+              </article>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <footer class="footer-mark">
+      <img src="/assets/icons/NL_Logo_Japanese.png" alt="Footer logo" />
+      <a
+        class="footer-watermark"
+        href="https://doxxus.us/"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Visit doxxus.us"
+      >
+        doxxus.us
+      </a>
+    </footer>
+  </div>
+
+  <button
+    id="debug-reload-button"
+    class="debug-reload-tab"
+    type="button"
+    aria-label="Reload app"
+    title="Reload app"
+  >
+    <span class="debug-reload-orbit" aria-hidden="true"></span>
+    <span class="debug-reload-core">
+      <img
+        src="/assets/icons/fa7-solid--bugs.svg"
+        alt=""
+        class="debug-reload-icon"
+      />
+      <span class="debug-reload-status" aria-hidden="true">
+        <img
+          id="debug-reload-status-icon"
+          src="/assets/icons/line-md--pause-to-play-filled-transition.svg"
+          alt=""
+          class="debug-reload-status-icon"
+        />
+      </span>
+    </span>
+  </button>
+
+  <div id="music-ribbon" class="music-ribbon" aria-live="polite">
+    <div id="music-ribbon-drawer" class="music-ribbon-drawer" aria-hidden="true">
+      <button
+        id="music-ribbon-toggle"
+        class="music-ribbon-tab"
+        type="button"
+        aria-expanded="false"
+        aria-controls="music-ribbon-drawer"
+        aria-label="Open music browser"
+      >
+        <img
+          src="/assets/icons/Aircheck_NH_Inv_Icon.png"
+          alt=""
+          class="music-ribbon-tab-icon"
+        />
+      </button>
+
+      <div class="music-player-shell">
+        <div class="music-artbox">
+          <img
+            id="music-artwork"
+            src="/assets/icons/Aircheck_NH_Inv_Icon.png"
+            alt=""
           />
         </div>
 
-        <div id="results-list" class="results-list"></div>
-      </section>
+        <div class="music-player-copy">
+          <span id="music-source-badge" class="music-source-badge">Night ambient preset</span>
+          <strong id="music-track-title">4 AM Rainy Weather</strong>
+          <span id="music-track-meta" class="music-track-meta">Queued for night mode</span>
 
-      <aside class="details-panel">
-        <div class="detail-card">
-          <div class="detail-card-head">
-            <div class="detail-title-block">
-              <h2 id="detail-name">No item selected</h2>
-              <div id="detail-badges" class="detail-badges"></div>
-            </div>
-
-            <div class="detail-actions">
-              <button type="button" class="detail-action">⛓</button>
-              <button type="button" class="detail-action">⊕</button>
-              <button type="button" class="detail-action">✎</button>
-            </div>
-          </div>
-
-          <div class="detail-upper">
-            <div class="detail-thumb-box">
-              <img id="detail-icon" class="detail-thumb" alt="" />
-            </div>
-
-            <div class="detail-summary">
-              <div class="summary-row">
-                <span class="summary-key">Category:</span>
-                <span id="detail-category" class="summary-value">—</span>
-              </div>
-              <div class="summary-row">
-                <span class="summary-key">Subcategory:</span>
-                <span id="detail-subcategory" class="summary-value">—</span>
-              </div>
-              <div class="summary-row">
-                <span class="summary-key">Source:</span>
-                <span id="detail-source" class="summary-value">local offline asset</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="detail-stats">
-            <div class="stat-cell">
-              <span class="stat-label">Pocket</span>
-              <span id="detail-file-name" class="stat-value">—</span>
-            </div>
-            <div class="stat-cell">
-              <span class="stat-label">ID</span>
-              <span id="detail-id" class="stat-value">—</span>
-            </div>
-            <div class="stat-cell">
-              <span class="stat-label">Color</span>
-              <span id="detail-color" class="stat-value">—</span>
-            </div>
-            <div class="stat-cell">
-              <span class="stat-label">Size</span>
-              <span id="detail-size" class="stat-value">—</span>
-            </div>
-          </div>
-
-          <div class="detail-preview-panel">
-            <img id="detail-preview" class="detail-preview" alt="" />
-          </div>
-
-          <div class="files-panel">
-            <div class="files-title">Files</div>
-            <div id="detail-files" class="files-list"></div>
+          <div id="music-progress" class="music-progress is-ambient" aria-hidden="true">
+            <span id="music-progress-bar" class="music-progress-bar"></span>
           </div>
         </div>
-      </aside>
-    </main>
 
-    <div id="settings-modal" class="settings-modal hidden">
-      <div class="settings-card">
-        <div class="settings-head">
-          <h2>Settings Modal</h2>
-          <button id="settings-close" class="settings-close" type="button">×</button>
+        <div class="music-player-controls" role="group" aria-label="Music playback controls">
+          <button id="music-prev-button" type="button" class="music-control-btn" aria-label="Previous track">⏮</button>
+          <button id="music-play-button" type="button" class="music-control-btn music-control-btn-primary" aria-label="Play music">
+            <img
+              id="music-play-icon"
+              src="/assets/icons/line-md--pause-to-play-filled-transition.svg"
+              alt=""
+              class="music-control-icon"
+            />
+          </button>
+          <button id="music-next-button" type="button" class="music-control-btn" aria-label="Next track">⏭</button>
+        </div>
+      </div>
+
+      <div class="music-browser-row">
+        <label class="music-field music-library-field">
+          <span>Library</span>
+          <select id="music-library-select" aria-label="Music library"></select>
+        </label>
+
+        <label class="music-field music-volume-field">
+          <span>Volume</span>
+          <input
+            id="music-volume"
+            type="range"
+            min="0"
+            max="100"
+            value="58"
+            aria-label="Music volume"
+          />
+        </label>
+      </div>
+    </div>
+
+    <audio id="music-audio" preload="none"></audio>
+  </div>
+
+  <div
+    id="settings-modal"
+    class="modal hidden"
+    aria-hidden="true"
+    aria-modal="true"
+    role="dialog"
+    aria-labelledby="settings-modal-title"
+  >
+    <div class="modal-card modal-card-settings modal-fade">
+      <div class="modal-head">
+        <h2 id="settings-modal-title">Settings</h2>
+        <button
+          id="settings-close"
+          class="icon-button modal-close"
+          type="button"
+          aria-label="Close settings"
+        >
+          ×
+        </button>
+      </div>
+
+      <div class="settings-greeting">Welcome, user.</div>
+
+      <div class="settings-debug-box">
+        <span id="settings-debug-output">Waiting for status</span>
+
+        <button
+          id="settings-debug-refresh"
+          class="settings-debug-action"
+          type="button"
+          aria-label="Debug status"
+        >
+          <img
+            src="/assets/icons/line-md--downloading-loop.svg"
+            alt=""
+            class="icon-img icon-white"
+            onerror="this.style.display='none';this.parentNode.textContent='↻';"
+          />
+        </button>
+      </div>
+
+      <div class="settings-bottom">
+        <button
+          id="settings-github-button"
+          type="button"
+          class="settings-github-btn"
+          aria-label="GitHub"
+        >
+          <img
+            src="/assets/icons/line-md--github.svg"
+            alt=""
+            class="icon-img icon-white"
+            onerror="this.style.display='none';this.parentNode.textContent='GH';"
+          />
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div
+    id="player-modal"
+    class="modal hidden"
+    aria-hidden="true"
+    aria-modal="true"
+    role="dialog"
+    aria-labelledby="player-modal-title"
+  >
+    <div class="modal-card modal-card-form modal-fade">
+      <div class="modal-head">
+        <h2 id="player-modal-title">Edit Player</h2>
+        <button class="icon-button modal-close" type="button" data-close-modal="player-modal">×</button>
+      </div>
+
+      <div class="player-modal-shell">
+        <aside class="player-modal-aside">
+          <div class="player-modal-bust-card">
+            <div class="player-modal-bust-frame">
+              <img
+                id="player-modal-bust"
+                class="player-modal-bust-image"
+                alt="Player bust preview"
+                src="/assets/items/Bob_NH.png"
+              />
+            </div>
+
+            <div class="player-modal-bust-copy">
+              <strong id="player-modal-bust-name">Barbara</strong>
+              <span id="player-modal-bust-town">Okemos</span>
+            </div>
+          </div>
+
+          <div class="player-modal-nav">
+            <button
+              id="player-modal-section-player"
+              type="button"
+              class="action-btn player-modal-section-btn is-active"
+              data-player-section="player"
+            >
+              Player
+            </button>
+            <button
+              id="player-modal-section-storage"
+              type="button"
+              class="action-btn player-modal-section-btn"
+              data-player-section="storage"
+            >
+              Storage
+            </button>
+            <button
+              id="player-modal-section-flags"
+              type="button"
+              class="action-btn player-modal-section-btn"
+              data-player-section="flags"
+            >
+              Edit Flags
+            </button>
+          </div>
+        </aside>
+
+        <div class="player-modal-main">
+          <section id="player-modal-view-player" class="player-modal-view">
+            <div class="form-grid player-modal-form-grid">
+              <label class="field-wrap">
+                <span>Player Name</span>
+                <input id="player-input-name" type="text" />
+              </label>
+
+              <label class="field-wrap">
+                <span>Town Name</span>
+                <input id="player-input-town" type="text" />
+              </label>
+
+              <label class="field-wrap">
+                <span>Wallet</span>
+                <input id="player-input-wallet" type="number" />
+              </label>
+
+              <label class="field-wrap">
+                <span>Bank Bells</span>
+                <input id="player-input-bank" type="number" />
+              </label>
+
+              <label class="field-wrap">
+                <span>Nook Miles</span>
+                <input id="player-input-miles" type="number" />
+              </label>
+            </div>
+          </section>
+
+          <section id="player-modal-view-storage" class="player-modal-view" hidden>
+            <div class="player-modal-placeholder tab-card">
+              <h4>Player Storage</h4>
+              <p>Storage read and write flow is staged for the bridge MVP. This view is ready to receive storage tools next.</p>
+              <pre class="mini-code-block player-modal-console">{
+  "mode": "storage",
+  "status": "coming soon",
+  "notes": "wire to live bridge read/write"
+}</pre>
+            </div>
+          </section>
+
+          <section id="player-modal-view-flags" class="player-modal-view" hidden>
+            <div class="player-flags-shell">
+              <div class="player-flags-bar" role="tablist" aria-label="Edit flags sections">
+                <button type="button" class="player-flags-tab-btn is-active" data-player-flags-tab="recipes" role="tab" aria-selected="true">Recipes</button>
+                <button type="button" class="player-flags-tab-btn" data-player-flags-tab="reactions" role="tab" aria-selected="false">Reactions</button>
+                <button type="button" class="player-flags-tab-btn" data-player-flags-tab="received" role="tab" aria-selected="false">Received</button>
+                <button type="button" class="player-flags-tab-btn" data-player-flags-tab="achievements" role="tab" aria-selected="false">Achievements</button>
+                <button type="button" class="player-flags-tab-btn" data-player-flags-tab="flags" role="tab" aria-selected="false">Flags</button>
+                <button type="button" class="player-flags-tab-btn" data-player-flags-tab="misc" role="tab" aria-selected="false">Misc</button>
+              </div>
+
+              <div class="player-flags-panels">
+                <section id="player-flags-panel-recipes" class="player-flags-panel is-active" role="tabpanel">
+                  <div class="player-modal-placeholder tab-card">
+                    <h4>Recipes</h4>
+                    <p>Recipe flag editing will land here, including known DIY sets and unlocked-state batch tools.</p>
+                    <pre class="mini-code-block player-modal-console">Recipes queue
+- learned DIY set sync
+- search by recipe id
+- batch unlock / restore</pre>
+                  </div>
+                </section>
+
+                <section id="player-flags-panel-reactions" class="player-flags-panel" role="tabpanel" hidden>
+                  <div class="player-modal-placeholder tab-card">
+                    <h4>Reactions</h4>
+                    <p>Reaction unlock flags will live here with quick presets and villager-learning state.</p>
+                    <pre class="mini-code-block player-modal-console">Reactions queue
+- unlocked emotes
+- missing reactions
+- sync from save state</pre>
+                  </div>
+                </section>
+
+                <section id="player-flags-panel-received" class="player-flags-panel" role="tabpanel" hidden>
+                  <div class="player-modal-placeholder tab-card">
+                    <h4>Received</h4>
+                    <p>Mail, gifts, and receipt-style state flags can be staged here once the data map is wired.</p>
+                    <pre class="mini-code-block player-modal-console">Received queue
+- gift flags
+- mail markers
+- catalog receipt state</pre>
+                  </div>
+                </section>
+
+                <section id="player-flags-panel-achievements" class="player-flags-panel" role="tabpanel" hidden>
+                  <div class="player-modal-placeholder tab-card">
+                    <h4>Achievements</h4>
+                    <p>Nook Miles achievement progress and completion markers will live here.</p>
+                    <pre class="mini-code-block player-modal-console">Achievements queue
+- progress values
+- completion bits
+- milestone rewards</pre>
+                  </div>
+                </section>
+
+                <section id="player-flags-panel-flags" class="player-flags-panel" role="tabpanel" hidden>
+                  <div class="player-modal-placeholder tab-card">
+                    <h4>Flags</h4>
+                    <p>Raw story and feature flags can be surfaced here for lower-level editing.</p>
+                    <pre class="mini-code-block player-modal-console">Flags queue
+- story toggles
+- plaza unlocks
+- feature state bits</pre>
+                  </div>
+                </section>
+
+                <section id="player-flags-panel-misc" class="player-flags-panel" role="tabpanel" hidden>
+                  <div class="player-modal-placeholder tab-card">
+                    <h4>Misc</h4>
+                    <p>Catch-all player state that does not belong to the other buckets can live here.</p>
+                    <pre class="mini-code-block player-modal-console">Misc queue
+- title state
+- island intro markers
+- event leftovers</pre>
+                  </div>
+                </section>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <div id="player-modal-footer" class="modal-actions player-modal-footer">
+        <button id="player-modal-save" type="button" class="action-btn action-btn-solid">Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <div
+    id="item-modal"
+    class="modal hidden"
+    aria-hidden="true"
+    aria-modal="true"
+    role="dialog"
+    aria-labelledby="modal-pocket-title"
+  >
+    <div class="modal-card modal-card-item modal-fade">
+      <div class="modal-head">
+        <h2 id="modal-pocket-title">Pocket 6</h2>
+        <button class="icon-button modal-close" type="button" data-close-modal="item-modal">×</button>
+      </div>
+
+      <div class="item-modal-layout">
+        <div class="item-modal-preview-wrap">
+          <div class="item-modal-artbox">
+            <img id="modal-item-preview" alt="" />
+          </div>
+
+          <div class="item-modal-payload-block">
+            <div class="item-modal-payload-label">Selected Payload</div>
+            <pre id="modal-selected-payload" class="code-block modal-payload-console">{}</pre>
+          </div>
         </div>
 
-        <div class="settings-debug">Welcome, User!</div>
+        <div class="item-modal-main">
+          <div class="item-modal-summary">
+            <div id="modal-item-name" class="item-modal-name">Empty slot</div>
 
-        <div class="settings-debug-box">
-          <span>Debug Output</span>
-        </div>
+            <div class="item-modal-stats-grid">
+              <label class="field-wrap compact-field">
+                <span>Count</span>
+                <input id="modal-input-count" type="number" min="0" />
+              </label>
 
-        <div class="settings-links">
-          <button type="button" class="settings-link-btn">Discord</button>
-          <button type="button" class="settings-link-btn">Download Loop</button>
-          <button type="button" class="settings-link-btn">Heart</button>
-          <button type="button" class="settings-link-btn settings-link-btn-bottom">Log out</button>
+              <label class="field-wrap compact-field">
+                <span>Uses</span>
+                <input id="modal-input-uses" type="number" min="0" />
+              </label>
+
+              <label class="field-wrap compact-field">
+                <span>Flag0</span>
+                <input id="modal-input-flag0" type="number" min="0" />
+              </label>
+
+              <label class="field-wrap compact-field">
+                <span>Flag1</span>
+                <input id="modal-input-flag1" type="number" min="0" />
+              </label>
+            </div>
+
+            <div class="item-modal-stat-line"><span>Hex:</span><strong id="modal-hex">00000000</strong></div>
+          </div>
+
+          <div class="item-modal-search-row">
+            <button id="modal-search-focus-button" class="search-side-icon" type="button" aria-label="Search">
+              <span class="search-glyph">⌕</span>
+            </button>
+
+            <div class="item-modal-search-stack">
+              <input
+                id="modal-search-input"
+                class="search-input"
+                type="text"
+                placeholder="Search item"
+                autocomplete="off"
+              />
+              <div id="modal-results-list" class="modal-results-list"></div>
+              <div class="modal-search-filters" role="group" aria-label="Item search filters">
+                <button type="button" class="modal-filter-btn" data-modal-filter="Tool">tools</button>
+                <button type="button" class="modal-filter-btn" data-modal-filter="Material">materials</button>
+                <button type="button" class="modal-filter-btn" data-modal-filter="Sea creature">aquatic</button>
+                <button type="button" class="modal-filter-btn" data-modal-filter="Bug">bugs</button>
+                <button type="button" class="modal-filter-btn" data-modal-filter="Fossil">fossils</button>
+                <button type="button" class="modal-filter-btn" data-modal-filter="Flora">flora</button>
+                <button type="button" class="modal-filter-btn" data-modal-filter="Furniture">furniture</button>
+                <button type="button" class="modal-filter-btn" data-modal-filter="Clothing">clothes</button>
+              </div>
+            </div>
+
+            <button id="clear-item-button" type="button" class="trash-button" aria-label="Clear slot">
+              <img
+                src="/assets/icons/line-md--trash.svg"
+                alt=""
+                class="icon-img icon-white"
+                onerror="this.style.display='none';this.parentNode.textContent='🗑';"
+              />
+            </button>
+          </div>
+
+          <div class="modal-actions">
+            <button id="item-modal-apply" type="button" class="action-btn action-btn-solid">Apply</button>
+          </div>
         </div>
       </div>
     </div>

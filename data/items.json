@@ -183,6 +183,18 @@
     ]
   },
   {
+    "name": "Halo",
+    "category": "Clothing",
+    "icon_url": "/assets/items/Halo_NH_Icon.png",
+    "image_url": "/assets/items/Halo_NH_Icon.png",
+    "internal_id": 39,
+    "file_name": "Halo",
+    "source_notes": "local offline asset; Nookipedia data reference; headwear item",
+    "source_files": [
+      "Halo_NH_Icon.png"
+    ]
+  },
+  {
     "name": "Hardwood",
     "category": "Material",
     "icon_url": "/assets/items/Hardwood_NH_Icon.png",
