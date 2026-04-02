@@ -2,16 +2,18 @@
   'use strict';
 
   const TOTAL_SLOTS = 40;
-  const STORAGE_KEY = 'acnh-live-editor-state-v4';
+  const STORAGE_KEY = 'acnh-live-editor-state-v5';
   const REPO_URL = 'https://github.com/m-ccool/acnh-live-editor';
-  const SERVICE_WORKER_VERSION = '39';
+  const SERVICE_WORKER_VERSION = '46';
   const PLAY_ICON_PATH = '/assets/icons/line-md--pause-to-play-filled-transition.svg';
   const PAUSE_ICON_PATH = '/assets/icons/line-md--pause.svg';
   const CONSOLE_CONNECTED_ICON_PATH = '/assets/icons/codicon--debug-connect.svg';
   const CONSOLE_DISCONNECTED_ICON_PATH = '/assets/icons/codicon--debug-disconnect.svg';
+  const DEFAULT_MUSIC_ARTWORK_PATH = '/assets/icons/Aircheck_NH_Inv_Icon.png';
   const THEME_SUNRISE = 'sunrise';
   const THEME_NIGHT = 'night';
-  const DEFAULT_MUSIC_RIBBON_TOP_VH = 28;
+  const DEFAULT_MUSIC_RIBBON_TOP_VH = 56;
+  const DEFAULT_LOG_PANEL_HEIGHT_VH = 13;
   const DEFAULT_MUSIC_LIBRARY = Object.freeze({
     defaultNightTrackId: 'ambient-4am-rainy',
     defaultSunriseTrackId: 'sunrise-animal-crossing-theme',
@@ -24,7 +26,7 @@
         source: 'Night ambient preset',
         attribution: 'Nintendo Music artwork via Nookipedia',
         audioUrl: null,
-        artworkUrl: '/assets/icons/Aircheck_NH_Inv_Icon.png',
+        artworkUrl: DEFAULT_MUSIC_ARTWORK_PATH,
         referenceUrl: 'https://nookipedia.com/wiki/K.K._Slider_songs'
       },
       {
@@ -35,19 +37,20 @@
         source: 'Sunrise default theme',
         attribution: 'Animal Crossing: Your Favourite Songs - Original Soundtrack',
         audioUrl: 'https://static.wikia.nocookie.net/animalcrossing/images/3/36/ACCF_Main_Theme.ogg/revision/latest?cb=20150816212904',
-        artworkUrl: '/assets/icons/Aircheck_NH_Inv_Icon.png',
+        artworkUrl: DEFAULT_MUSIC_ARTWORK_PATH,
         referenceUrl: 'https://nookipedia.com/wiki/Animal_Crossing:_Your_Favourite_Songs_-_Original_Soundtrack'
       }
     ]
   });
   const DEFAULT_MUSIC_STATE = Object.freeze({
-    drawerOpen: false,
+    drawerOpen: true,
     selectedTrackId: DEFAULT_MUSIC_LIBRARY.defaultSunriseTrackId,
     defaultNightTrackId: DEFAULT_MUSIC_LIBRARY.defaultNightTrackId,
     defaultSunriseTrackId: DEFAULT_MUSIC_LIBRARY.defaultSunriseTrackId,
     library: DEFAULT_MUSIC_LIBRARY.tracks.slice(),
     ribbonTopVh: DEFAULT_MUSIC_RIBBON_TOP_VH,
     volume: 0.58,
+    loopEnabled: false,
     wantsPlayback: false,
     isPlaying: false,
     manualTrackChoice: false,
@@ -73,6 +76,15 @@
     lastX: 0,
     lastY: 0
   };
+  const inventoryTouchTap = {
+    index: -1,
+    at: 0
+  };
+  const shortcutFilterTap = {
+    filter: '',
+    at: 0,
+    armedForClear: false
+  };
   const ambientPlayer = {
     context: null,
     masterGain: null,
@@ -88,6 +100,12 @@
     startY: 0,
     startTopVh: DEFAULT_MUSIC_RIBBON_TOP_VH
   };
+  const logPanelDrag = {
+    pointerId: null,
+    active: false,
+    startY: 0,
+    startHeightVh: DEFAULT_LOG_PANEL_HEIGHT_VH
+  };
 
   const DEFAULT_PLAYER = {
     name: 'Barbara',
@@ -101,10 +119,37 @@
   const DEFAULT_BRIDGE_STATE = {
     connected: false,
     ip: '00.00.00.00',
-    mode: 'offline inventory',
-    message: 'Bridge handshake pending. Read/write disabled.',
-    lastAction: 'Booted offline shell'
+    mode: 'offline',
+    message: 'Bridge listener offline.',
+    lastAction: 'Waiting for bridge activity',
+    host: '0.0.0.0',
+    port: 32840,
+    listening: false,
+    deviceName: null,
+    protocolVersion: null,
+    capabilities: [],
+    pendingRequests: 0,
+    lastCommand: null,
+    lastResponse: null,
+    remoteStatus: null,
+    lastError: null
   };
+  const DEFAULT_CATALOG_STATE = Object.freeze({
+    connectionState: 'fallback',
+    label: 'Local',
+    message: 'Using local starter catalog.',
+    searchableCount: 0,
+    localCount: 0,
+    cachedCount: 0,
+    liveConnected: false,
+    hasActiveRefresh: false
+  });
+  const MODAL_SEARCH_LIMIT = 12;
+  const MODAL_SEARCH_DEBOUNCE_MS = 180;
+  const REMOTE_SEARCH_MIN_QUERY_LENGTH = 2;
+  const LOOKUP_ITEM_LIMIT = 120;
+  let modalSearchDebounceId = 0;
+  let modalSearchToken = 0;
 
   const DEFAULT_FILLED_SLOTS = [
     { slot: 1, itemName: 'Golden Axe', count: 1, uses: 27, flag0: 0, flag1: 0 },
@@ -123,6 +168,14 @@
   const state = {
     player: { ...DEFAULT_PLAYER },
     bridge: { ...DEFAULT_BRIDGE_STATE },
+    catalog: {
+      ...DEFAULT_CATALOG_STATE,
+      modalResults: [],
+      modalLoading: false,
+      lookupItems: [],
+      diagnostics: null,
+      diagnosticsLoading: false
+    },
     items: [],
     inventory: [],
     copiedSlotPayload: null,
@@ -131,11 +184,13 @@
     modalSearchQuery: '',
     modalSearchFilter: 'all',
     modalSearchOpen: false,
+    modalPendingItem: null,
     activeTab: 'village',
     activeFilter: 'all',
     theme: THEME_SUNRISE,
     playerModalSection: 'player',
     playerFlagsTab: 'recipes',
+    logPanelHeightVh: DEFAULT_LOG_PANEL_HEIGHT_VH,
     quickCheats: { ...DEFAULT_QUICK_CHEATS },
     music: {
       ...DEFAULT_MUSIC_STATE,
@@ -167,8 +222,10 @@
     el.timeDisplay = document.getElementById('time-display');
 
     el.catalogStatus = document.getElementById('catalog-status');
+    el.catalogStatusLabel = document.getElementById('catalog-status-label');
     el.bridgeStatusInline = document.getElementById('bridge-status-inline');
     el.bridgeStatus = document.getElementById('bridge-status');
+    el.logPanelResizeHandle = document.getElementById('log-panel-resize-handle');
     el.ipDisplay = document.getElementById('ip-display');
     el.logConnectionIndicator = document.getElementById('log-connection-indicator');
     el.logConnectionIcon = document.getElementById('log-connection-icon');
@@ -179,7 +236,6 @@
     el.bridgeToggle = document.getElementById('bridge-toggle');
     el.logRefreshButton = document.getElementById('log-refresh-button');
     el.debugReloadButton = document.getElementById('debug-reload-button');
-    el.debugReloadStatusIcon = document.getElementById('debug-reload-status-icon');
     el.musicRibbon = document.getElementById('music-ribbon');
     el.musicRibbonDrawer = document.getElementById('music-ribbon-drawer');
     el.musicRibbonToggle = document.getElementById('music-ribbon-toggle');
@@ -190,6 +246,7 @@
     el.musicTrackMeta = document.getElementById('music-track-meta');
     el.musicProgress = document.getElementById('music-progress');
     el.musicProgressBar = document.getElementById('music-progress-bar');
+    el.musicLoopButton = document.getElementById('music-loop-button');
     el.musicPrevButton = document.getElementById('music-prev-button');
     el.musicPlayButton = document.getElementById('music-play-button');
     el.musicPlayIcon = document.getElementById('music-play-icon');
@@ -221,6 +278,7 @@
     el.settingsModal = document.getElementById('settings-modal');
     el.settingsClose = document.getElementById('settings-close');
     el.settingsDebugOutput = document.getElementById('settings-debug-output');
+    el.settingsCatalogOutput = document.getElementById('settings-catalog-output');
     el.settingsDebugRefresh = document.getElementById('settings-debug-refresh');
     el.settingsGithubButton = document.getElementById('settings-github-button');
 
@@ -284,7 +342,10 @@
   }
 
   function bindEvents() {
-    el.settingsButton.addEventListener('click', () => openModal(el.settingsModal));
+    el.settingsButton.addEventListener('click', () => {
+      openModal(el.settingsModal);
+      refreshCatalogDiagnostics();
+    });
     el.settingsClose.addEventListener('click', () => closeModal(el.settingsModal));
     el.settingsDebugRefresh.addEventListener('click', () => {
       refreshBridgeStatus('Settings panel refreshed');
@@ -295,12 +356,23 @@
     if (el.debugReloadButton) {
       el.debugReloadButton.addEventListener('click', reloadAppShell);
     }
+    if (el.logPanelResizeHandle) {
+      el.logPanelResizeHandle.addEventListener('pointerdown', handleLogPanelResizeStart);
+    }
     el.themeToggle.addEventListener('click', toggleTheme);
     el.musicRibbonToggle.addEventListener('click', handleMusicRibbonToggleClick);
     el.musicRibbonToggle.addEventListener('pointerdown', handleMusicRibbonDragStart);
     el.musicRibbonToggle.addEventListener('pointermove', handleMusicRibbonDragMove);
     el.musicRibbonToggle.addEventListener('pointerup', handleMusicRibbonDragEnd);
     el.musicRibbonToggle.addEventListener('pointercancel', handleMusicRibbonDragEnd);
+    el.musicLoopButton.addEventListener('click', () => {
+      state.music.loopEnabled = !state.music.loopEnabled;
+      if (el.musicAudio) {
+        el.musicAudio.loop = state.music.loopEnabled;
+      }
+      renderMusic();
+      persistLocalState();
+    });
     el.musicPrevButton.addEventListener('click', () => {
       shiftMusicTrack(-1, true);
     });
@@ -342,6 +414,10 @@
       el.musicAudio.addEventListener('timeupdate', renderMusicProgress);
       el.musicAudio.addEventListener('loadedmetadata', renderMusicProgress);
       el.musicAudio.addEventListener('ended', () => {
+        if (state.music.loopEnabled) {
+          return;
+        }
+
         if (state.music.wantsPlayback) {
           shiftMusicTrack(1, false);
           return;
@@ -375,26 +451,26 @@
     bindInlinePlayerFieldEvents();
 
     el.openSelectedSearchButton.addEventListener('click', () => openItemModalForSelectedSlot());
+    el.selectedItemArtbox.addEventListener('click', () => openItemModalForSelectedSlot());
 
     el.copySelectedButton.addEventListener('click', handleSelectedClipboardButton);
     el.pasteSelectedButton.addEventListener('click', pasteCopiedSlotPayload);
-    el.selectedItemArtbox.addEventListener('dblclick', clearSelectedSlot);
 
     el.modalSearchInput.addEventListener('input', (event) => {
       state.modalSearchQuery = event.target.value || '';
       state.modalSearchOpen = true;
-      renderItemModalResults();
+      queueModalSearch();
     });
 
     el.modalSearchInput.addEventListener('focus', () => {
       state.modalSearchOpen = true;
-      renderItemModalResults();
+      queueModalSearch(true);
     });
 
     if (el.modalSearchStack) {
       el.modalSearchStack.addEventListener('focusin', () => {
         state.modalSearchOpen = true;
-        renderItemModalResults();
+        queueModalSearch(true);
       });
 
       el.modalSearchStack.addEventListener('focusout', (event) => {
@@ -426,7 +502,7 @@
         const nextFilter = button.dataset.modalFilter || 'all';
         state.modalSearchFilter = state.modalSearchFilter === nextFilter ? 'all' : nextFilter;
         state.modalSearchOpen = true;
-        renderItemModalResults();
+        queueModalSearch(true);
       });
     });
 
@@ -438,11 +514,7 @@
 
     el.shortcutButtons.forEach((button) => {
       button.addEventListener('click', () => {
-        state.activeFilter = button.dataset.filter || 'all';
-        renderShortcutButtons();
-        renderInventory();
-        renderDerivedPanels();
-        persistLocalState();
+        handleShortcutFilterPress(button.dataset.filter || 'all');
       });
     });
 
@@ -465,16 +537,7 @@
     });
 
     el.bridgeToggle.addEventListener('click', () => {
-      state.bridge.connected = !state.bridge.connected;
-      state.bridge.message = state.bridge.connected
-        ? 'Bridge UI enabled. Sync transport still mocked.'
-        : 'Bridge handshake pending. Read/write disabled.';
-      state.bridge.lastAction = state.bridge.connected
-        ? 'Bridge toggle enabled in UI shell'
-        : 'Bridge toggle disabled in UI shell';
-      renderBridge();
-      renderDerivedPanels();
-      persistLocalState();
+      refreshBridgeStatus('Bridge status refreshed');
     });
 
     el.logRefreshButton.addEventListener('click', () => {
@@ -518,16 +581,23 @@
     document.addEventListener('pointermove', handlePageDragMove, { passive: false });
     document.addEventListener('pointerup', handlePageDragEnd, { passive: true });
     document.addEventListener('pointercancel', handlePageDragEnd, { passive: true });
+    document.addEventListener('pointermove', handleLogPanelResizeMove, { passive: false });
+    document.addEventListener('pointerup', handleLogPanelResizeEnd, { passive: true });
+    document.addEventListener('pointercancel', handleLogPanelResizeEnd, { passive: true });
     document.addEventListener('keydown', registerMusicInteraction);
 
     window.setInterval(updateClock, 30000);
+    window.setInterval(pollBridgeStatus, 4000);
+    window.setInterval(refreshCatalogStatus, 15000);
     window.addEventListener('resize', renderMusicRibbonPosition, { passive: true });
+    window.addEventListener('resize', renderLogPanelSize, { passive: true });
   }
 
   function handlePageDragStart(event) {
     if (event.pointerType === 'touch') return;
     if (event.button !== 0) return;
     if (hasOpenModal()) return;
+    if (logPanelDrag.active) return;
     if (shouldIgnoreDragScrollTarget(event.target)) return;
 
     dragScroll.pointerId = event.pointerId;
@@ -604,18 +674,68 @@
       '.modal-result-row',
       '.settings-debug-box',
       '.search-input',
-      '.field-wrap'
+      '.field-wrap',
+      '.log-panel-resize-handle'
     ].join(','));
+  }
+
+  function handleLogPanelResizeStart(event) {
+    if (!el.logPanelResizeHandle || event.target !== el.logPanelResizeHandle && !el.logPanelResizeHandle.contains(event.target)) {
+      return;
+    }
+
+    event.preventDefault();
+    logPanelDrag.pointerId = event.pointerId;
+    logPanelDrag.active = true;
+    logPanelDrag.startY = event.clientY;
+    logPanelDrag.startHeightVh = normalizeLogPanelHeightVh(state.logPanelHeightVh);
+    if (el.logPanelResizeHandle.setPointerCapture) {
+      el.logPanelResizeHandle.setPointerCapture(event.pointerId);
+    }
+  }
+
+  function handleLogPanelResizeMove(event) {
+    if (!logPanelDrag.active || logPanelDrag.pointerId !== event.pointerId) return;
+
+    const deltaVh = ((event.clientY - logPanelDrag.startY) / Math.max(window.innerHeight, 1)) * 100;
+    state.logPanelHeightVh = normalizeLogPanelHeightVh(logPanelDrag.startHeightVh + deltaVh);
+    renderLogPanelSize();
+    event.preventDefault();
+  }
+
+  function handleLogPanelResizeEnd(event) {
+    if (!logPanelDrag.active || logPanelDrag.pointerId !== event.pointerId) return;
+
+    if (el.logPanelResizeHandle && el.logPanelResizeHandle.releasePointerCapture) {
+      try {
+        el.logPanelResizeHandle.releasePointerCapture(event.pointerId);
+      } catch (error) {
+        // Ignore browsers that already released the pointer capture.
+      }
+    }
+
+    logPanelDrag.pointerId = null;
+    logPanelDrag.active = false;
+    logPanelDrag.startY = 0;
+    logPanelDrag.startHeightVh = DEFAULT_LOG_PANEL_HEIGHT_VH;
+    persistLocalState();
+  }
+
+  function normalizeLogPanelHeightVh(value) {
+    if (!Number.isFinite(value)) return DEFAULT_LOG_PANEL_HEIGHT_VH;
+    return Math.min(Math.max(value, 13), 42);
+  }
+
+  function renderLogPanelSize() {
+    if (!el.bridgeStatus) return;
+    state.logPanelHeightVh = normalizeLogPanelHeightVh(state.logPanelHeightVh);
+    el.bridgeStatus.style.setProperty('--log-console-height', `${state.logPanelHeightVh.toFixed(2)}vh`);
   }
 
   async function reloadAppShell() {
     if (el.debugReloadButton) {
       el.debugReloadButton.classList.add('is-reloading');
       el.debugReloadButton.setAttribute('aria-busy', 'true');
-    }
-
-    if (el.debugReloadStatusIcon) {
-      el.debugReloadStatusIcon.src = PAUSE_ICON_PATH;
     }
 
     try {
@@ -636,6 +756,16 @@
       if (itemsResponse.ok) {
         const items = await itemsResponse.json();
         state.items = Array.isArray(items) ? items : [];
+        rememberCatalogItems(state.items);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+
+    try {
+      const catalogStatusResponse = await fetch('/api/catalog/status', { cache: 'no-store' });
+      if (catalogStatusResponse.ok) {
+        syncCatalogStatus(await catalogStatusResponse.json());
       }
     } catch (error) {
       console.error(error);
@@ -671,7 +801,9 @@
         continue;
       }
 
-      const item = state.items.find((entry) => entry.name === defaultEntry.itemName) || null;
+      const item = state.items.find((entry) => {
+        return normalizeItemLookup(entry.name) === normalizeItemLookup(defaultEntry.itemName);
+      }) || null;
 
       slots.push(buildSlot(i, item, defaultEntry.count, defaultEntry.uses, defaultEntry.flag0, defaultEntry.flag1));
     }
@@ -712,7 +844,14 @@
     return item.internal_id.toString(16).toUpperCase().padStart(8, '0');
   }
 
+  function normalizeItemLookup(value) {
+    return String(value || '')
+      .trim()
+      .toLowerCase();
+  }
+
   function renderAll() {
+    renderLogPanelSize();
     renderThemeToggle();
     renderBridge();
     renderMusic();
@@ -733,26 +872,40 @@
   }
 
   function renderBridge() {
-    const catalogReady = state.items.length > 0;
+    const catalogReady = state.catalog.searchableCount > 0 || state.items.length > 0;
+    const catalogGlyph = getCatalogIndicatorGlyph();
 
-    el.catalogStatus.textContent = catalogReady ? '✓' : '✕';
-    el.catalogStatus.classList.toggle('is-ok', catalogReady);
-    el.catalogStatus.classList.toggle('is-bad', !catalogReady);
+    el.catalogStatus.textContent = catalogGlyph;
+    el.catalogStatus.classList.toggle('is-ok', state.catalog.connectionState === 'live');
+    el.catalogStatus.classList.toggle('is-warn', state.catalog.connectionState === 'syncing' || state.catalog.connectionState === 'cached');
+    el.catalogStatus.classList.toggle('is-bad', state.catalog.connectionState === 'fallback' || state.catalog.connectionState === 'offline');
+    el.catalogStatus.title = state.catalog.message || '';
+
+    if (el.catalogStatusLabel) {
+      el.catalogStatusLabel.textContent = state.catalog.label || 'Local';
+      el.catalogStatusLabel.title = state.catalog.message || '';
+    }
 
     el.bridgeStatusInline.textContent = state.bridge.connected ? '✓' : '✕';
     el.bridgeStatusInline.classList.toggle('is-ok', state.bridge.connected);
     el.bridgeStatusInline.classList.toggle('is-bad', !state.bridge.connected);
+    el.bridgeStatusInline.classList.remove('is-warn');
 
     el.bridgeToggle.classList.toggle('is-on', state.bridge.connected);
     el.bridgeToggle.setAttribute('aria-pressed', state.bridge.connected ? 'true' : 'false');
+    el.bridgeToggle.title = state.bridge.connected
+      ? 'Bridge connected'
+      : (state.bridge.listening ? 'Bridge listener active' : 'Bridge listener offline');
 
-    el.ipDisplay.textContent = `IP Address: ${state.bridge.ip}`;
+    el.ipDisplay.textContent = state.bridge.connected
+      ? `Bridge: ${state.bridge.ip}`
+      : `Listening: ${state.bridge.host}:${state.bridge.port}`;
 
     if (el.logConnectionIndicator) {
       el.logConnectionIndicator.classList.toggle('is-online', state.bridge.connected);
       el.logConnectionIndicator.classList.toggle('is-offline', !state.bridge.connected);
       el.logConnectionIndicator.setAttribute('aria-label', state.bridge.connected ? 'Bridge connected' : 'Bridge disconnected');
-      el.logConnectionIndicator.title = state.bridge.connected ? 'Bridge connected' : 'Bridge disconnected';
+      el.logConnectionIndicator.title = state.bridge.message || (state.bridge.connected ? 'Bridge connected' : 'Bridge disconnected');
     }
 
     if (el.logConnectionIcon) {
@@ -766,12 +919,25 @@
     const block = {
       connected: state.bridge.connected,
       ip: state.bridge.ip,
+      host: state.bridge.host,
+      port: state.bridge.port,
+      listening: state.bridge.listening,
+      deviceName: state.bridge.deviceName,
+      protocolVersion: state.bridge.protocolVersion,
+      capabilities: state.bridge.capabilities,
+      pendingRequests: state.bridge.pendingRequests,
       mode: state.bridge.mode,
       catalogReady,
-      itemCount: state.items.length,
+      catalogState: state.catalog.connectionState,
+      catalogLabel: state.catalog.label,
+      itemCount: state.catalog.searchableCount || state.items.length,
       quickCheats: getEnabledQuickCheatSummary(),
       ...buildSelectedSlotPayload(selectedSlot),
       message: state.bridge.message,
+      lastError: state.bridge.lastError,
+      lastCommand: state.bridge.lastCommand,
+      lastResponse: state.bridge.lastResponse,
+      remoteStatus: state.bridge.remoteStatus,
       lastAction: state.bridge.lastAction
     };
 
@@ -780,6 +946,7 @@
 
   function syncMusicLibrary(payload) {
     const libraryTracks = Array.isArray(payload && payload.tracks) ? payload.tracks : [];
+    const isDegradedLibrary = Boolean(payload && payload.degraded);
     const normalizeMusicTrack = (track) => {
       const id = String(track && track.id || '').trim();
       const title = String(track && track.title || '').trim();
@@ -798,7 +965,7 @@
         audioUrl: typeof track.audioUrl === 'string' ? track.audioUrl : null,
         artworkUrl: typeof track.artworkUrl === 'string' && track.artworkUrl
           ? track.artworkUrl
-          : '/assets/icons/Aircheck_NH_Inv_Icon.png',
+          : DEFAULT_MUSIC_ARTWORK_PATH,
         referenceUrl: typeof track.referenceUrl === 'string' ? track.referenceUrl : ''
       };
     };
@@ -816,7 +983,7 @@
       .filter(Boolean)
       .forEach((track) => {
         const existingTrack = normalizedTrackMap.get(track.id);
-        normalizedTrackMap.set(track.id, existingTrack ? { ...existingTrack, ...track } : track);
+        normalizedTrackMap.set(track.id, mergeMusicTrack(existingTrack, track, isDegradedLibrary));
       });
 
     const normalizedTracks = Array.from(normalizedTrackMap.values());
@@ -859,6 +1026,48 @@
         ? nextDefaultNightTrackId
         : nextDefaultSunriseTrackId;
     }
+  }
+
+  function mergeMusicTrack(existingTrack, nextTrack, preferExistingMetadata) {
+    if (!existingTrack) {
+      return nextTrack;
+    }
+
+    const keepExistingSource = preferExistingMetadata &&
+      isFallbackMusicSource(nextTrack.source) &&
+      !isFallbackMusicSource(existingTrack.source);
+    const keepExistingAttribution = preferExistingMetadata &&
+      isFallbackMusicAttribution(nextTrack.attribution) &&
+      !isFallbackMusicAttribution(existingTrack.attribution);
+    const shouldKeepExistingArtwork = isPlaceholderMusicArtwork(nextTrack.artworkUrl) &&
+      !isPlaceholderMusicArtwork(existingTrack.artworkUrl);
+    const shouldKeepExistingReference = preferExistingMetadata &&
+      !nextTrack.audioUrl &&
+      shouldKeepExistingArtwork &&
+      existingTrack.referenceUrl;
+
+    return {
+      ...existingTrack,
+      ...nextTrack,
+      group: nextTrack.group || existingTrack.group,
+      source: keepExistingSource ? existingTrack.source : (nextTrack.source || existingTrack.source),
+      attribution: keepExistingAttribution ? existingTrack.attribution : (nextTrack.attribution || existingTrack.attribution),
+      audioUrl: nextTrack.audioUrl || existingTrack.audioUrl || null,
+      artworkUrl: shouldKeepExistingArtwork ? existingTrack.artworkUrl : (nextTrack.artworkUrl || existingTrack.artworkUrl || DEFAULT_MUSIC_ARTWORK_PATH),
+      referenceUrl: shouldKeepExistingReference ? existingTrack.referenceUrl : (nextTrack.referenceUrl || existingTrack.referenceUrl || '')
+    };
+  }
+
+  function isPlaceholderMusicArtwork(url) {
+    return String(url || '').trim() === DEFAULT_MUSIC_ARTWORK_PATH;
+  }
+
+  function isFallbackMusicSource(value) {
+    return /^local fallback$/i.test(String(value || '').trim());
+  }
+
+  function isFallbackMusicAttribution(value) {
+    return /^fallback music library$/i.test(String(value || '').trim());
   }
 
   function renderMusic() {
@@ -904,6 +1113,12 @@
       el.musicPlayButton.setAttribute('aria-label', state.music.isPlaying ? 'Pause music' : 'Play music');
     }
 
+    if (el.musicLoopButton) {
+      el.musicLoopButton.setAttribute('aria-pressed', state.music.loopEnabled ? 'true' : 'false');
+      el.musicLoopButton.title = state.music.loopEnabled ? 'Loop on' : 'Loop off';
+      el.musicLoopButton.classList.toggle('is-active', state.music.loopEnabled);
+    }
+
     if (el.musicPlayIcon) {
       el.musicPlayIcon.src = state.music.isPlaying ? PAUSE_ICON_PATH : PLAY_ICON_PATH;
     }
@@ -921,6 +1136,9 @@
     }
 
     syncMusicVolume();
+    if (el.musicAudio) {
+      el.musicAudio.loop = state.music.loopEnabled;
+    }
     renderMusicProgress();
   }
 
@@ -1007,7 +1225,7 @@
       return track.artworkUrl;
     }
 
-    return '/assets/icons/Aircheck_NH_Inv_Icon.png';
+    return DEFAULT_MUSIC_ARTWORK_PATH;
   }
 
   function getMusicMetaText(track) {
@@ -1252,6 +1470,7 @@
       el.musicAudio.load();
     }
 
+    el.musicAudio.loop = state.music.loopEnabled;
     syncMusicVolume();
 
     const playPromise = el.musicAudio.play();
@@ -1599,6 +1818,50 @@
     });
   }
 
+  function commitActiveInventoryFilter(nextFilter) {
+    const normalizedFilter = nextFilter || 'all';
+    if (state.activeFilter === normalizedFilter) {
+      return;
+    }
+
+    state.activeFilter = normalizedFilter;
+    renderShortcutButtons();
+    renderInventory();
+    renderDerivedPanels();
+    persistLocalState();
+  }
+
+  function resetShortcutFilterTapState() {
+    shortcutFilterTap.filter = '';
+    shortcutFilterTap.at = 0;
+    shortcutFilterTap.armedForClear = false;
+  }
+
+  function handleShortcutFilterPress(nextFilter) {
+    const normalizedFilter = nextFilter || 'all';
+    const now = Date.now();
+    const wasActive = state.activeFilter === normalizedFilter;
+    const isRapidRepeat = shortcutFilterTap.filter === normalizedFilter && now - shortcutFilterTap.at < 320;
+
+    if (isRapidRepeat) {
+      if (shortcutFilterTap.armedForClear && wasActive) {
+        resetShortcutFilterTapState();
+        commitActiveInventoryFilter('all');
+      } else {
+        resetShortcutFilterTapState();
+      }
+      return;
+    }
+
+    shortcutFilterTap.filter = normalizedFilter;
+    shortcutFilterTap.at = now;
+    shortcutFilterTap.armedForClear = wasActive;
+
+    if (!wasActive) {
+      commitActiveInventoryFilter(normalizedFilter);
+    }
+  }
+
   function renderQuickCheatButtons() {
     el.quickCheatButtons.forEach((button) => {
       const cheatId = button.dataset.quickCheat || '';
@@ -1690,6 +1953,20 @@
         renderItemModal();
       });
 
+      button.addEventListener('pointerup', async (event) => {
+        if (event.pointerType !== 'touch') return;
+
+        const now = Date.now();
+        const isDoubleTap = inventoryTouchTap.index === index && now - inventoryTouchTap.at < 320;
+        inventoryTouchTap.index = index;
+        inventoryTouchTap.at = now;
+
+        if (!isDoubleTap) return;
+
+        state.selectedSlotIndex = index;
+        await handleInventorySlotDoubleClick(index);
+      });
+
       button.addEventListener('dblclick', async () => {
         state.selectedSlotIndex = index;
         await handleInventorySlotDoubleClick(index);
@@ -1704,16 +1981,13 @@
       return;
     }
 
-    state.activeFilter = 'all';
+    resetShortcutFilterTapState();
     clearOverwriteGuard();
     state.bridge.lastAction = 'Inventory filter reset';
-    renderShortcutButtons();
+    commitActiveInventoryFilter('all');
     renderBridge();
-    renderInventory();
     renderSelectedPreview();
     renderClipboardState();
-    renderDerivedPanels();
-    persistLocalState();
   }
 
   async function handleInventorySlotDoubleClick(index) {
@@ -1821,16 +2095,21 @@
     const summary = [
       state.bridge.connected ? 'Bridge online' : 'Bridge offline',
       state.bridge.mode,
-      `${state.items.length} catalog items`,
+      `${state.catalog.label} catalog`,
+      `${state.catalog.searchableCount || state.items.length} items`,
       `slot ${slot.slot}`
     ];
 
     el.settingsDebugOutput.textContent = summary.join(' | ');
+
+    if (el.settingsCatalogOutput) {
+      el.settingsCatalogOutput.textContent = getCatalogDiagnosticsSummary();
+    }
   }
 
   function renderItemModal() {
     const slot = getSelectedSlot();
-    const item = slot.item;
+    const item = state.modalPendingItem || slot.item;
 
     el.modalPocketTitle.textContent = `Pocket ${slot.slot} · ${item ? item.name : 'Empty slot'}`;
     el.modalItemName.textContent = item ? item.name : 'Empty slot';
@@ -1838,7 +2117,7 @@
     el.modalInputUses.value = String(slot.uses);
     el.modalInputFlag0.value = String(slot.flag0);
     el.modalInputFlag1.value = String(slot.flag1);
-    el.modalHex.textContent = slot.hex || '00000000';
+    el.modalHex.textContent = item ? deriveHexFromItem(item) : (slot.hex || '00000000');
 
     if (item) {
       el.modalItemPreview.src = getPreferredItemPreviewUrl(item);
@@ -1862,14 +2141,20 @@
 
     el.modalResultsList.innerHTML = '';
 
-    const results = getModalFilteredItems(state.modalSearchQuery).slice(0, 12);
+    const results = state.catalog.modalResults.slice(0, MODAL_SEARCH_LIMIT);
+
+    if (state.catalog.modalLoading && !results.length) {
+      const loading = document.createElement('div');
+      loading.className = 'modal-result-row is-empty';
+      loading.textContent = 'Searching catalog...';
+      el.modalResultsList.appendChild(loading);
+      return;
+    }
 
     if (!results.length) {
       const empty = document.createElement('div');
       empty.className = 'modal-result-row is-empty';
-      empty.textContent = state.modalSearchFilter === 'all'
-        ? 'No matching items found.'
-        : `No ${String(state.modalSearchFilter).toLowerCase()} items found.`;
+      empty.textContent = getModalSearchEmptyStateText();
       el.modalResultsList.appendChild(empty);
       return;
     }
@@ -1880,11 +2165,18 @@
       row.className = 'modal-result-row';
       row.textContent = item.name;
 
-      if (getSelectedSlot().item && getSelectedSlot().item.name === item.name) {
+      const activeItem = state.modalPendingItem || getSelectedSlot().item;
+      if (activeItem && normalizeItemLookup(activeItem.file_name || activeItem.name) === normalizeItemLookup(item.file_name || item.name)) {
         row.classList.add('is-selected');
       }
 
-      row.addEventListener('click', () => {
+      row.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        assignItemToSelectedSlot(item);
+      });
+
+      row.addEventListener('click', (event) => {
+        event.preventDefault();
         assignItemToSelectedSlot(item);
       });
 
@@ -1893,26 +2185,14 @@
   }
 
   function assignItemToSelectedSlot(item) {
-    const slot = getSelectedSlot();
-    slot.item = item;
-    slot.itemId = item.file_name || item.name;
-    slot.internalId = item.internal_id || null;
-    slot.hex = deriveHexFromItem(item);
-    slot.count = slot.count || 1;
-    slot.uses = Number(slot.uses || 0);
-    slot.flag0 = Number(slot.flag0 || 0);
-    slot.flag1 = Number(slot.flag1 || 0);
-
-    state.bridge.lastAction = `Assigned "${item.name}" to slot ${slot.slot}`;
+    rememberCatalogItems([item]);
+    state.modalPendingItem = item;
+    state.modalSearchQuery = item.name;
+    if (el.modalSearchInput) {
+      el.modalSearchInput.value = item.name;
+    }
     state.modalSearchOpen = false;
-    clearOverwriteGuard();
-    renderBridge();
-    renderInventory();
-    renderSelectedPreview();
-    renderClipboardState();
-    renderDerivedPanels();
     renderItemModal();
-    persistLocalState();
   }
 
   function clearSelectedSlot() {
@@ -1920,6 +2200,7 @@
     const cleared = emptySlot(slot.slot);
 
     Object.assign(slot, cleared);
+    state.modalPendingItem = null;
 
     state.bridge.lastAction = `Cleared slot ${slot.slot}`;
     clearOverwriteGuard();
@@ -1933,9 +2214,11 @@
   }
 
   function openItemModalForSelectedSlot() {
+    state.modalPendingItem = getSelectedSlot().item || null;
     state.modalSearchQuery = '';
     state.modalSearchFilter = 'all';
     state.modalSearchOpen = false;
+    state.catalog.modalResults = [];
     el.modalSearchInput.value = '';
     renderItemModal();
     openModal(el.itemModal);
@@ -1944,12 +2227,29 @@
 
   function applyItemEdits() {
     const slot = getSelectedSlot();
+    const item = state.modalPendingItem;
+
+    if (item) {
+      rememberCatalogItems([item]);
+      slot.item = item;
+      slot.itemId = item.file_name || item.name;
+      slot.internalId = item.internal_id || null;
+      slot.hex = deriveHexFromItem(item);
+    } else {
+      slot.item = null;
+      slot.itemId = null;
+      slot.internalId = null;
+      slot.hex = '00000000';
+    }
+
     slot.count = normalizeWholeNumber(el.modalInputCount.value, slot.count);
     slot.uses = normalizeWholeNumber(el.modalInputUses.value, slot.uses);
     slot.flag0 = normalizeWholeNumber(el.modalInputFlag0.value, slot.flag0);
     slot.flag1 = normalizeWholeNumber(el.modalInputFlag1.value, slot.flag1);
 
-    state.bridge.lastAction = `Updated slot ${slot.slot} values`;
+    state.bridge.lastAction = item
+      ? `Updated slot ${slot.slot} to "${item.name}"`
+      : `Cleared slot ${slot.slot}`;
     clearOverwriteGuard();
     renderBridge();
     renderInventory();
@@ -1967,7 +2267,18 @@
 
   function buildItemModalPayload() {
     const slot = getSelectedSlot();
-    const payload = buildSelectedSlotPayload(slot);
+    const item = state.modalPendingItem || slot.item;
+    const payload = {
+      selectedSlot: slot.slot,
+      selectedItem: item ? item.name : null,
+      itemId: item ? (item.file_name || item.name) : null,
+      internalId: item ? (item.internal_id || null) : null,
+      hex: item ? deriveHexFromItem(item) : '00000000',
+      count: slot.count,
+      uses: slot.uses,
+      flag0: slot.flag0,
+      flag1: slot.flag1
+    };
 
     payload.count = normalizeWholeNumber(el.modalInputCount.value, slot.count);
     payload.uses = normalizeWholeNumber(el.modalInputUses.value, slot.uses);
@@ -2034,7 +2345,7 @@
   }
 
   function getSelectedSlot() {
-    return state.inventory[state.selectedSlotIndex];
+    return state.inventory[state.selectedSlotIndex] || emptySlot(Math.max(1, state.selectedSlotIndex + 1));
   }
 
   function getFilteredItems(query) {
@@ -2073,7 +2384,7 @@
   function getModalFilteredItems(query) {
     const q = String(query || '').trim().toLowerCase();
 
-    return state.items.filter((item) => {
+    return getKnownCatalogItems().filter((item) => {
       const matchesCategory =
         state.modalSearchFilter === 'all' ||
         normalizeCategory(item.category) === normalizeCategory(state.modalSearchFilter);
@@ -2092,6 +2403,17 @@
 
       return haystack.includes(q);
     });
+  }
+
+  function getModalSearchEmptyStateText() {
+    const query = String(state.modalSearchQuery || '').trim();
+    if (query && query.length < REMOTE_SEARCH_MIN_QUERY_LENGTH) {
+      return `Type at least ${REMOTE_SEARCH_MIN_QUERY_LENGTH} characters to search live catalog.`;
+    }
+
+    return state.modalSearchFilter === 'all'
+      ? 'No matching items found.'
+      : `No ${String(state.modalSearchFilter).toLowerCase()} items found.`;
   }
 
   function renderModalFilterButtons() {
@@ -2194,10 +2516,10 @@
   function persistLocalState() {
     const payload = {
       player: state.player,
-      bridgeConnected: state.bridge.connected,
       selectedSlotIndex: state.selectedSlotIndex,
       activeTab: state.activeTab,
       activeFilter: state.activeFilter,
+      logPanelHeightVh: state.logPanelHeightVh,
       quickCheats: state.quickCheats,
       theme: state.theme,
       music: {
@@ -2205,6 +2527,7 @@
         selectedTrackId: state.music.selectedTrackId,
         ribbonTopVh: state.music.ribbonTopVh,
         volume: state.music.volume,
+        loopEnabled: state.music.loopEnabled,
         wantsPlayback: state.music.wantsPlayback,
         manualTrackChoice: state.music.manualTrackChoice
       },
@@ -2212,6 +2535,7 @@
       inventory: state.inventory.map((slot) => ({
         slot: slot.slot,
         itemId: slot.itemId,
+        itemSnapshot: slot.item ? createCatalogItemSnapshot(slot.item) : null,
         count: slot.count,
         uses: slot.uses,
         flag0: slot.flag0,
@@ -2241,10 +2565,6 @@
         };
       }
 
-      if (typeof saved.bridgeConnected === 'boolean') {
-        state.bridge.connected = saved.bridgeConnected;
-      }
-
       if (typeof saved.selectedSlotIndex === 'number') {
         state.selectedSlotIndex = Math.min(Math.max(saved.selectedSlotIndex, 0), state.inventory.length - 1);
       }
@@ -2258,6 +2578,10 @@
         if (hasFilter) {
           state.activeFilter = saved.activeFilter;
         }
+      }
+
+      if (typeof saved.logPanelHeightVh === 'number' && Number.isFinite(saved.logPanelHeightVh)) {
+        state.logPanelHeightVh = normalizeLogPanelHeightVh(saved.logPanelHeightVh);
       }
 
       if (saved.quickCheats && typeof saved.quickCheats === 'object') {
@@ -2290,6 +2614,10 @@
           state.music.volume = Math.min(Math.max(saved.music.volume, 0), 1);
         }
 
+        if (typeof saved.music.loopEnabled === 'boolean') {
+          state.music.loopEnabled = saved.music.loopEnabled;
+        }
+
         if (typeof saved.music.wantsPlayback === 'boolean') {
           state.music.wantsPlayback = saved.music.wantsPlayback;
         }
@@ -2309,6 +2637,13 @@
           : getDefaultSunriseTrackId();
       }
 
+      if (!getMusicTracks().some((track) => track.id === state.music.selectedTrackId)) {
+        state.music.manualTrackChoice = false;
+        state.music.selectedTrackId = state.theme === THEME_NIGHT
+          ? getDefaultNightTrackId()
+          : getDefaultSunriseTrackId();
+      }
+
       if (saved.copiedSlotPayload && isClipboardPayload(saved.copiedSlotPayload)) {
         state.copiedSlotPayload = saved.copiedSlotPayload;
       }
@@ -2319,15 +2654,20 @@
           if (!target) return;
 
           if (savedSlot.itemId) {
-            const foundItem = state.items.find((item) => {
-              return item.file_name === savedSlot.itemId || item.name === savedSlot.itemId;
-            });
+            const foundItem = findItemByLookup(savedSlot.itemId, savedSlot.itemSnapshot && savedSlot.itemSnapshot.name);
 
             if (foundItem) {
+              rememberCatalogItems([foundItem]);
               target.item = foundItem;
               target.itemId = foundItem.file_name || foundItem.name;
               target.internalId = foundItem.internal_id || null;
               target.hex = savedSlot.hex || deriveHexFromItem(foundItem);
+            } else if (isCatalogItemSnapshot(savedSlot.itemSnapshot)) {
+              rememberCatalogItems([savedSlot.itemSnapshot]);
+              target.item = savedSlot.itemSnapshot;
+              target.itemId = savedSlot.itemSnapshot.file_name || savedSlot.itemSnapshot.name;
+              target.internalId = savedSlot.itemSnapshot.internal_id || null;
+              target.hex = savedSlot.hex || deriveHexFromItem(savedSlot.itemSnapshot);
             }
           } else {
             target.item = null;
@@ -2361,6 +2701,7 @@
 
     if (modal === el.itemModal) {
       state.modalSearchOpen = false;
+      state.modalPendingItem = null;
     }
 
     syncModalState();
@@ -2400,10 +2741,26 @@
       console.error(error);
     }
 
+    await refreshCatalogStatus();
+    refreshCatalogDiagnostics();
+
     state.bridge.lastAction = lastAction;
     renderBridge();
     renderDerivedPanels();
     persistLocalState();
+  }
+
+  async function pollBridgeStatus() {
+    try {
+      const statusResponse = await fetch('/api/status', { cache: 'no-store' });
+      if (statusResponse.ok) {
+        syncBridgeStatus(await statusResponse.json());
+        renderBridge();
+        renderDerivedPanels();
+      }
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   function buildClouds() {
@@ -2413,45 +2770,49 @@
     layer.innerHTML = '';
 
     const fragment = document.createDocumentFragment();
-    const config = state.theme === THEME_NIGHT
+    const isNight = state.theme === THEME_NIGHT;
+    const config = isNight
       ? {
-          count: 11,
-          widthMin: 96,
-          widthRange: 132,
-          heightMin: 0.19,
+          count: 9,
+          widthMin: 152,
+          widthRange: 214,
+          heightMin: 0.1,
           heightRange: 0.12,
-          topMin: 29,
-          topRange: 18,
-          durationMin: 92,
-          durationRange: 44,
-          opacityMin: 0.12,
-          opacityRange: 0.09,
-          blurMin: 2.2,
-          blurRange: 1.8,
-          driftMin: -3,
-          driftRange: 6
+          topMin: 12,
+          topRange: 42,
+          durationMin: 108,
+          durationRange: 38,
+          opacityMin: 0.1,
+          opacityRange: 0.1,
+          blurMin: 4.5,
+          blurRange: 3.4,
+          driftMin: -5,
+          driftRange: 10
         }
       : {
-          count: 8,
+          count: 7,
           widthMin: 176,
-          widthRange: 236,
+          widthRange: 182,
           heightMin: 0.18,
-          heightRange: 0.1,
-          topMin: 6,
-          topRange: 24,
-          durationMin: 78,
-          durationRange: 34,
-          opacityMin: 0.17,
-          opacityRange: 0.14,
-          blurMin: 1.1,
-          blurRange: 1.4,
-          driftMin: -6,
-          driftRange: 11
+          heightRange: 0.16,
+          topMin: 16,
+          topRange: 28,
+          durationMin: 96,
+          durationRange: 30,
+          opacityMin: 0.18,
+          opacityRange: 0.08,
+          blurMin: 3.2,
+          blurRange: 2.4,
+          driftMin: -4,
+          driftRange: 8
         };
 
     for (let i = 0; i < config.count; i += 1) {
       const cloud = document.createElement('span');
       cloud.className = 'cloud';
+      cloud.classList.add(isNight
+        ? (Math.random() < 0.72 ? 'cloud--wispy' : 'cloud--puff')
+        : (Math.random() < 0.68 ? 'cloud--tower' : 'cloud--bank'));
 
       const width = config.widthMin + Math.random() * config.widthRange;
       const height = width * (config.heightMin + Math.random() * config.heightRange);
@@ -2471,6 +2832,8 @@
       cloud.style.setProperty('--cloud-opacity', opacity.toFixed(2));
       cloud.style.setProperty('--cloud-blur', `${blur.toFixed(2)}px`);
       cloud.style.setProperty('--cloud-drift-y', `${(config.driftMin + Math.random() * config.driftRange).toFixed(2)}px`);
+      cloud.style.setProperty('--cloud-scale-y', (0.88 + Math.random() * 0.28).toFixed(2));
+      cloud.style.setProperty('--cloud-skew', `${randomBetween(-2.8, 2.8).toFixed(2)}deg`);
 
       fragment.appendChild(cloud);
     }
@@ -2717,9 +3080,103 @@
     state.bridge.connected = !!status.connected;
     state.bridge.mode = String(status.bridge || state.bridge.mode || 'pending');
     state.bridge.ip = getBridgeIp(status);
-    state.bridge.message = state.bridge.connected
-      ? `Bridge ${state.bridge.mode} and ready for sync.`
-      : `Bridge ${state.bridge.mode}. Read/write disabled.`;
+    state.bridge.host = String(status && status.bridgeHost || state.bridge.host || '0.0.0.0');
+    state.bridge.port = Number(status && status.bridgePort || state.bridge.port || 32840);
+    state.bridge.listening = Boolean(status && status.listening);
+    state.bridge.deviceName = status && status.deviceName ? String(status.deviceName) : null;
+    state.bridge.protocolVersion = status && status.protocolVersion ? String(status.protocolVersion) : null;
+    state.bridge.capabilities = Array.isArray(status && status.capabilities) ? status.capabilities.slice() : [];
+    state.bridge.pendingRequests = Number(status && status.pendingRequests || 0);
+    state.bridge.lastCommand = status && status.lastCommand && typeof status.lastCommand === 'object'
+      ? status.lastCommand
+      : null;
+    state.bridge.lastResponse = status && status.lastResponse && typeof status.lastResponse === 'object'
+      ? status.lastResponse
+      : null;
+    state.bridge.remoteStatus = status && status.remoteStatus && typeof status.remoteStatus === 'object'
+      ? status.remoteStatus
+      : null;
+    state.bridge.lastError = status && status.lastError ? String(status.lastError) : null;
+    state.bridge.message = status && status.message
+      ? String(status.message)
+      : (state.bridge.connected
+        ? `Bridge ${state.bridge.mode} and ready for sync.`
+        : `Bridge ${state.bridge.mode}. Read/write disabled.`);
+  }
+
+  async function refreshCatalogStatus() {
+    try {
+      const response = await fetch('/api/catalog/status', { cache: 'no-store' });
+      if (response.ok) {
+        syncCatalogStatus(await response.json());
+        renderBridge();
+        renderDerivedPanels();
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  async function refreshCatalogDiagnostics() {
+    if (state.catalog.diagnosticsLoading) {
+      return;
+    }
+
+    state.catalog.diagnosticsLoading = true;
+    renderSettingsDebug();
+
+    try {
+      const response = await fetch('/api/catalog/diagnostics', { cache: 'no-store' });
+      if (response.ok) {
+        state.catalog.diagnostics = await response.json();
+      }
+    } catch (error) {
+      state.catalog.diagnostics = {
+        generatedAt: new Date().toISOString(),
+        error: error.message
+      };
+    } finally {
+      state.catalog.diagnosticsLoading = false;
+      renderSettingsDebug();
+    }
+  }
+
+  function syncCatalogStatus(status) {
+    state.catalog.connectionState = String(status && status.connectionState || DEFAULT_CATALOG_STATE.connectionState);
+    state.catalog.label = String(status && status.label || DEFAULT_CATALOG_STATE.label);
+    state.catalog.message = String(status && status.message || DEFAULT_CATALOG_STATE.message);
+    state.catalog.searchableCount = Number(status && status.searchableCount || 0);
+    state.catalog.localCount = Number(status && status.localCount || 0);
+    state.catalog.cachedCount = Number(status && status.cachedCount || 0);
+    state.catalog.liveConnected = Boolean(status && status.liveConnected);
+    state.catalog.hasActiveRefresh = Boolean(status && status.hasActiveRefresh);
+  }
+
+  function getCatalogDiagnosticsSummary() {
+    if (state.catalog.diagnosticsLoading) {
+      return 'Checking Nookipedia connection...';
+    }
+
+    const diagnostics = state.catalog.diagnostics;
+    if (!diagnostics) {
+      return 'Open Settings or press refresh to run diagnostics.';
+    }
+
+    if (diagnostics.error) {
+      return `Probe failed\n${diagnostics.error}`;
+    }
+
+    const tls = diagnostics.tcpTls || {};
+    const httpDoc = diagnostics.httpDoc || {};
+    const httpApi = diagnostics.httpApi || {};
+
+    return [
+      `State: ${state.catalog.label} (${state.catalog.connectionState})`,
+      `TLS: ${tls.ok ? `ok in ${tls.elapsedMs}ms` : tls.error || 'failed'}`,
+      `Doc: ${httpDoc.ok ? `ok in ${httpDoc.firstByteMs}ms` : httpDoc.error || 'failed'}`,
+      `API: ${httpApi.ok ? `ok in ${httpApi.firstByteMs}ms` : httpApi.error || 'failed'}`,
+      `Last error: ${state.catalog.message || 'none'}`
+    ].join('\n');
   }
 
   function getBridgeIp(status) {
@@ -2751,6 +3208,7 @@
   function buildClipboardPayload(slot) {
     return {
       ...buildSelectedSlotPayload(slot),
+      itemSnapshot: slot.item ? createCatalogItemSnapshot(slot.item) : null,
       copiedAt: new Date().toISOString()
     };
   }
@@ -2765,22 +3223,38 @@
       const item = findItemByLookup(payload.itemId, payload.selectedItem);
 
       if (!item) {
-        state.bridge.lastAction = `Paste failed: missing catalog item "${payload.itemId}"`;
-        renderBridge();
-        return;
+        if (isCatalogItemSnapshot(payload.itemSnapshot)) {
+          rememberCatalogItems([payload.itemSnapshot]);
+          slot.item = payload.itemSnapshot;
+          slot.itemId = payload.itemSnapshot.file_name || payload.itemSnapshot.name;
+          slot.internalId = payload.itemSnapshot.internal_id || null;
+          slot.hex = payload.hex || deriveHexFromItem(payload.itemSnapshot);
+          slot.count = normalizeWholeNumber(payload.count, 0);
+          slot.uses = normalizeWholeNumber(payload.uses, 0);
+          slot.flag0 = normalizeWholeNumber(payload.flag0, 0);
+          slot.flag1 = normalizeWholeNumber(payload.flag1, 0);
+          state.bridge.lastAction = overwroteExistingItem
+            ? `Overwrote slot ${slot.slot} with "${payload.itemSnapshot.name}"`
+            : `Pasted "${payload.itemSnapshot.name}" into slot ${slot.slot}`;
+        } else {
+          state.bridge.lastAction = `Paste failed: missing catalog item "${payload.itemId}"`;
+          renderBridge();
+          return;
+        }
+      } else {
+        rememberCatalogItems([item]);
+        slot.item = item;
+        slot.itemId = item.file_name || item.name;
+        slot.internalId = item.internal_id || null;
+        slot.hex = payload.hex || deriveHexFromItem(item);
+        slot.count = normalizeWholeNumber(payload.count, 0);
+        slot.uses = normalizeWholeNumber(payload.uses, 0);
+        slot.flag0 = normalizeWholeNumber(payload.flag0, 0);
+        slot.flag1 = normalizeWholeNumber(payload.flag1, 0);
+        state.bridge.lastAction = overwroteExistingItem
+          ? `Overwrote slot ${slot.slot} with "${item.name}"`
+          : `Pasted "${item.name}" into slot ${slot.slot}`;
       }
-
-      slot.item = item;
-      slot.itemId = item.file_name || item.name;
-      slot.internalId = item.internal_id || null;
-      slot.hex = payload.hex || deriveHexFromItem(item);
-      slot.count = normalizeWholeNumber(payload.count, 0);
-      slot.uses = normalizeWholeNumber(payload.uses, 0);
-      slot.flag0 = normalizeWholeNumber(payload.flag0, 0);
-      slot.flag1 = normalizeWholeNumber(payload.flag1, 0);
-      state.bridge.lastAction = overwroteExistingItem
-        ? `Overwrote slot ${slot.slot} with "${item.name}"`
-        : `Pasted "${item.name}" into slot ${slot.slot}`;
     }
 
     renderBridge();
@@ -2815,9 +3289,134 @@
   }
 
   function findItemByLookup(itemId, itemName) {
-    return state.items.find((item) => {
-      return item.file_name === itemId || item.name === itemId || item.name === itemName;
+    return getKnownCatalogItems().find((item) => {
+      return (
+        normalizeItemLookup(item.file_name) === normalizeItemLookup(itemId) ||
+        normalizeItemLookup(item.name) === normalizeItemLookup(itemId) ||
+        normalizeItemLookup(item.name) === normalizeItemLookup(itemName)
+      );
     }) || null;
+  }
+
+  function getKnownCatalogItems() {
+    const merged = [];
+    const seen = new Set();
+
+    [state.items, state.catalog.lookupItems].forEach((list) => {
+      (Array.isArray(list) ? list : []).forEach((item) => {
+        const key = normalizeItemLookup(item && (item.file_name || item.name));
+        if (!key || seen.has(key)) return;
+        seen.add(key);
+        merged.push(item);
+      });
+    });
+
+    return merged;
+  }
+
+  function rememberCatalogItems(items) {
+    (Array.isArray(items) ? items : []).forEach((item) => {
+      if (!isCatalogItemSnapshot(item)) return;
+      const key = normalizeItemLookup(item.file_name || item.name);
+      const existingIndex = state.catalog.lookupItems.findIndex((entry) => {
+        return normalizeItemLookup(entry.file_name || entry.name) === key;
+      });
+
+      if (existingIndex >= 0) {
+        state.catalog.lookupItems[existingIndex] = item;
+      } else {
+        state.catalog.lookupItems.push(item);
+      }
+    });
+
+    if (state.catalog.lookupItems.length > LOOKUP_ITEM_LIMIT) {
+      state.catalog.lookupItems = state.catalog.lookupItems.slice(-LOOKUP_ITEM_LIMIT);
+    }
+  }
+
+  function createCatalogItemSnapshot(item) {
+    if (!isCatalogItemSnapshot(item)) return null;
+    return {
+      name: item.name || null,
+      category: item.category || '',
+      icon_url: item.icon_url || null,
+      image_url: item.image_url || null,
+      preview_url: item.preview_url || null,
+      internal_id: typeof item.internal_id === 'number' ? item.internal_id : null,
+      file_name: item.file_name || item.name || null,
+      source_files: Array.isArray(item.source_files) ? item.source_files.slice(0, 4) : []
+    };
+  }
+
+  function isCatalogItemSnapshot(value) {
+    return !!value && typeof value === 'object' && typeof value.name === 'string';
+  }
+
+  function queueModalSearch(immediate) {
+    window.clearTimeout(modalSearchDebounceId);
+    if (!state.modalSearchOpen) {
+      return;
+    }
+
+    if (immediate) {
+      runModalSearch();
+      return;
+    }
+
+    modalSearchDebounceId = window.setTimeout(runModalSearch, MODAL_SEARCH_DEBOUNCE_MS);
+  }
+
+  async function runModalSearch() {
+    const token = ++modalSearchToken;
+    const query = String(state.modalSearchQuery || '').trim();
+    const shouldUseRemoteSearch = query.length >= REMOTE_SEARCH_MIN_QUERY_LENGTH;
+
+    if (!shouldUseRemoteSearch) {
+      state.catalog.modalLoading = false;
+      state.catalog.modalResults = getModalFilteredItems(query).slice(0, MODAL_SEARCH_LIMIT);
+      renderItemModalResults();
+      return;
+    }
+
+    state.catalog.modalLoading = true;
+    renderItemModalResults();
+
+    try {
+      const params = new URLSearchParams({
+        q: query,
+        filter: state.modalSearchFilter || 'all',
+        limit: String(MODAL_SEARCH_LIMIT)
+      });
+      const response = await fetch(`/api/items/search?${params.toString()}`, { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error(`Search failed with ${response.status}`);
+      }
+
+      const payload = await response.json();
+      if (token !== modalSearchToken) return;
+
+      state.catalog.modalResults = Array.isArray(payload.items) ? payload.items : [];
+      rememberCatalogItems(state.catalog.modalResults);
+      if (payload.status) {
+        syncCatalogStatus(payload.status);
+      }
+    } catch (error) {
+      if (token !== modalSearchToken) return;
+      state.catalog.modalResults = getModalFilteredItems(state.modalSearchQuery).slice(0, MODAL_SEARCH_LIMIT);
+    } finally {
+      if (token !== modalSearchToken) return;
+      state.catalog.modalLoading = false;
+      renderItemModalResults();
+      renderBridge();
+      renderDerivedPanels();
+    }
+  }
+
+  function getCatalogIndicatorGlyph() {
+    if (state.catalog.connectionState === 'live') return '✓';
+    if (state.catalog.connectionState === 'syncing') return '…';
+    if (state.catalog.connectionState === 'cached') return '◌';
+    return '✕';
   }
 
   function getSelectedPreviewItem() {

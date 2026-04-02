@@ -1,0 +1,5 @@
+.env
+.codex-temp/
+.codex-*.log
+test-results/
+data/nookipedia-items-cache.json

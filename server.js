@@ -1,9 +1,24 @@
+require('dotenv').config({ quiet: true })
+
 const { execSync } = require('child_process')
 const express = require('express')
 const fs = require('fs')
 const https = require('https')
 const os = require('os')
 const path = require('path')
+
+const {
+  getCachedCatalogItems,
+  getCatalogDiagnostics,
+  getCatalogSyncState,
+  hasNookipediaApiKey,
+  refreshCatalogInBackground
+} = require('./modules/nookipediaCatalog')
+const bridgeService = require('./modules/bridgeService')
+const {
+  BRIDGE_HOST,
+  BRIDGE_PORT
+} = require('./modules/bridgeService')
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -20,6 +35,7 @@ const FANDOM_MEDIAWIKI_API_URL = 'https://animalcrossing.fandom.com/api.php'
 const FANDOM_CITY_FOLK_TITLE_THEME_FILE_TITLE = 'File:ACCF Main Theme.ogg'
 const MUSIC_LIBRARY_CACHE_TTL_MS = 1000 * 60 * 60 * 12
 const MUSIC_LIBRARY_FALLBACK_ART = '/assets/icons/Aircheck_NH_Inv_Icon.png'
+const MUSIC_REQUEST_TIMEOUT_MS = 8000
 const localIpCache = {
   value: null,
   expiresAt: 0
@@ -41,24 +57,56 @@ app.get('/api/health', (req, res) => {
 })
 
 app.get('/api/status', (req, res) => {
+  const bridgeStatus = bridgeService.getStatus()
   res.json({
-    connected: false,
-    emulator: 'ryujinx',
-    game: 'acnh',
-    version: null,
-    bridge: 'pending',
-    ip: getPreferredLocalIp(req)
+    ...bridgeStatus,
+    ip: bridgeStatus.ip || getPreferredLocalIp(req),
+    bridgeHost: bridgeStatus.bridgeHost || BRIDGE_HOST,
+    bridgePort: bridgeStatus.bridgePort || BRIDGE_PORT
   })
 })
 
-app.get('/api/items', (req, res) => {
+app.get('/api/bridge/read-status', async (req, res) => {
   try {
-    if (!fs.existsSync(dataPath)) {
-      return res.json([])
-    }
+    res.json(await bridgeService.readStatus())
+  } catch (error) {
+    res.status(resolveBridgeErrorStatus(error)).json({ error: error.message })
+  }
+})
 
-    const raw = fs.readFileSync(dataPath, 'utf8')
-    const items = JSON.parse(raw)
+app.get('/api/bridge/read-inventory', async (req, res) => {
+  try {
+    res.json(await bridgeService.readInventory())
+  } catch (error) {
+    res.status(resolveBridgeErrorStatus(error)).json({ error: error.message })
+  }
+})
+
+app.post('/api/bridge/write-inventory-slot', async (req, res) => {
+  const slot = Number(req.body && req.body.slot)
+
+  if (!Number.isInteger(slot) || slot < 1) {
+    res.status(400).json({ error: 'slot must be a positive integer' })
+    return
+  }
+
+  try {
+    res.json(await bridgeService.writeInventorySlot({
+      slot,
+      itemId: req.body && req.body.itemId ? String(req.body.itemId) : null,
+      count: Number(req.body && req.body.count || 0),
+      uses: Number(req.body && req.body.uses || 0),
+      flag0: Number(req.body && req.body.flag0 || 0),
+      flag1: Number(req.body && req.body.flag1 || 0)
+    }))
+  } catch (error) {
+    res.status(resolveBridgeErrorStatus(error)).json({ error: error.message })
+  }
+})
+
+app.get('/api/items', async (req, res) => {
+  try {
+    const items = readStarterItems()
     const assetNames = getItemAssetNames()
 
     res.json(items.map((item) => {
@@ -74,12 +122,40 @@ app.get('/api/items', (req, res) => {
   }
 })
 
+app.get('/api/items/search', (req, res) => {
+  try {
+    const query = String(req.query.q || '')
+    const filter = String(req.query.filter || 'all')
+    const requestedLimit = Number(req.query.limit || 12)
+    const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(Math.trunc(requestedLimit), 1), 50) : 12
+    const payload = searchCatalogItems({ query, filter, limit })
+
+    res.json(payload)
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ error: 'Failed to search catalog' })
+  }
+})
+
 app.get('/api/music/library', async (req, res) => {
   try {
     res.json(await getMusicLibrary())
   } catch (error) {
+    console.warn(`Music library fallback: ${error.message}`)
+    res.json(getFallbackMusicLibrary(error.message))
+  }
+})
+
+app.get('/api/catalog/status', (req, res) => {
+  res.json(buildCatalogStatusResponse())
+})
+
+app.get('/api/catalog/diagnostics', async (req, res) => {
+  try {
+    res.json(await getCatalogDiagnostics())
+  } catch (error) {
     console.error(error)
-    res.status(500).json({ error: 'Failed to load music library' })
+    res.status(500).json({ error: 'Failed to probe catalog connection' })
   }
 })
 
@@ -87,13 +163,23 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(publicDir, 'index.html'))
 })
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
+  try {
+    await bridgeService.start()
+  } catch (error) {
+    console.error(`Failed to start bridge listener: ${error.message}`)
+  }
+
   const localIp = getPreferredLocalIp()
   console.log(`Running http://localhost:${PORT}`)
 
   if (localIp) {
     console.log(`LAN http://${localIp}:${PORT}`)
   }
+
+  console.log(`Bridge listener ${BRIDGE_HOST}:${BRIDGE_PORT}`)
+
+  refreshCatalogInBackground()
 })
 
 function getPreferredLocalIp(req) {
@@ -300,6 +386,220 @@ function getItemAssetNames() {
   return fs.readdirSync(itemsAssetDir).filter((name) => name.toLowerCase().endsWith('.png'))
 }
 
+function readStarterItems() {
+  if (hasNookipediaApiKey()) {
+    refreshCatalogInBackground()
+  }
+
+  return readLocalItems()
+}
+
+function readLocalItems() {
+  if (!fs.existsSync(dataPath)) {
+    return []
+  }
+
+  const raw = fs.readFileSync(dataPath, 'utf8')
+  const items = JSON.parse(raw)
+  return Array.isArray(items) ? items : []
+}
+
+function searchCatalogItems(options = {}) {
+  const query = String(options.query || '').trim()
+  const filter = String(options.filter || 'all')
+  const limit = Number(options.limit || 12)
+  const localItems = readLocalItems()
+  const cachedItems = getCachedCatalogItems()
+  const useExpandedCatalog = query.length >= 2
+  const searchItems = useExpandedCatalog
+    ? mergeCatalogItems(cachedItems, localItems)
+    : localItems
+
+  if (hasNookipediaApiKey()) {
+    refreshCatalogInBackground()
+  }
+
+  const matched = searchItems
+    .filter((item) => matchesSearchFilter(item, filter))
+    .filter((item) => matchesSearchQuery(item, query))
+    .sort((left, right) => scoreSearchResult(left, query) - scoreSearchResult(right, query) || left.name.localeCompare(right.name))
+    .slice(0, limit)
+
+  return {
+    items: matched,
+    source: useExpandedCatalog && cachedItems.length ? 'nookipedia-cache' : 'local',
+    status: buildCatalogStatusResponse(localItems, cachedItems)
+  }
+}
+
+function buildCatalogStatusResponse(localItems = readLocalItems(), cachedItems = getCachedCatalogItems()) {
+  const syncState = getCatalogSyncState()
+  const hasWarmMemory = syncState.inMemoryCount > 0 && syncState.memorySource === 'api'
+  const hasDiskCache = syncState.diskCount > 0
+  const hasLiveCache = hasWarmMemory || hasDiskCache
+  const connectionState = hasWarmMemory
+    ? 'live'
+    : syncState.hasActiveRefresh
+      ? 'syncing'
+      : hasDiskCache
+        ? 'cached'
+        : syncState.configured
+          ? 'fallback'
+          : 'offline'
+  const labelByState = {
+    live: 'Live',
+    syncing: 'Syncing',
+    cached: 'Cached',
+    fallback: 'Local',
+    offline: 'Offline'
+  }
+  const messageByState = {
+    live: 'Nookipedia catalog is cached and ready.',
+    syncing: 'Connecting to Nookipedia live catalog.',
+    cached: 'Using cached Nookipedia catalog.',
+    fallback: syncState.lastSyncError || 'Using local starter catalog.',
+    offline: 'Nookipedia API key is not configured.'
+  }
+
+  return {
+    ...syncState,
+    connectionState,
+    label: labelByState[connectionState] || 'Offline',
+    message: messageByState[connectionState] || 'Catalog status unavailable.',
+    liveConnected: connectionState === 'live',
+    searchableCount: mergeCatalogItems(cachedItems, localItems).length,
+    localCount: localItems.length,
+    cachedCount: cachedItems.length
+  }
+}
+
+function matchesSearchFilter(item, filter) {
+  const normalizedFilter = normalizeCategoryLabel(filter)
+  if (!normalizedFilter || normalizedFilter === 'all') {
+    return true
+  }
+
+  const category = normalizeCategoryLabel(item && item.category)
+  const endpoint = normalizeCategoryLabel(item && item.source && item.source.endpoint)
+
+  if (normalizedFilter === 'tool') {
+    return category === 'tool' || endpoint === '/nh/tools'
+  }
+
+  if (normalizedFilter === 'material') {
+    return ['material', 'food', 'fence'].includes(category) || endpoint === '/nh/items'
+  }
+
+  if (normalizedFilter === 'sea creature') {
+    return category === 'sea creature' || endpoint === '/nh/sea'
+  }
+
+  if (normalizedFilter === 'bug') {
+    return category === 'bug' || endpoint === '/nh/bugs'
+  }
+
+  if (normalizedFilter === 'fossil') {
+    return category === 'fossil' || endpoint === '/nh/fossils/all'
+  }
+
+  if (normalizedFilter === 'flora') {
+    return ['plant', 'food'].includes(category)
+  }
+
+  if (normalizedFilter === 'furniture') {
+    return (
+      ['furniture', 'housewares', 'miscellaneous', 'wall-mounted', 'ceiling decor', 'wallpaper', 'floors', 'rugs', 'art', 'gyroid', 'photo', 'photos', 'painting', 'sculpture'].includes(category) ||
+      ['/nh/furniture', '/nh/interior', '/nh/art', '/nh/gyroids'].includes(endpoint)
+    )
+  }
+
+  if (normalizedFilter === 'clothing') {
+    return (
+      ['clothing', 'accessories', 'tops', 'bottoms', 'dress-up', 'headwear', 'socks', 'shoes', 'bags', 'umbrellas'].includes(category) ||
+      endpoint === '/nh/clothing'
+    )
+  }
+
+  return category === normalizedFilter
+}
+
+function matchesSearchQuery(item, query) {
+  const normalizedQuery = normalizeCategoryLabel(query)
+  if (!normalizedQuery) {
+    return true
+  }
+
+  const haystack = [
+    item && item.name,
+    item && item.category,
+    item && item.file_name,
+    ...(Array.isArray(item && item.source_files) ? item.source_files : [])
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+
+  return haystack.includes(normalizedQuery)
+}
+
+function scoreSearchResult(item, query) {
+  const normalizedQuery = normalizeCategoryLabel(query)
+  if (!normalizedQuery) {
+    return 10
+  }
+
+  const name = String(item && item.name || '').trim().toLowerCase()
+  const fileName = String(item && item.file_name || '').trim().toLowerCase()
+
+  if (name === normalizedQuery || fileName === normalizedQuery) return 0
+  if (name.startsWith(normalizedQuery)) return 1
+  if (fileName.startsWith(normalizedQuery)) return 2
+  if (name.includes(normalizedQuery)) return 3
+  if (fileName.includes(normalizedQuery)) return 4
+  return 5
+}
+
+function normalizeCategoryLabel(value) {
+  return String(value || '').trim().toLowerCase()
+}
+
+function mergeCatalogItems(primaryItems, fallbackItems) {
+  const merged = []
+  const seen = new Set()
+
+  ;[primaryItems, fallbackItems].forEach((list) => {
+    ;(Array.isArray(list) ? list : []).forEach((item) => {
+      const key = getCatalogItemLookupKey(item)
+      if (!key || seen.has(key)) {
+        return
+      }
+
+      seen.add(key)
+      merged.push(item)
+    })
+  })
+
+  return merged
+}
+
+function getCatalogItemLookupKey(item) {
+  if (!item || typeof item !== 'object') {
+    return ''
+  }
+
+  const name = String(item.name || '').trim().toLowerCase()
+  if (name) {
+    return `name:${name}`
+  }
+
+  const fileName = String(item.file_name || '').trim().toLowerCase()
+  if (fileName) {
+    return `file:${fileName}`
+  }
+
+  return ''
+}
+
 function findBestPreviewAsset(item, assetNames) {
   if (!item || !Array.isArray(assetNames) || assetNames.length === 0) {
     return null
@@ -401,6 +701,42 @@ async function getMusicLibrary() {
   }
 
   return musicLibraryCache.promise
+}
+
+function getFallbackMusicLibrary(reason) {
+  return {
+    generatedAt: new Date().toISOString(),
+    sourcePage: NOOKIPEDIA_KK_SONGS_URL,
+    apiDocs: NOOKIPEDIA_API_DOCS_URL,
+    defaultNightTrackId: 'ambient-4am-rainy',
+    defaultSunriseTrackId: 'sunrise-animal-crossing-theme',
+    degraded: true,
+    reason: String(reason || 'Remote music sources unavailable'),
+    tracks: [
+      {
+        id: 'ambient-4am-rainy',
+        title: '4 AM Rainy Weather',
+        kind: 'ambient',
+        group: 'Theme defaults',
+        source: 'Local fallback',
+        attribution: 'Fallback music library',
+        audioUrl: null,
+        artworkUrl: MUSIC_LIBRARY_FALLBACK_ART,
+        referenceUrl: NOOKIPEDIA_API_DOCS_URL
+      },
+      {
+        id: 'sunrise-animal-crossing-theme',
+        title: 'Animal Crossing Theme',
+        kind: 'audio',
+        group: 'Theme defaults',
+        source: 'Local fallback',
+        attribution: 'Fallback music library',
+        audioUrl: null,
+        artworkUrl: MUSIC_LIBRARY_FALLBACK_ART,
+        referenceUrl: NOOKIPEDIA_API_DOCS_URL
+      }
+    ]
+  }
 }
 
 async function buildMusicLibrary() {
@@ -600,5 +936,26 @@ function requestText(url) {
     })
 
     request.on('error', reject)
+    request.setTimeout(MUSIC_REQUEST_TIMEOUT_MS, () => {
+      request.destroy(new Error(`Request timed out for ${url}`))
+    })
   })
+}
+
+function resolveBridgeErrorStatus(error) {
+  const message = String(error && error.message || '')
+
+  if (/No bridge client connected|Bridge socket is not ready/i.test(message)) {
+    return 503
+  }
+
+  if (/timed out/i.test(message)) {
+    return 504
+  }
+
+  if (/not implemented|unsupported/i.test(message)) {
+    return 501
+  }
+
+  return 500
 }

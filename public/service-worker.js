@@ -1,4 +1,4 @@
-const CACHE_NAME = 'acnh-live-editor-v39'
+const CACHE_NAME = 'acnh-live-editor-v46'
 const ASSETS = [
   '/',
   '/index.html',
@@ -8,6 +8,7 @@ const ASSETS = [
   '/assets/icons/fa7-solid--bugs.svg',
   '/assets/icons/codicon--debug-connect.svg',
   '/assets/icons/codicon--debug-disconnect.svg',
+  '/assets/icons/line-md--downloading-loop.svg',
   '/assets/icons/line-md--pause-to-play-filled-transition.svg',
   '/assets/icons/line-md--pause.svg'
 ]
@@ -45,20 +46,27 @@ self.addEventListener('fetch', function (event) {
 
   const requestUrl = new URL(event.request.url)
   const isSameOrigin = requestUrl.origin === self.location.origin
+  const isApiRequest = isSameOrigin && requestUrl.pathname.startsWith('/api/')
   const isShellAsset = isSameOrigin && SHELL_PATHS.has(requestUrl.pathname)
 
+  if (isApiRequest) {
+    event.respondWith(fetch(event.request))
+    return
+  }
+
   if (isShellAsset) {
+    const cacheKey = requestUrl.pathname
     event.respondWith(
       fetch(event.request)
         .then(function (response) {
           const responseClone = response.clone()
           caches.open(CACHE_NAME).then(function (cache) {
-            cache.put(event.request, responseClone)
+            cache.put(cacheKey, responseClone)
           })
           return response
         })
         .catch(function () {
-          return caches.match(event.request)
+          return caches.match(cacheKey)
         })
     )
     return

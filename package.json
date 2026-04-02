@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js",
-    "import:catalogue": "node scripts/import-catalogue.js"
+    "import:catalogue": "node scripts/import-catalogue.js",
+    "sync:nookipedia": "node scripts/sync-nookipedia-catalog.js",
+    "bridge:test-client": "node scripts/bridge-test-client.js"
   },
   "dependencies": {
     "dotenv": "^17.3.1",

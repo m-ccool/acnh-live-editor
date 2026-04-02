@@ -14,12 +14,18 @@
   <link rel="icon" type="image/png" href="/assets/icons/Apple_NL_Icon.png" />
   <link rel="manifest" href="./manifest.webmanifest" />
   <meta name="theme-color" content="#09090b" />
-  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./styles.css?v=46" />
 </head>
 <body>
   <div id="loading-screen" class="loading-screen" aria-hidden="true">
     <div class="loading-center">
       <div class="loading-ring" aria-hidden="true"></div>
+      <img
+        src="/assets/icons/Apple_NL_Icon.png"
+        alt=""
+        class="loading-center-icon"
+        aria-hidden="true"
+      />
     </div>
   </div>
 
@@ -46,6 +52,7 @@
         <div class="brand-subline">
           <span>Catalog</span>
           <span id="catalog-status" class="status-pair is-ok">✓</span>
+          <span id="catalog-status-label" class="status-copy">Local</span>
           <span>Bridge</span>
           <span id="bridge-status-inline" class="status-pair is-bad">✕</span>
         </div>
@@ -81,18 +88,6 @@
         </button>
 
         <button
-          id="bridge-toggle"
-          class="toggle-button"
-          type="button"
-          aria-label="Bridge toggle"
-          aria-pressed="false"
-        >
-          <span class="toggle-track">
-            <span class="toggle-thumb"></span>
-          </span>
-        </button>
-
-        <button
           id="settings-button"
           class="icon-button settings-button"
           type="button"
@@ -111,7 +106,20 @@
     <section class="log-panel shell-card">
       <div class="log-panel-head">
         <span>CMD / Log view</span>
-        <span id="ip-display">IP Address: 00.00.00.00</span>
+        <div class="log-panel-head-meta">
+          <button
+            id="bridge-toggle"
+            class="toggle-button"
+            type="button"
+            aria-label="Bridge toggle"
+            aria-pressed="false"
+          >
+            <span class="toggle-track">
+              <span class="toggle-thumb"></span>
+            </span>
+          </button>
+          <span id="ip-display">IP Address: 00.00.00.00</span>
+        </div>
       </div>
 
       <div class="log-console-wrap">
@@ -149,6 +157,15 @@
           </button>
         </div>
       </div>
+      <button
+        id="log-panel-resize-handle"
+        class="log-panel-resize-handle"
+        type="button"
+        aria-label="Resize log view"
+        title="Drag to resize log view"
+      >
+        <span class="log-panel-resize-grip" aria-hidden="true"></span>
+      </button>
     </section>
 
     <section class="player-panel shell-card">
@@ -226,13 +243,23 @@
               <span id="selected-item-name" class="selected-item-name">Empty slot</span>
             </div>
 
-            <div
+            <button
               id="selected-item-artbox"
-              class="selected-item-artbox"
-              title="Double-click to clear selected slot"
+              class="selected-item-artbox selected-item-edit-button"
+              type="button"
+              aria-label="Edit selected item"
+              title="Edit selected item"
             >
               <img id="selected-preview-image" alt="" />
-            </div>
+              <span class="avatar-edit-chip" aria-hidden="true">
+                <img
+                  src="/assets/icons/line-md--pencil.svg"
+                  alt=""
+                  class="icon-img icon-white"
+                  onerror="this.style.display='none';this.parentNode.textContent='✎';"
+                />
+              </span>
+            </button>
 
             <div class="selected-item-actions">
               <button
@@ -535,7 +562,10 @@
     </section>
 
     <footer class="footer-mark">
-      <img src="/assets/icons/NL_Logo_Japanese.png" alt="Footer logo" />
+      <div class="footer-brand">
+        <img src="/assets/icons/NL_Logo_Japanese.png" alt="" aria-hidden="true" />
+        <span class="footer-label">ACNH Live Editor</span>
+      </div>
       <a
         class="footer-watermark"
         href="https://doxxus.us/"
@@ -555,91 +585,98 @@
     aria-label="Reload app"
     title="Reload app"
   >
-    <span class="debug-reload-orbit" aria-hidden="true"></span>
-    <span class="debug-reload-core">
+    <span class="debug-reload-orbit" aria-hidden="true">
       <img
-        src="/assets/icons/fa7-solid--bugs.svg"
+        src="/assets/icons/line-md--loading-loop-circle.svg"
         alt=""
-        class="debug-reload-icon"
+        class="debug-reload-orbit-icon"
       />
-      <span class="debug-reload-status" aria-hidden="true">
-        <img
-          id="debug-reload-status-icon"
-          src="/assets/icons/line-md--pause-to-play-filled-transition.svg"
-          alt=""
-          class="debug-reload-status-icon"
-        />
-      </span>
+    </span>
+    <span class="debug-reload-core">
+      <span class="debug-reload-icon" aria-hidden="true"></span>
     </span>
   </button>
 
   <div id="music-ribbon" class="music-ribbon" aria-live="polite">
+    <button
+      id="music-ribbon-toggle"
+      class="music-ribbon-tab"
+      type="button"
+      aria-expanded="false"
+      aria-controls="music-ribbon-drawer"
+      aria-label="Open music browser"
+    >
+      <span class="music-ribbon-tab-rail" aria-hidden="true"></span>
+      <span class="music-ribbon-tab-icon" aria-hidden="true">♪</span>
+    </button>
+
     <div id="music-ribbon-drawer" class="music-ribbon-drawer" aria-hidden="true">
-      <button
-        id="music-ribbon-toggle"
-        class="music-ribbon-tab"
-        type="button"
-        aria-expanded="false"
-        aria-controls="music-ribbon-drawer"
-        aria-label="Open music browser"
-      >
-        <img
-          src="/assets/icons/Aircheck_NH_Inv_Icon.png"
-          alt=""
-          class="music-ribbon-tab-icon"
-        />
-      </button>
-
       <div class="music-player-shell">
-        <div class="music-artbox">
-          <img
-            id="music-artwork"
-            src="/assets/icons/Aircheck_NH_Inv_Icon.png"
-            alt=""
-          />
-        </div>
+        <div class="music-player-top">
+          <div class="music-artbox">
+            <img
+              id="music-artwork"
+              src="/assets/icons/Aircheck_NH_Inv_Icon.png"
+              alt=""
+            />
+          </div>
 
-        <div class="music-player-copy">
-          <span id="music-source-badge" class="music-source-badge">Night ambient preset</span>
-          <strong id="music-track-title">4 AM Rainy Weather</strong>
-          <span id="music-track-meta" class="music-track-meta">Queued for night mode</span>
+          <div class="music-player-copy">
+            <span id="music-source-badge" class="music-source-badge">Night ambient preset</span>
+            <strong id="music-track-title">4 AM Rainy Weather</strong>
+            <span id="music-track-meta" class="music-track-meta">Queued for night mode</span>
 
-          <div id="music-progress" class="music-progress is-ambient" aria-hidden="true">
-            <span id="music-progress-bar" class="music-progress-bar"></span>
+            <div id="music-progress" class="music-progress is-ambient" aria-hidden="true">
+              <span id="music-progress-bar" class="music-progress-bar"></span>
+            </div>
+          </div>
+
+          <div class="music-player-controls" role="group" aria-label="Music playback controls">
+            <button
+              id="music-loop-button"
+              type="button"
+              class="music-control-btn"
+              aria-label="Toggle loop"
+              aria-pressed="false"
+            >
+              <img
+                src="/assets/icons/line-md--rotate-270.svg"
+                alt=""
+                class="music-control-icon"
+                onerror="this.style.display='none';this.parentNode.textContent='↻';"
+              />
+            </button>
+            <button id="music-prev-button" type="button" class="music-control-btn" aria-label="Previous track">⏮</button>
+            <button id="music-play-button" type="button" class="music-control-btn music-control-btn-primary" aria-label="Play music">
+              <img
+                id="music-play-icon"
+                src="/assets/icons/line-md--pause-to-play-filled-transition.svg"
+                alt=""
+                class="music-control-icon"
+              />
+            </button>
+            <button id="music-next-button" type="button" class="music-control-btn" aria-label="Next track">⏭</button>
           </div>
         </div>
 
-        <div class="music-player-controls" role="group" aria-label="Music playback controls">
-          <button id="music-prev-button" type="button" class="music-control-btn" aria-label="Previous track">⏮</button>
-          <button id="music-play-button" type="button" class="music-control-btn music-control-btn-primary" aria-label="Play music">
-            <img
-              id="music-play-icon"
-              src="/assets/icons/line-md--pause-to-play-filled-transition.svg"
-              alt=""
-              class="music-control-icon"
+        <div class="music-browser-row">
+          <label class="music-field music-library-field">
+            <span>Library</span>
+            <select id="music-library-select" aria-label="Music library"></select>
+          </label>
+
+          <label class="music-field music-volume-field">
+            <span>Volume</span>
+            <input
+              id="music-volume"
+              type="range"
+              min="0"
+              max="100"
+              value="58"
+              aria-label="Music volume"
             />
-          </button>
-          <button id="music-next-button" type="button" class="music-control-btn" aria-label="Next track">⏭</button>
+          </label>
         </div>
-      </div>
-
-      <div class="music-browser-row">
-        <label class="music-field music-library-field">
-          <span>Library</span>
-          <select id="music-library-select" aria-label="Music library"></select>
-        </label>
-
-        <label class="music-field music-volume-field">
-          <span>Volume</span>
-          <input
-            id="music-volume"
-            type="range"
-            min="0"
-            max="100"
-            value="58"
-            aria-label="Music volume"
-          />
-        </label>
       </div>
     </div>
 
@@ -685,6 +722,13 @@
             onerror="this.style.display='none';this.parentNode.textContent='↻';"
           />
         </button>
+      </div>
+
+      <div class="settings-debug-box settings-debug-box-secondary">
+        <div class="settings-debug-stack">
+          <strong class="settings-debug-title">Catalog diagnostics</strong>
+          <pre id="settings-catalog-output" class="settings-debug-pre">Waiting for diagnostics</pre>
+        </div>
       </div>
 
       <div class="settings-bottom">
@@ -766,7 +810,7 @@
         </aside>
 
         <div class="player-modal-main">
-          <section id="player-modal-view-player" class="player-modal-view">
+          <section id="player-modal-view-player" class="player-modal-view player-modal-form-panel tab-panel">
             <div class="form-grid player-modal-form-grid">
               <label class="field-wrap">
                 <span>Player Name</span>
@@ -809,80 +853,68 @@
 
           <section id="player-modal-view-flags" class="player-modal-view" hidden>
             <div class="player-flags-shell">
-              <div class="player-flags-bar" role="tablist" aria-label="Edit flags sections">
-                <button type="button" class="player-flags-tab-btn is-active" data-player-flags-tab="recipes" role="tab" aria-selected="true">Recipes</button>
-                <button type="button" class="player-flags-tab-btn" data-player-flags-tab="reactions" role="tab" aria-selected="false">Reactions</button>
-                <button type="button" class="player-flags-tab-btn" data-player-flags-tab="received" role="tab" aria-selected="false">Received</button>
-                <button type="button" class="player-flags-tab-btn" data-player-flags-tab="achievements" role="tab" aria-selected="false">Achievements</button>
-                <button type="button" class="player-flags-tab-btn" data-player-flags-tab="flags" role="tab" aria-selected="false">Flags</button>
-                <button type="button" class="player-flags-tab-btn" data-player-flags-tab="misc" role="tab" aria-selected="false">Misc</button>
+              <div class="player-flags-bar tab-bar" role="tablist" aria-label="Edit flags sections">
+                <button type="button" class="tab-btn player-flags-tab-btn is-active" data-player-flags-tab="recipes" role="tab" aria-selected="true">Recipes</button>
+                <button type="button" class="tab-btn player-flags-tab-btn" data-player-flags-tab="reactions" role="tab" aria-selected="false">Reactions</button>
+                <button type="button" class="tab-btn player-flags-tab-btn" data-player-flags-tab="received" role="tab" aria-selected="false">Received</button>
+                <button type="button" class="tab-btn player-flags-tab-btn" data-player-flags-tab="achievements" role="tab" aria-selected="false">Achievements</button>
+                <button type="button" class="tab-btn player-flags-tab-btn" data-player-flags-tab="flags" role="tab" aria-selected="false">Flags</button>
+                <button type="button" class="tab-btn player-flags-tab-btn" data-player-flags-tab="misc" role="tab" aria-selected="false">Misc</button>
               </div>
 
               <div class="player-flags-panels">
-                <section id="player-flags-panel-recipes" class="player-flags-panel is-active" role="tabpanel">
-                  <div class="player-modal-placeholder tab-card">
-                    <h4>Recipes</h4>
-                    <p>Recipe flag editing will land here, including known DIY sets and unlocked-state batch tools.</p>
-                    <pre class="mini-code-block player-modal-console">Recipes queue
+                <section id="player-flags-panel-recipes" class="player-flags-panel tab-panel is-active" role="tabpanel">
+                  <h4>Recipes</h4>
+                  <p>Recipe flag editing will land here, including known DIY sets and unlocked-state batch tools.</p>
+                  <pre class="mini-code-block player-modal-console">Recipes queue
 - learned DIY set sync
 - search by recipe id
 - batch unlock / restore</pre>
-                  </div>
                 </section>
 
-                <section id="player-flags-panel-reactions" class="player-flags-panel" role="tabpanel" hidden>
-                  <div class="player-modal-placeholder tab-card">
-                    <h4>Reactions</h4>
-                    <p>Reaction unlock flags will live here with quick presets and villager-learning state.</p>
-                    <pre class="mini-code-block player-modal-console">Reactions queue
+                <section id="player-flags-panel-reactions" class="player-flags-panel tab-panel" role="tabpanel" hidden>
+                  <h4>Reactions</h4>
+                  <p>Reaction unlock flags will live here with quick presets and villager-learning state.</p>
+                  <pre class="mini-code-block player-modal-console">Reactions queue
 - unlocked emotes
 - missing reactions
 - sync from save state</pre>
-                  </div>
                 </section>
 
-                <section id="player-flags-panel-received" class="player-flags-panel" role="tabpanel" hidden>
-                  <div class="player-modal-placeholder tab-card">
-                    <h4>Received</h4>
-                    <p>Mail, gifts, and receipt-style state flags can be staged here once the data map is wired.</p>
-                    <pre class="mini-code-block player-modal-console">Received queue
+                <section id="player-flags-panel-received" class="player-flags-panel tab-panel" role="tabpanel" hidden>
+                  <h4>Received</h4>
+                  <p>Mail, gifts, and receipt-style state flags can be staged here once the data map is wired.</p>
+                  <pre class="mini-code-block player-modal-console">Received queue
 - gift flags
 - mail markers
 - catalog receipt state</pre>
-                  </div>
                 </section>
 
-                <section id="player-flags-panel-achievements" class="player-flags-panel" role="tabpanel" hidden>
-                  <div class="player-modal-placeholder tab-card">
-                    <h4>Achievements</h4>
-                    <p>Nook Miles achievement progress and completion markers will live here.</p>
-                    <pre class="mini-code-block player-modal-console">Achievements queue
+                <section id="player-flags-panel-achievements" class="player-flags-panel tab-panel" role="tabpanel" hidden>
+                  <h4>Achievements</h4>
+                  <p>Nook Miles achievement progress and completion markers will live here.</p>
+                  <pre class="mini-code-block player-modal-console">Achievements queue
 - progress values
 - completion bits
 - milestone rewards</pre>
-                  </div>
                 </section>
 
-                <section id="player-flags-panel-flags" class="player-flags-panel" role="tabpanel" hidden>
-                  <div class="player-modal-placeholder tab-card">
-                    <h4>Flags</h4>
-                    <p>Raw story and feature flags can be surfaced here for lower-level editing.</p>
-                    <pre class="mini-code-block player-modal-console">Flags queue
+                <section id="player-flags-panel-flags" class="player-flags-panel tab-panel" role="tabpanel" hidden>
+                  <h4>Flags</h4>
+                  <p>Raw story and feature flags can be surfaced here for lower-level editing.</p>
+                  <pre class="mini-code-block player-modal-console">Flags queue
 - story toggles
 - plaza unlocks
 - feature state bits</pre>
-                  </div>
                 </section>
 
-                <section id="player-flags-panel-misc" class="player-flags-panel" role="tabpanel" hidden>
-                  <div class="player-modal-placeholder tab-card">
-                    <h4>Misc</h4>
-                    <p>Catch-all player state that does not belong to the other buckets can live here.</p>
-                    <pre class="mini-code-block player-modal-console">Misc queue
+                <section id="player-flags-panel-misc" class="player-flags-panel tab-panel" role="tabpanel" hidden>
+                  <h4>Misc</h4>
+                  <p>Catch-all player state that does not belong to the other buckets can live here.</p>
+                  <pre class="mini-code-block player-modal-console">Misc queue
 - title state
 - island intro markers
 - event leftovers</pre>
-                  </div>
                 </section>
               </div>
             </div>
@@ -987,14 +1019,14 @@
             </button>
           </div>
 
-          <div class="modal-actions">
-            <button id="item-modal-apply" type="button" class="action-btn action-btn-solid">Apply</button>
+          <div class="modal-actions item-modal-footer">
+            <button id="item-modal-apply" type="button" class="action-btn action-btn-solid item-modal-apply-btn">Apply</button>
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <script src="./app.js"></script>
+  <script src="./app.js?v=46"></script>
 </body>
 </html>
