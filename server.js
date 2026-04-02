@@ -458,7 +458,7 @@ function buildCatalogStatusResponse(localItems = readLocalItems(), cachedItems =
     syncing: 'Connecting to Nookipedia live catalog.',
     cached: 'Using cached Nookipedia catalog.',
     fallback: syncState.lastSyncError || 'Using local starter catalog.',
-    offline: 'Nookipedia API key is not configured.'
+    offline: 'Nookipedia API key is not configured. Set NOOKIPEDIA_API_KEY in .env and restart the server.'
   }
 
   return {

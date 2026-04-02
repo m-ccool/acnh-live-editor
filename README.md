@@ -66,6 +66,10 @@ NOOKIPEDIA_API_KEY=
 NOOKIPEDIA_ACCEPT_VERSION=1.7.0
 ```
 
+## Troubleshooting
+
+- If catalog diagnostics show `State: Offline (offline)` with `Last error: Nookipedia API key is not configured.`, define `NOOKIPEDIA_API_KEY` in `.env` and restart `npm run dev`.
+
 ## Available Scripts
 
 - `npm run dev`: start the local server
