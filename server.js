@@ -1,11 +1,13 @@
-require('dotenv').config({ quiet: true })
-
 const { execSync } = require('child_process')
 const express = require('express')
 const fs = require('fs')
 const https = require('https')
 const os = require('os')
 const path = require('path')
+require('dotenv').config({
+  path: path.join(__dirname, '.env'),
+  quiet: true
+})
 
 const {
   getCachedCatalogItems,
@@ -458,7 +460,7 @@ function buildCatalogStatusResponse(localItems = readLocalItems(), cachedItems =
     syncing: 'Connecting to Nookipedia live catalog.',
     cached: 'Using cached Nookipedia catalog.',
     fallback: syncState.lastSyncError || 'Using local starter catalog.',
-    offline: 'Nookipedia API key is not configured.'
+    offline: 'Nookipedia API key is not configured. Set NOOKIPEDIA_API_KEY in .env and restart the server.'
   }
 
   return {

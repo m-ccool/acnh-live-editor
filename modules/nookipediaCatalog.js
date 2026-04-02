@@ -1,9 +1,11 @@
-require('dotenv').config({ quiet: true })
-
 const fs = require('fs')
 const https = require('https')
 const path = require('path')
 const tls = require('tls')
+require('dotenv').config({
+  path: path.join(__dirname, '..', '.env'),
+  quiet: true
+})
 
 const NOOKIPEDIA_API_BASE_URL = 'https://api.nookipedia.com'
 const DEFAULT_ACCEPT_VERSION = process.env.NOOKIPEDIA_ACCEPT_VERSION || '1.7.0'
@@ -354,13 +356,17 @@ async function buildCatalogItems(apiKey) {
     })
   )
 
+  const endpointErrors = []
   const items = responses
     .flatMap((result, index) => {
       if (result.status === 'fulfilled') {
         return result.value
       }
 
-      console.warn(`Skipping ${ENDPOINTS[index].path}: ${result.reason.message}`)
+      const errorMessage = describeError(result.reason)
+      const endpointPath = ENDPOINTS[index].path
+      endpointErrors.push(`${endpointPath}: ${errorMessage}`)
+      console.warn(`Skipping ${endpointPath}: ${errorMessage}`)
       return []
     })
     .flat()
@@ -378,7 +384,10 @@ async function buildCatalogItems(apiKey) {
     }))
 
   if (!items.length) {
-    throw new Error('No Nookipedia catalog items were fetched successfully')
+    const detail = endpointErrors.length
+      ? ` (${endpointErrors.slice(0, 3).join('; ')})`
+      : ''
+    throw new Error(`No Nookipedia catalog items were fetched successfully${detail}`)
   }
 
   return items
@@ -472,16 +481,42 @@ function requestNookipediaJson(pathname, apiKey, attempt = 0) {
     }, (response) => {
       if (response.statusCode && response.statusCode >= 400) {
         const statusCode = response.statusCode
+        let resolved = false
+        let errorBody = ''
+        response.setEncoding('utf8')
+        response.on('data', (chunk) => {
+          errorBody += chunk
+        })
+        response.on('end', () => {
+          if (resolved) {
+            return
+          }
+          resolved = true
+          const bodySnippet = String(errorBody || '')
+            .trim()
+            .replace(/\s+/g, ' ')
+            .slice(0, 120)
+
+          if (shouldRetryRequest(statusCode, attempt)) {
+            delay(getRetryDelayMs(attempt))
+              .then(() => resolve(requestNookipediaJson(pathname, apiKey, attempt + 1)))
+              .catch(reject)
+            return
+          }
+
+          const bodySuffix = bodySnippet ? `: ${bodySnippet}` : ''
+          reject(new Error(`Nookipedia request failed (${statusCode}) for ${pathname}${bodySuffix}`))
+        })
+        response.on('close', () => {
+          if (resolved) {
+            return
+          }
+          resolved = true
+          const bodySnippet = String(errorBody || '').trim().replace(/\s+/g, ' ').slice(0, 120)
+          const bodySuffix = bodySnippet ? `: ${bodySnippet}` : ''
+          reject(new Error(`Nookipedia request failed (${statusCode}) for ${pathname}${bodySuffix}`))
+        })
         response.resume()
-
-        if (shouldRetryRequest(statusCode, attempt)) {
-          delay(getRetryDelayMs(attempt))
-            .then(() => resolve(requestNookipediaJson(pathname, apiKey, attempt + 1)))
-            .catch(reject)
-          return
-        }
-
-        reject(new Error(`Nookipedia request failed (${statusCode}) for ${pathname}`))
         return
       }
 
@@ -575,9 +610,10 @@ function probeHttpRequest(pathname, extraHeaders = {}) {
         bytes += chunk.length
         if (bytes > 0) {
           request.destroy()
+          const status = response.statusCode || 0
           resolve({
-            ok: true,
-            status: response.statusCode || 0,
+            ok: status >= 200 && status < 400,
+            status,
             firstByteMs: Date.now() - startedAt,
             bytes
           })
@@ -585,9 +621,10 @@ function probeHttpRequest(pathname, extraHeaders = {}) {
       })
 
       response.on('end', () => {
+        const status = response.statusCode || 0
         resolve({
-          ok: true,
-          status: response.statusCode || 0,
+          ok: status >= 200 && status < 400,
+          status,
           firstByteMs: Date.now() - startedAt,
           bytes
         })
@@ -615,6 +652,35 @@ function probeHttpRequest(pathname, extraHeaders = {}) {
       })
     })
   })
+}
+
+function describeError(error) {
+  if (error instanceof Error) {
+    const message = String(error.message || '').trim()
+    if (message) {
+      return message
+    }
+
+    return error.name || 'Error'
+  }
+
+  if (typeof error === 'string' && error.trim()) {
+    return error.trim()
+  }
+
+  if (error && typeof error === 'object') {
+    const status = error.statusCode || error.status
+    if (status) {
+      return `HTTP ${status}`
+    }
+
+    const fallback = String(error.toString ? error.toString() : '').trim()
+    if (fallback && fallback !== '[object Object]') {
+      return fallback
+    }
+  }
+
+  return 'Unknown error'
 }
 
 function deriveMiscItemCategory(entry) {
