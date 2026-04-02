@@ -30,7 +30,12 @@
   --radius-md: 16px;
   --radius-sm: 12px;
   --ease: cubic-bezier(.22,.61,.36,1);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
 }
+
 
 * {
   box-sizing: border-box;
@@ -49,12 +54,18 @@ body {
 
 body {
   color: var(--text);
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
   font-family: "SF Pro Display", "Segoe UI", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   background: #0f1324;
   overflow-x: hidden;
   overflow-y: auto;
   transition: color 0.4s var(--ease);
+  -webkit-tap-highlight-color: transparent;
+  text-rendering: optimizeLegibility;
 }
+
 
 body.modal-open {
   overflow: hidden;
@@ -665,6 +676,7 @@ body[data-theme='night'] .star--bright {
 
 .app-shell {
   position: relative;
+  min-height: calc(100dvh - var(--safe-top) - var(--safe-bottom));
   z-index: 1;
   width: min(1110px, calc(100% - clamp(42px, 8vw, 132px)));
   margin: 0 auto;
@@ -3882,6 +3894,28 @@ body:not([data-theme='night']) .action-btn-solid {
     width: min(100%, 184px);
     height: auto;
     aspect-ratio: 172 / 234;
+  }
+}
+
+@media (max-width: 720px) {
+  .app-shell {
+    width: min(1110px, calc(100% - 18px));
+    padding-top: max(16px, calc(var(--safe-top) + 8px));
+    padding-bottom: max(24px, calc(var(--safe-bottom) + 16px));
+  }
+
+  .topbar,
+  .log-panel,
+  .player-panel,
+  .tabs-panel,
+  .music-ribbon {
+    scroll-margin-top: calc(var(--safe-top) + 14px);
+  }
+
+  .shell-card {
+    backdrop-filter: blur(20px) saturate(125%) contrast(1.01);
+    -webkit-backdrop-filter: blur(20px) saturate(125%) contrast(1.01);
+    transition-duration: 0.42s;
   }
 }
 
