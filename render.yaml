@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: acnh-live-editor-demo
+    runtime: node
+    plan: free
+    branch: master
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 22.22.0
+      - key: PORT
+        value: 10000
+      - key: BRIDGE_HOST
+        value: 0.0.0.0
+      - key: BRIDGE_PORT
+        value: 32840
+      - key: BRIDGE_REQUEST_TIMEOUT_MS
+        value: 5000
+      - key: NOOKIPEDIA_ACCEPT_VERSION
+        value: 1.7.0
