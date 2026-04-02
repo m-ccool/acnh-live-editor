@@ -2790,21 +2790,21 @@
           driftRange: 10
         }
       : {
-          count: 7,
-          widthMin: 176,
-          widthRange: 182,
-          heightMin: 0.18,
-          heightRange: 0.16,
-          topMin: 16,
-          topRange: 28,
-          durationMin: 96,
-          durationRange: 30,
-          opacityMin: 0.18,
-          opacityRange: 0.08,
-          blurMin: 3.2,
-          blurRange: 2.4,
-          driftMin: -4,
-          driftRange: 8
+          count: 6,
+          widthMin: 188,
+          widthRange: 144,
+          heightMin: 0.2,
+          heightRange: 0.08,
+          topMin: 10,
+          topRange: 22,
+          durationMin: 102,
+          durationRange: 22,
+          opacityMin: 0.22,
+          opacityRange: 0.06,
+          blurMin: 1.5,
+          blurRange: 1.1,
+          driftMin: -3,
+          driftRange: 6
         };
 
     for (let i = 0; i < config.count; i += 1) {
@@ -2812,7 +2812,7 @@
       cloud.className = 'cloud';
       cloud.classList.add(isNight
         ? (Math.random() < 0.72 ? 'cloud--wispy' : 'cloud--puff')
-        : (Math.random() < 0.68 ? 'cloud--tower' : 'cloud--bank'));
+        : 'cloud--day-round');
 
       const width = config.widthMin + Math.random() * config.widthRange;
       const height = width * (config.heightMin + Math.random() * config.heightRange);
@@ -2832,8 +2832,8 @@
       cloud.style.setProperty('--cloud-opacity', opacity.toFixed(2));
       cloud.style.setProperty('--cloud-blur', `${blur.toFixed(2)}px`);
       cloud.style.setProperty('--cloud-drift-y', `${(config.driftMin + Math.random() * config.driftRange).toFixed(2)}px`);
-      cloud.style.setProperty('--cloud-scale-y', (0.88 + Math.random() * 0.28).toFixed(2));
-      cloud.style.setProperty('--cloud-skew', `${randomBetween(-2.8, 2.8).toFixed(2)}deg`);
+      cloud.style.setProperty('--cloud-scale-y', (isNight ? (0.88 + Math.random() * 0.28) : (0.94 + Math.random() * 0.1)).toFixed(2));
+      cloud.style.setProperty('--cloud-skew', `${(isNight ? randomBetween(-2.8, 2.8) : randomBetween(-0.8, 0.8)).toFixed(2)}deg`);
 
       fragment.appendChild(cloud);
     }
