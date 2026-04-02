@@ -1,11 +1,13 @@
-require('dotenv').config({ quiet: true })
-
 const { execSync } = require('child_process')
 const express = require('express')
 const fs = require('fs')
 const https = require('https')
 const os = require('os')
 const path = require('path')
+require('dotenv').config({
+  path: path.join(__dirname, '.env'),
+  quiet: true
+})
 
 const {
   getCachedCatalogItems,

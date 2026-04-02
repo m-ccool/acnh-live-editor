@@ -1,9 +1,11 @@
-require('dotenv').config({ quiet: true })
-
 const fs = require('fs')
 const https = require('https')
 const path = require('path')
 const tls = require('tls')
+require('dotenv').config({
+  path: path.join(__dirname, '..', '.env'),
+  quiet: true
+})
 
 const NOOKIPEDIA_API_BASE_URL = 'https://api.nookipedia.com'
 const DEFAULT_ACCEPT_VERSION = process.env.NOOKIPEDIA_ACCEPT_VERSION || '1.7.0'
