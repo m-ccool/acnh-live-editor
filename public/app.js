@@ -877,8 +877,8 @@
 
     el.catalogStatus.textContent = catalogGlyph;
     el.catalogStatus.classList.toggle('is-ok', state.catalog.connectionState === 'live');
-    el.catalogStatus.classList.toggle('is-warn', state.catalog.connectionState === 'syncing' || state.catalog.connectionState === 'cached');
-    el.catalogStatus.classList.toggle('is-bad', state.catalog.connectionState === 'fallback' || state.catalog.connectionState === 'offline');
+    el.catalogStatus.classList.toggle('is-warn', state.catalog.connectionState === 'syncing' || state.catalog.connectionState === 'cached' || state.catalog.connectionState === 'fallback');
+    el.catalogStatus.classList.toggle('is-bad', state.catalog.connectionState === 'offline');
     el.catalogStatus.title = state.catalog.message || '';
 
     if (el.catalogStatusLabel) {
@@ -3169,12 +3169,23 @@
     const tls = diagnostics.tcpTls || {};
     const httpDoc = diagnostics.httpDoc || {};
     const httpApi = diagnostics.httpApi || {};
+    const describeProbe = (probe) => {
+      if (probe.ok) {
+        return `ok in ${probe.firstByteMs}ms`;
+      }
+
+      if (typeof probe.status === 'number' && probe.status > 0) {
+        return `HTTP ${probe.status}`;
+      }
+
+      return probe.error || 'failed';
+    };
 
     return [
       `State: ${state.catalog.label} (${state.catalog.connectionState})`,
       `TLS: ${tls.ok ? `ok in ${tls.elapsedMs}ms` : tls.error || 'failed'}`,
-      `Doc: ${httpDoc.ok ? `ok in ${httpDoc.firstByteMs}ms` : httpDoc.error || 'failed'}`,
-      `API: ${httpApi.ok ? `ok in ${httpApi.firstByteMs}ms` : httpApi.error || 'failed'}`,
+      `Doc: ${describeProbe(httpDoc)}`,
+      `API: ${describeProbe(httpApi)}`,
       `Last error: ${state.catalog.message || 'none'}`
     ].join('\n');
   }
@@ -3416,6 +3427,7 @@
     if (state.catalog.connectionState === 'live') return '✓';
     if (state.catalog.connectionState === 'syncing') return '…';
     if (state.catalog.connectionState === 'cached') return '◌';
+    if (state.catalog.connectionState === 'fallback') return '!';
     return '✕';
   }
 

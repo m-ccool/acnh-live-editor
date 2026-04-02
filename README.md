@@ -70,6 +70,7 @@ NOOKIPEDIA_ACCEPT_VERSION=1.7.0
 
 - If catalog diagnostics show `State: Offline (offline)` with `Last error: Nookipedia API key is not configured.`, define `NOOKIPEDIA_API_KEY` in `.env` and restart `npm run dev`.
 - If you launch the server from another working directory (for example via a process manager), make sure the app can still read `<repo>/.env`; the server now resolves `.env` from the project root.
+- If diagnostics show `API: HTTP 403`, the key is being sent but rejected by Nookipedia (invalid/revoked/not approved for the requested version).
 
 ## Available Scripts
 
