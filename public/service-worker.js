@@ -1,10 +1,11 @@
-const CACHE_NAME = 'acnh-live-editor-v46'
+const CACHE_NAME = 'acnh-live-editor-v47'
 const ASSETS = [
   '/',
   '/index.html',
   '/styles.css',
   '/app.js',
   '/manifest.webmanifest',
+  '/assets/icons/Apple_NL_Icon.png',
   '/assets/icons/fa7-solid--bugs.svg',
   '/assets/icons/codicon--debug-connect.svg',
   '/assets/icons/codicon--debug-disconnect.svg',
