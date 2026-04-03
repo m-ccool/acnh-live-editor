@@ -14,6 +14,7 @@ const REQUEST_TIMEOUT_MS = 8000
 const FAILURE_TTL_MS = 1000 * 60 * 5
 const DISK_CACHE_PATH = path.join(__dirname, '..', 'data', 'nookipedia-items-cache.json')
 const DIAGNOSTICS_TTL_MS = 15000
+const MAX_REQUEST_RETRIES = 2
 
 const ENDPOINTS = [
   {
@@ -203,6 +204,15 @@ async function getCatalogItems() {
         return items
       })
       .catch((error) => {
+        const fallbackItems = getCachedCatalogItems()
+        if (fallbackItems.length) {
+          catalogCache.value = fallbackItems
+          catalogCache.expiresAt = 0
+          catalogCache.memorySource = 'disk'
+          catalogCache.lastSyncError = `Fell back to disk cache: ${error.message}`
+          return fallbackItems
+        }
+
         catalogCache.failureExpiresAt = Date.now() + FAILURE_TTL_MS
         catalogCache.lastSyncError = error.message
         throw error
@@ -329,6 +339,8 @@ function readDiskCatalogCache() {
 }
 
 function writeDiskCatalogCache(items, updatedAt) {
+  fs.mkdirSync(path.dirname(DISK_CACHE_PATH), { recursive: true })
+
   const payload = {
     updatedAt: String(updatedAt || new Date().toISOString()),
     acceptVersion: DEFAULT_ACCEPT_VERSION,
@@ -471,6 +483,7 @@ function createCatalogItem(entry, options = {}) {
 
 function requestNookipediaJson(pathname, apiKey, attempt = 0) {
   return new Promise((resolve, reject) => {
+    let settled = false
     const request = https.get(`${NOOKIPEDIA_API_BASE_URL}${pathname}`, {
       headers: {
         'X-API-KEY': apiKey,
@@ -481,23 +494,22 @@ function requestNookipediaJson(pathname, apiKey, attempt = 0) {
     }, (response) => {
       if (response.statusCode && response.statusCode >= 400) {
         const statusCode = response.statusCode
-        let resolved = false
         let errorBody = ''
         response.setEncoding('utf8')
         response.on('data', (chunk) => {
           errorBody += chunk
         })
         response.on('end', () => {
-          if (resolved) {
+          if (settled) {
             return
           }
-          resolved = true
+          settled = true
           const bodySnippet = String(errorBody || '')
             .trim()
             .replace(/\s+/g, ' ')
             .slice(0, 120)
 
-          if (shouldRetryRequest(statusCode, attempt)) {
+          if (shouldRetryRequest(statusCode, attempt) || shouldRetryBodySnippet(bodySnippet, attempt)) {
             delay(getRetryDelayMs(attempt))
               .then(() => resolve(requestNookipediaJson(pathname, apiKey, attempt + 1)))
               .catch(reject)
@@ -508,10 +520,10 @@ function requestNookipediaJson(pathname, apiKey, attempt = 0) {
           reject(new Error(`Nookipedia request failed (${statusCode}) for ${pathname}${bodySuffix}`))
         })
         response.on('close', () => {
-          if (resolved) {
+          if (settled) {
             return
           }
-          resolved = true
+          settled = true
           const bodySnippet = String(errorBody || '').trim().replace(/\s+/g, ' ').slice(0, 120)
           const bodySuffix = bodySnippet ? `: ${bodySnippet}` : ''
           reject(new Error(`Nookipedia request failed (${statusCode}) for ${pathname}${bodySuffix}`))
@@ -526,15 +538,40 @@ function requestNookipediaJson(pathname, apiKey, attempt = 0) {
         body += chunk
       })
       response.on('end', () => {
+        if (settled) {
+          return
+        }
+        settled = true
         try {
           resolve(JSON.parse(body))
         } catch (error) {
-          reject(error)
+          if (attempt < MAX_REQUEST_RETRIES) {
+            delay(getRetryDelayMs(attempt))
+              .then(() => resolve(requestNookipediaJson(pathname, apiKey, attempt + 1)))
+              .catch(reject)
+            return
+          }
+
+          reject(new Error(`Invalid Nookipedia JSON for ${pathname}: ${error.message}`))
         }
       })
     })
 
-    request.on('error', reject)
+    request.on('error', (error) => {
+      if (settled) {
+        return
+      }
+      settled = true
+
+      if (shouldRetryNetworkError(error, attempt)) {
+        delay(getRetryDelayMs(attempt))
+          .then(() => resolve(requestNookipediaJson(pathname, apiKey, attempt + 1)))
+          .catch(reject)
+        return
+      }
+
+      reject(error)
+    })
     request.setTimeout(REQUEST_TIMEOUT_MS, () => {
       request.destroy(new Error(`Nookipedia request timed out for ${pathname}`))
     })
@@ -542,7 +579,20 @@ function requestNookipediaJson(pathname, apiKey, attempt = 0) {
 }
 
 function shouldRetryRequest(statusCode, attempt) {
-  return attempt < 1 && [429, 502, 503, 504].includes(Number(statusCode))
+  return attempt < MAX_REQUEST_RETRIES && [429, 502, 503, 504].includes(Number(statusCode))
+}
+
+function shouldRetryNetworkError(error, attempt) {
+  if (attempt >= MAX_REQUEST_RETRIES) {
+    return false
+  }
+
+  const code = String(error && error.code || '').trim().toUpperCase()
+  return ['ECONNRESET', 'ETIMEDOUT', 'EAI_AGAIN', 'ECONNREFUSED', 'ENOTFOUND'].includes(code)
+}
+
+function shouldRetryBodySnippet(bodySnippet, attempt) {
+  return attempt < MAX_REQUEST_RETRIES && /rate limit|temporarily unavailable|try again/i.test(String(bodySnippet || ''))
 }
 
 function getRetryDelayMs(attempt) {
@@ -598,6 +648,7 @@ function probeHttpRequest(pathname, extraHeaders = {}) {
   const startedAt = Date.now()
 
   return new Promise((resolve) => {
+    let settled = false
     const request = https.get(`${NOOKIPEDIA_API_BASE_URL}${pathname}`, {
       headers: {
         'User-Agent': 'acnh-live-editor/1.0',
@@ -608,7 +659,8 @@ function probeHttpRequest(pathname, extraHeaders = {}) {
 
       response.on('data', (chunk) => {
         bytes += chunk.length
-        if (bytes > 0) {
+        if (bytes > 0 && !settled) {
+          settled = true
           request.destroy()
           const status = response.statusCode || 0
           resolve({
@@ -621,6 +673,10 @@ function probeHttpRequest(pathname, extraHeaders = {}) {
       })
 
       response.on('end', () => {
+        if (settled) {
+          return
+        }
+        settled = true
         const status = response.statusCode || 0
         resolve({
           ok: status >= 200 && status < 400,
@@ -632,6 +688,10 @@ function probeHttpRequest(pathname, extraHeaders = {}) {
     })
 
     request.setTimeout(4000, () => {
+      if (settled) {
+        return
+      }
+      settled = true
       resolve({
         ok: false,
         phase: 'http',
@@ -643,6 +703,10 @@ function probeHttpRequest(pathname, extraHeaders = {}) {
     })
 
     request.on('error', (error) => {
+      if (settled) {
+        return
+      }
+      settled = true
       resolve({
         ok: false,
         phase: 'http',

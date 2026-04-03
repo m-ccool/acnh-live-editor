@@ -14,7 +14,7 @@
   <link rel="icon" type="image/png" href="/assets/icons/Apple_NL_Icon.png" />
   <link rel="manifest" href="./manifest.webmanifest" />
   <meta name="theme-color" content="#09090b" />
-  <link rel="stylesheet" href="./styles.css?v=46" />
+  <link rel="stylesheet" href="./styles.css?v=47" />
 </head>
 <body>
   <div id="loading-screen" class="loading-screen" aria-hidden="true">
@@ -183,7 +183,7 @@
             <span>Quick cheats</span>
           </div>
 
-          <div class="player-toolbar-actions" role="group" aria-label="Quick cheat toggles">
+          <div id="quick-cheat-controls" class="player-toolbar-actions" role="group" aria-label="Quick cheat toggles">
             <button
               type="button"
               class="toolbar-icon-btn quick-cheat-btn"
@@ -358,7 +358,7 @@
             <div id="inventory-grid" class="inventory-grid"></div>
           </div>
 
-          <div class="shortcut-column">
+          <div id="shortcut-column" class="shortcut-column">
             <button type="button" class="shortcut-btn" data-filter="Tool">tools</button>
             <button type="button" class="shortcut-btn" data-filter="Material">material</button>
             <button type="button" class="shortcut-btn" data-filter="Sea creature">sea</button>
@@ -997,7 +997,7 @@
                 autocomplete="off"
               />
               <div id="modal-results-list" class="modal-results-list"></div>
-              <div class="modal-search-filters" role="group" aria-label="Item search filters">
+              <div id="modal-filter-buttons" class="modal-search-filters" role="group" aria-label="Item search filters">
                 <button type="button" class="modal-filter-btn" data-modal-filter="Tool">tools</button>
                 <button type="button" class="modal-filter-btn" data-modal-filter="Material">materials</button>
                 <button type="button" class="modal-filter-btn" data-modal-filter="Sea creature">aquatic</button>
@@ -1027,6 +1027,20 @@
     </div>
   </div>
 
-  <script src="./app.js?v=46"></script>
+  <script defer src="./vendor/react/react.production.min.js"></script>
+  <script defer src="./vendor/react-dom/react-dom.production.min.js"></script>
+  <script defer src="./react/runtime.js?v=47"></script>
+  <script defer src="./react/components/InventoryGrid.js?v=47"></script>
+  <script defer src="./react/components/ShortcutButtons.js?v=47"></script>
+  <script defer src="./react/components/QuickCheatButtons.js?v=47"></script>
+  <script defer src="./react/components/CategoryList.js?v=47"></script>
+  <script defer src="./react/components/ModalFilterButtons.js?v=47"></script>
+  <script defer src="./react/components/ModalResultsList.js?v=47"></script>
+  <script defer src="./react/components/MusicLibraryOptions.js?v=47"></script>
+  <script defer src="./react/renderers.js?v=47"></script>
+  <script defer src="./app-core.js?v=47"></script>
+  <script defer src="./app-music.js?v=47"></script>
+  <script defer src="./app-workspaces.js?v=47"></script>
+  <script defer src="./app.js?v=47"></script>
 </body>
 </html>

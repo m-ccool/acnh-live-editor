@@ -6,9 +6,14 @@
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js",
+    "smoke": "node scripts/smoke-test.js",
+    "sync:react-runtime": "node scripts/sync-react-runtime.js",
     "import:catalogue": "node scripts/import-catalogue.js",
     "sync:nookipedia": "node scripts/sync-nookipedia-catalog.js",
-    "bridge:test-client": "node scripts/bridge-test-client.js"
+    "bridge:test-client": "node scripts/bridge-test-client.js",
+    "bridge:steamdeck": "node scripts/steamdeck-bridge-client.js",
+    "bridge:adapter:read": "node scripts/steamdeck-adapters/read-inventory.js",
+    "bridge:adapter:write": "node scripts/steamdeck-adapters/write-inventory-slot.js"
   },
   "dependencies": {
     "dotenv": "^17.3.1",

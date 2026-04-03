@@ -79,6 +79,60 @@ NOOKIPEDIA_ACCEPT_VERSION=1.7.0
 - `npm run import:catalogue`: rebuild `data/items.json` from imported catalogue data
 - `npm run sync:nookipedia`: fetch and cache the live Nookipedia catalog
 - `npm run bridge:test-client`: run the bridge simulator against the local bridge listener
+- `npm run bridge:steamdeck`: run the Steam Deck bridge client
+
+## Steam Deck Bridge Client
+
+Start local app on your PC:
+
+```bash
+npm run dev
+```
+
+Then run the bridge client on Steam Deck:
+
+```bash
+BRIDGE_TARGET_HOST=192.168.1.25 BRIDGE_TARGET_PORT=32840 node scripts/steamdeck-bridge-client.js
+```
+
+Optional environment variables:
+
+- `BRIDGE_TARGET_HOST`, `BRIDGE_TARGET_PORT`: PC bridge listener endpoint.
+- `BRIDGE_DEVICE_NAME`: label shown in `/api/status`.
+- `BRIDGE_HEARTBEAT_MS`: heartbeat interval (default `5000`).
+- `BRIDGE_COMMAND_TIMEOUT_MS`: timeout for adapter commands (default `4000`).
+- `RYUJINX_PROCESS_MATCH`: process matcher for auto status probe (default `Ryujinx`).
+- `RYUJINX_STATUS_CMD`: optional status command that must output JSON.
+- `RYUJINX_READ_INVENTORY_CMD`: optional command for live read. Must output JSON array or `{ "slots": [...] }`.
+- `RYUJINX_WRITE_INVENTORY_CMD`: optional command for live write. Receives request JSON on stdin and should output JSON.
+- `BRIDGE_INVENTORY_FILE`: optional fallback slot JSON file.
+- `BRIDGE_PERSIST_INVENTORY=1`: persist fallback slot writes to `BRIDGE_INVENTORY_FILE`.
+
+Adapter behavior:
+
+- If `RYUJINX_READ_INVENTORY_CMD` is set, `read_inventory` uses that command.
+- If `RYUJINX_WRITE_INVENTORY_CMD` is set, `write_inventory_slot` uses that command.
+- Otherwise the client uses in-memory/file fallback slot state.
+
+### Next-Step Wiring (Ready To Run)
+
+This repo now includes adapter scripts:
+
+- `scripts/steamdeck-adapters/read-inventory.js`
+- `scripts/steamdeck-adapters/write-inventory-slot.js`
+
+Use them immediately as command adapters:
+
+```bash
+BRIDGE_TARGET_HOST=192.168.1.25 \
+BRIDGE_TARGET_PORT=32840 \
+BRIDGE_INVENTORY_FILE=/home/deck/acnh-live-editor/data/steamdeck-inventory.json \
+RYUJINX_READ_INVENTORY_CMD="node scripts/steamdeck-adapters/read-inventory.js" \
+RYUJINX_WRITE_INVENTORY_CMD="node scripts/steamdeck-adapters/write-inventory-slot.js" \
+node scripts/steamdeck-bridge-client.js
+```
+
+With this setup, your bridge reads and writes live through adapter commands over stdin/stdout JSON. You can later replace adapter internals with direct Ryujinx memory tooling while keeping the same bridge env contract.
 
 ## Development Notes
 
