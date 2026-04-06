@@ -95,6 +95,35 @@ Then run the bridge client on Steam Deck:
 BRIDGE_TARGET_HOST=192.168.1.25 BRIDGE_TARGET_PORT=32840 node scripts/steamdeck-bridge-client.js
 ```
 
+### One-Click Deck Launcher (No Re-Typing In Konsole)
+
+This repo now includes a single run file for Deck testing:
+
+- `scripts/steamdeck-run-bridge.sh`
+
+And an installer that creates a clickable Desktop icon:
+
+- `scripts/install-steamdeck-launcher.sh`
+
+Setup on Steam Deck once:
+
+```bash
+cd ~/acnh-live-editor
+cp -n .steamdeck-bridge.env.example .steamdeck-bridge.env
+nano .steamdeck-bridge.env
+bash scripts/install-steamdeck-launcher.sh
+```
+
+After that, just double-click the `ACNH Live Bridge` icon on Desktop to run the bridge client.
+
+Notes:
+
+- Default icon is `public/assets/icons/Apple_NL_Icon.png`.
+- Default adapter commands use Python:
+	- `python3 scripts/steamdeck-adapters/bridge_memory_tool.py read_inventory`
+	- `python3 scripts/steamdeck-adapters/bridge_memory_tool.py write_inventory_slot`
+- If `BRIDGE_TARGET_HOST` is missing in `.steamdeck-bridge.env`, the run script falls back to the default gateway IP.
+
 Optional environment variables:
 
 - `BRIDGE_TARGET_HOST`, `BRIDGE_TARGET_PORT`: PC bridge listener endpoint.
