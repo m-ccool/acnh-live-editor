@@ -9,6 +9,7 @@ const port = Number(process.env.BRIDGE_TARGET_PORT || 32840)
 const deviceName = process.env.BRIDGE_DEVICE_NAME || 'steamdeck-bridge-client'
 const heartbeatMs = Number(process.env.BRIDGE_HEARTBEAT_MS || 5000)
 const processMatch = String(process.env.RYUJINX_PROCESS_MATCH || 'Ryujinx').toLowerCase()
+const strictRyujinxProbe = String(process.env.RYUJINX_STRICT_PROCESS_CHECK || '1') !== '0'
 const inventoryPath = process.env.BRIDGE_INVENTORY_FILE
   ? path.resolve(process.env.BRIDGE_INVENTORY_FILE)
   : null
@@ -16,6 +17,7 @@ const persistInventory = String(process.env.BRIDGE_PERSIST_INVENTORY || '0') ===
 const customStatusCommand = process.env.RYUJINX_STATUS_CMD || ''
 const customReadInventoryCommand = process.env.RYUJINX_READ_INVENTORY_CMD || ''
 const customWriteInventoryCommand = process.env.RYUJINX_WRITE_INVENTORY_CMD || ''
+const customReadGameDataCommand = process.env.RYUJINX_READ_GAME_DATA_CMD || ''
 const commandTimeoutMs = Number(process.env.BRIDGE_COMMAND_TIMEOUT_MS || 4000)
 
 if (process.argv.includes('--help') || process.argv.includes('-h')) {
@@ -98,7 +100,7 @@ function buildHello() {
     game: 'acnh',
     version: 'steamdeck-bridge-v1',
     deviceName,
-    capabilities: ['read_status', 'read_inventory', 'write_inventory_slot']
+    capabilities: ['read_status', 'read_inventory', 'write_inventory_slot', 'read_game_data']
   }
 }
 
@@ -142,6 +144,11 @@ function handleMessage(message) {
     return
   }
 
+  if (command === 'read_game_data') {
+    handleReadGameData(requestId, command)
+    return
+  }
+
   sendError(requestId, command, `${command} is not implemented`)
 }
 
@@ -161,10 +168,47 @@ async function handleReadStatus(requestId, command) {
         deviceName,
         platform: os.platform(),
         startedAt,
-        capabilities: ['read_status', 'read_inventory', 'write_inventory_slot'],
+        capabilities: ['read_status', 'read_inventory', 'write_inventory_slot', 'read_game_data'],
         inventoryAdapter: resolveInventoryAdapter(),
+        gameDataAdapter: resolveGameDataAdapter(),
         ryujinx: probe
       }
+    })
+  } catch (error) {
+    sendError(requestId, command, error.message)
+  }
+}
+
+async function handleReadGameData(requestId, command) {
+  try {
+    if (!customReadGameDataCommand) {
+      send({
+        type: 'response',
+        requestId,
+        command,
+        ok: true,
+        payload: {
+          player: null,
+          source: 'none',
+          adapter: resolveGameDataAdapter()
+        }
+      })
+      return
+    }
+
+    const output = await runJsonCommand(customReadGameDataCommand, {
+      command: 'read_game_data'
+    }, 'RYUJINX_READ_GAME_DATA_CMD')
+
+    const payload = normalizeGameDataResult(output)
+    payload.adapter = resolveGameDataAdapter()
+
+    send({
+      type: 'response',
+      requestId,
+      command,
+      ok: true,
+      payload
     })
   } catch (error) {
     sendError(requestId, command, error.message)
@@ -254,6 +298,10 @@ function resolveInventoryAdapter() {
   return 'memory'
 }
 
+function resolveGameDataAdapter() {
+  return customReadGameDataCommand ? 'custom-command' : 'none'
+}
+
 async function getInventorySlots() {
   if (customReadInventoryCommand) {
     const output = await runJsonCommand(customReadInventoryCommand, {
@@ -308,6 +356,50 @@ function normalizeInventorySlot(entry) {
     flag0: Number(entry && entry.flag0 || 0),
     flag1: Number(entry && entry.flag1 || 0)
   }
+}
+
+function normalizeGameDataResult(value) {
+  if (!value || typeof value !== 'object') {
+    throw new Error('RYUJINX_READ_GAME_DATA_CMD must output a JSON object')
+  }
+
+  const playerSource = value.player && typeof value.player === 'object'
+    ? value.player
+    : value
+
+  const player = {
+    name: normalizePlayerString(playerSource.name, 'Player'),
+    town: normalizePlayerString(playerSource.town, 'Island'),
+    wallet: normalizeWholeNumber(playerSource.wallet, 0),
+    bank: normalizeWholeNumber(playerSource.bank, 0),
+    miles: normalizeWholeNumber(playerSource.miles, 0),
+    avatar: normalizePlayerString(playerSource.avatar, '/assets/items/Bob_NH.png')
+  }
+
+  const payload = {
+    player,
+    source: value.source ? String(value.source) : 'custom-command'
+  }
+
+  if (Array.isArray(value.slots)) {
+    payload.slots = value.slots.map(normalizeInventorySlot).filter(Boolean)
+  }
+
+  return payload
+}
+
+function normalizePlayerString(value, fallback) {
+  const text = String(value || '').trim()
+  return text || fallback
+}
+
+function normalizeWholeNumber(value, fallback) {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed)) {
+    return fallback
+  }
+
+  return Math.max(0, Math.trunc(parsed))
 }
 
 function loadInventoryState(filePath) {
@@ -434,16 +526,32 @@ function probeProcessFromPs() {
         .map((line) => line.trim())
         .filter(Boolean)
 
-      const matches = lines
+      const classifiedMatches = lines
         .map(parseProcessLine)
-        .filter((entry) => entry && processLooksLikeRyujinx(entry))
+        .map(classifyRyujinxProcess)
+        .filter(Boolean)
+
+      const emulatorMatches = classifiedMatches
+        .filter((entry) => entry.matchType === 'emulator')
         .slice(0, 3)
+
+      const launcherMatches = classifiedMatches
+        .filter((entry) => entry.matchType === 'launcher')
+        .slice(0, 3)
+
+      const matches = strictRyujinxProbe
+        ? emulatorMatches
+        : classifiedMatches.slice(0, 3)
 
       resolve({
         running: matches.length > 0,
         source: 'ps',
+        strict: strictRyujinxProbe,
         matchCount: matches.length,
-        matches
+        matches,
+        emulatorMatchCount: emulatorMatches.length,
+        launcherMatchCount: launcherMatches.length,
+        launcherMatches
       })
     })
   })
@@ -462,9 +570,63 @@ function parseProcessLine(line) {
   }
 }
 
-function processLooksLikeRyujinx(entry) {
+function classifyRyujinxProcess(entry) {
+  if (!entry) {
+    return null
+  }
+
   const haystack = `${entry.command} ${entry.args}`.toLowerCase()
-  return haystack.includes(processMatch)
+  if (!haystack.includes(processMatch)) {
+    return null
+  }
+
+  if (Number(entry.pid) === process.pid) {
+    return null
+  }
+
+  if (isProbeNoise(haystack)) {
+    return null
+  }
+
+  const matchType = isLikelyRyujinxBinary(entry)
+    ? 'emulator'
+    : 'launcher'
+
+  return {
+    ...entry,
+    matchType
+  }
+}
+
+function isProbeNoise(haystack) {
+  return haystack.includes('grep ryujinx') || haystack.includes('steamdeck-bridge-client.js')
+}
+
+function isLikelyRyujinxBinary(entry) {
+  if (processMatch !== 'ryujinx') {
+    return true
+  }
+
+  const command = String(entry.command || '')
+  const args = String(entry.args || '')
+
+  if (/(^|\/|\\)ryujinx(\.headless)?$/i.test(command)) {
+    return true
+  }
+
+  if (/ryujinx\.dll/i.test(args)) {
+    return true
+  }
+
+  if (/\bryujinx(\.headless)?\b/i.test(args) && !/launchers\/ryujinx\.sh/i.test(args)) {
+    return true
+  }
+
+  if (/\/ryujinx\.sh\b/i.test(args)) {
+    return false
+  }
+
+  return false
 }
 
 function sendError(requestId, command, errorMessage) {
@@ -488,5 +650,5 @@ function log(message) {
 function printHelp() {
   process.stdout.write('Steam Deck bridge client for ACNH Live Editor\n')
   process.stdout.write('Required: set BRIDGE_TARGET_HOST to your PC LAN IP.\n')
-  process.stdout.write('Optional env: BRIDGE_TARGET_PORT, BRIDGE_DEVICE_NAME, BRIDGE_HEARTBEAT_MS, BRIDGE_COMMAND_TIMEOUT_MS, RYUJINX_PROCESS_MATCH, RYUJINX_STATUS_CMD, RYUJINX_READ_INVENTORY_CMD, RYUJINX_WRITE_INVENTORY_CMD, BRIDGE_INVENTORY_FILE, BRIDGE_PERSIST_INVENTORY\n')
+  process.stdout.write('Optional env: BRIDGE_TARGET_PORT, BRIDGE_DEVICE_NAME, BRIDGE_HEARTBEAT_MS, BRIDGE_COMMAND_TIMEOUT_MS, RYUJINX_PROCESS_MATCH, RYUJINX_STRICT_PROCESS_CHECK, RYUJINX_STATUS_CMD, RYUJINX_READ_INVENTORY_CMD, RYUJINX_WRITE_INVENTORY_CMD, RYUJINX_READ_GAME_DATA_CMD, BRIDGE_INVENTORY_FILE, BRIDGE_PERSIST_INVENTORY\n')
 }

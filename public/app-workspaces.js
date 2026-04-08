@@ -1,12 +1,14 @@
 'use strict';
 
 function renderPlayer() {
-  el.playerName.value = state.player.name;
-  el.townName.value = state.player.town;
+  el.playerName.value = state.player.name || '';
+  el.townName.value = state.player.town || '';
   el.walletValue.value = formatNumber(state.player.wallet);
   el.bankValue.value = formatNumber(state.player.bank);
   el.milesValue.value = formatNumber(state.player.miles);
-  el.playerAvatar.src = state.player.avatar;
+  el.playerAvatar.src = (!state.bridge.connected || !state.player.avatar)
+    ? '/assets/items/Bob_NH.png'
+    : state.player.avatar;
 }
 
 function renderSelectedPreview() {
@@ -172,6 +174,7 @@ function renderInventory() {
         clearOverwriteGuard();
       }
 
+      state.hasUserSelectedSlot = true;
       state.selectedSlotIndex = index;
       state.modalSearchQuery = '';
       if (el.modalSearchInput) {
@@ -197,10 +200,12 @@ function renderInventory() {
         return;
       }
 
+      state.hasUserSelectedSlot = true;
       state.selectedSlotIndex = index;
       await handleInventorySlotDoubleClick(index);
     },
     async onDoubleClick(index) {
+      state.hasUserSelectedSlot = true;
       state.selectedSlotIndex = index;
       await handleInventorySlotDoubleClick(index);
     }
@@ -236,7 +241,7 @@ async function handleInventorySlotDoubleClick(index) {
 
   if (!slot.item) {
     clearOverwriteGuard();
-    applyCopiedPayloadToSlot(index, payload, false);
+    await applyCopiedPayloadToSlot(index, payload, false);
     return;
   }
 
@@ -248,7 +253,7 @@ async function handleInventorySlotDoubleClick(index) {
 
   if (nextStep >= 3) {
     clearOverwriteGuard();
-    applyCopiedPayloadToSlot(index, payload, true);
+    await applyCopiedPayloadToSlot(index, payload, true);
     return;
   }
 
@@ -301,8 +306,19 @@ function renderWorkspacePanels() {
   el.tabPlayerSummaryWallet.textContent = formatNumber(state.player.wallet);
   el.tabPlayerSummaryMiles.textContent = formatNumber(state.player.miles);
 
-  el.tabBridgeState.textContent = state.bridge.connected ? 'Connected' : 'Offline';
-  el.tabBridgeMode.textContent = state.bridge.mode;
+  if (!state.bridge.connected) {
+    el.tabBridgeState.textContent = 'Offline';
+  } else if (state.bridge.ryujinxRunning === true) {
+    el.tabBridgeState.textContent = 'Connected (Ryujinx running)';
+  } else if (state.bridge.ryujinxRunning === false) {
+    el.tabBridgeState.textContent = 'Connected (Ryujinx not running)';
+  } else {
+    el.tabBridgeState.textContent = 'Connected (Ryujinx unknown)';
+  }
+
+  el.tabBridgeMode.textContent = state.bridge.inventoryAdapter
+    ? `${state.bridge.mode} / ${state.bridge.inventoryAdapter}`
+    : state.bridge.mode;
   el.tabStorageState.textContent = isLocalStorageAvailable() ? 'Saved locally' : 'Unavailable';
   el.tabSessionJson.textContent = JSON.stringify(buildSelectedSlotPayload(slot), null, 2);
 }
@@ -311,9 +327,16 @@ function renderSettingsDebug() {
   if (!el.settingsDebugOutput) return;
 
   const slot = getSelectedSlot();
+  const ryujinxState = state.bridge.ryujinxRunning === true
+    ? 'running'
+    : (state.bridge.ryujinxRunning === false ? 'not running' : 'unknown');
   const summary = [
     state.bridge.connected ? 'Bridge online' : 'Bridge offline',
-    state.bridge.mode,
+    `${state.bridge.mode} (${state.bridge.inventoryAdapter || 'adapter unknown'})`,
+    `Ryujinx ${ryujinxState}`,
+    `Inventory ${state.bridge.inventorySource || 'local-cache'}`,
+    `GameData ${state.bridge.gameDataSource || 'none'}`,
+    `Last save ${state.bridge.lastGameSaveAt || 'unknown'}`,
     `${state.catalog.label} catalog`,
     `${state.catalog.searchableCount || state.items.length} items`,
     `slot ${slot.slot}`
@@ -383,14 +406,16 @@ function assignItemToSelectedSlot(item) {
   renderItemModal();
 }
 
-function clearSelectedSlot() {
+async function clearSelectedSlot() {
   const slot = getSelectedSlot();
   const cleared = emptySlot(slot.slot);
 
   Object.assign(slot, cleared);
   state.modalPendingItem = null;
 
-  state.bridge.lastAction = `Cleared slot ${slot.slot}`;
+  const actionText = `Cleared slot ${slot.slot}`;
+  state.bridge.lastAction = actionText;
+  await writeSlotToBridge(slot, actionText);
   clearOverwriteGuard();
   renderBridge();
   renderInventory();
@@ -413,7 +438,7 @@ function openItemModalForSelectedSlot() {
   focusItemSearch();
 }
 
-function applyItemEdits() {
+async function applyItemEdits() {
   const slot = getSelectedSlot();
   const item = state.modalPendingItem;
 
@@ -435,9 +460,11 @@ function applyItemEdits() {
   slot.flag0 = normalizeWholeNumber(el.modalInputFlag0.value, slot.flag0);
   slot.flag1 = normalizeWholeNumber(el.modalInputFlag1.value, slot.flag1);
 
-  state.bridge.lastAction = item
+  const actionText = item
     ? `Updated slot ${slot.slot} to "${item.name}"`
     : `Cleared slot ${slot.slot}`;
+  state.bridge.lastAction = actionText;
+  await writeSlotToBridge(slot, actionText);
   clearOverwriteGuard();
   renderBridge();
   renderInventory();
@@ -529,7 +556,7 @@ async function pasteCopiedSlotPayload() {
 
   state.copiedSlotPayload = payload;
   clearOverwriteGuard();
-  applyCopiedPayloadToSlot(state.selectedSlotIndex, payload, !!getSelectedSlot().item);
+  await applyCopiedPayloadToSlot(state.selectedSlotIndex, payload, !!getSelectedSlot().item);
 }
 
 function getSelectedSlot() {
@@ -755,16 +782,9 @@ function restoreLocalState() {
 
     const saved = JSON.parse(raw);
 
-    if (saved.player) {
-      state.player = {
-        ...state.player,
-        ...saved.player
-      };
-    }
+    // Do not restore cached player values; current bridge reads are authoritative.
 
-    if (typeof saved.selectedSlotIndex === 'number') {
-      state.selectedSlotIndex = Math.min(Math.max(saved.selectedSlotIndex, 0), state.inventory.length - 1);
-    }
+    // Keep startup selection driven by live/current inventory state.
 
     if (typeof saved.activeTab === 'string' && el.tabButtons.some((button) => button.dataset.tab === saved.activeTab)) {
       state.activeTab = saved.activeTab;
@@ -845,40 +865,7 @@ function restoreLocalState() {
       state.copiedSlotPayload = saved.copiedSlotPayload;
     }
 
-    if (Array.isArray(saved.inventory)) {
-      saved.inventory.forEach((savedSlot) => {
-        const target = state.inventory.find((slot) => slot.slot === savedSlot.slot);
-        if (!target) return;
-
-        if (savedSlot.itemId) {
-          const foundItem = findItemByLookup(savedSlot.itemId, savedSlot.itemSnapshot && savedSlot.itemSnapshot.name);
-
-          if (foundItem) {
-            rememberCatalogItems([foundItem]);
-            target.item = foundItem;
-            target.itemId = foundItem.file_name || foundItem.name;
-            target.internalId = foundItem.internal_id || null;
-            target.hex = savedSlot.hex || deriveHexFromItem(foundItem);
-          } else if (isCatalogItemSnapshot(savedSlot.itemSnapshot)) {
-            rememberCatalogItems([savedSlot.itemSnapshot]);
-            target.item = savedSlot.itemSnapshot;
-            target.itemId = savedSlot.itemSnapshot.file_name || savedSlot.itemSnapshot.name;
-            target.internalId = savedSlot.itemSnapshot.internal_id || null;
-            target.hex = savedSlot.hex || deriveHexFromItem(savedSlot.itemSnapshot);
-          }
-        } else {
-          target.item = null;
-          target.itemId = null;
-          target.internalId = null;
-          target.hex = savedSlot.hex || '00000000';
-        }
-
-        target.count = normalizeNumber(savedSlot.count, target.count);
-        target.uses = normalizeNumber(savedSlot.uses, target.uses);
-        target.flag0 = normalizeNumber(savedSlot.flag0, target.flag0);
-        target.flag1 = normalizeNumber(savedSlot.flag1, target.flag1);
-      });
-    }
+    // Do not restore cached inventory; current bridge reads are authoritative.
   } catch (error) {
     console.error(error);
   }

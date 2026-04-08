@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-03T05:42:19.615Z",
+  "generatedAt": "2026-04-08T04:04:31.707Z",
   "sourcePage": "https://nookipedia.com/wiki/K.K._Slider_songs",
   "apiDocs": "https://api.nookipedia.com/doc",
   "defaultNightTrackId": "ambient-4am-rainy",
@@ -26,6 +26,10 @@
       "source": "Sunrise default theme",
       "attribution": "Animal Crossing: Your Favourite Songs - Original Soundtrack",
       "audioUrl": "https://static.wikia.nocookie.net/animalcrossing/images/3/36/ACCF_Main_Theme.ogg/revision/latest?cb=20150816212904",
+      "audioUrls": [
+        "https://static.wikia.nocookie.net/animalcrossing/images/3/36/ACCF_Main_Theme.ogg/revision/latest?cb=20150816212904",
+        "https://static.wikia.nocookie.net/animalcrossing/images/3/36/ACCF_Main_Theme.ogg"
+      ],
       "artworkUrl": "https://dodo.ac/np/images/thumb/8/83/Animal_Crossing_Your_Favorite_Songs_Cover.png/1200px-Animal_Crossing_Your_Favorite_Songs_Cover.png",
       "referenceUrl": "https://nookipedia.com/wiki/Animal_Crossing:_Your_Favourite_Songs_-_Original_Soundtrack"
     },

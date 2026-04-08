@@ -102,6 +102,7 @@ function getFallbackMusicLibrary(reason) {
         source: 'Local fallback',
         attribution: 'Fallback music library',
         audioUrl: null,
+        audioUrls: [],
         artworkUrl: MUSIC_LIBRARY_FALLBACK_ART,
         referenceUrl: NOOKIPEDIA_API_DOCS_URL
       }
@@ -181,6 +182,12 @@ async function buildMusicLibrary() {
         source: 'Sunrise default theme',
         attribution: 'Animal Crossing: Your Favourite Songs - Original Soundtrack',
         audioUrl: sunriseThemeFile ? sunriseThemeFile.url : null,
+        audioUrls: sunriseThemeFile && sunriseThemeFile.url
+          ? [
+              sunriseThemeFile.url,
+              'https://static.wikia.nocookie.net/animalcrossing/images/3/36/ACCF_Main_Theme.ogg'
+            ]
+          : ['https://static.wikia.nocookie.net/animalcrossing/images/3/36/ACCF_Main_Theme.ogg'],
         artworkUrl: sunriseArtworkUrl,
         referenceUrl: NOOKIPEDIA_SUNRISE_SOUNDTRACK_URL
       },

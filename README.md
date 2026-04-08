@@ -122,6 +122,7 @@ Notes:
 - Default adapter commands use Python:
 	- `python3 scripts/steamdeck-adapters/bridge_memory_tool.py read_inventory`
 	- `python3 scripts/steamdeck-adapters/bridge_memory_tool.py write_inventory_slot`
+	- `python3 scripts/steamdeck-adapters/bridge_memory_tool.py read_game_data`
 - If `BRIDGE_TARGET_HOST` is missing in `.steamdeck-bridge.env`, the run script falls back to the default gateway IP.
 
 Optional environment variables:
@@ -134,8 +135,23 @@ Optional environment variables:
 - `RYUJINX_STATUS_CMD`: optional status command that must output JSON.
 - `RYUJINX_READ_INVENTORY_CMD`: optional command for live read. Must output JSON array or `{ "slots": [...] }`.
 - `RYUJINX_WRITE_INVENTORY_CMD`: optional command for live write. Receives request JSON on stdin and should output JSON.
+- `RYUJINX_READ_GAME_DATA_CMD`: optional command for live player+inventory read. Must output JSON object with `player` and optionally `slots`.
 - `BRIDGE_INVENTORY_FILE`: optional fallback slot JSON file.
 - `BRIDGE_PERSIST_INVENTORY=1`: persist fallback slot writes to `BRIDGE_INVENTORY_FILE`.
+
+Live Python memory backend (optional via `bridge_memory_tool.py`):
+
+- `RYUJINX_LIVE_READ_INVENTORY_CMD`
+- `RYUJINX_LIVE_WRITE_INVENTORY_CMD`
+- `RYUJINX_LIVE_READ_GAME_DATA_CMD`
+
+Command contract for each `RYUJINX_LIVE_*` command:
+
+- Receives one JSON object on stdin with a `command` field.
+- Must print one JSON object to stdout.
+- `read_inventory`: output array of slots or `{ "slots": [...] }`.
+- `write_inventory_slot`: output `{ "slot": {...}, "slots"?: [...] }`.
+- `read_game_data`: output `{ "player": {"name","town","wallet","bank","miles","avatar"}, "slots"?: [...], "source"?: "..." }`.
 
 Adapter behavior:
 

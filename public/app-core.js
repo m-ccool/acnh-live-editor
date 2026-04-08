@@ -3,7 +3,7 @@
 const TOTAL_SLOTS = 40;
 const STORAGE_KEY = 'acnh-live-editor-state-v5';
 const REPO_URL = 'https://github.com/m-ccool/acnh-live-editor';
-const SERVICE_WORKER_VERSION = '47';
+const SERVICE_WORKER_VERSION = '53';
 const PLAY_ICON_PATH = '/assets/icons/line-md--pause-to-play-filled-transition.svg';
 const PAUSE_ICON_PATH = '/assets/icons/line-md--pause.svg';
 const CONSOLE_CONNECTED_ICON_PATH = '/assets/icons/codicon--debug-connect.svg';
@@ -36,6 +36,10 @@ const DEFAULT_MUSIC_LIBRARY = Object.freeze({
       source: 'Sunrise default theme',
       attribution: 'Animal Crossing: Your Favourite Songs - Original Soundtrack',
       audioUrl: 'https://static.wikia.nocookie.net/animalcrossing/images/3/36/ACCF_Main_Theme.ogg/revision/latest?cb=20150816212904',
+      audioUrls: [
+        'https://static.wikia.nocookie.net/animalcrossing/images/3/36/ACCF_Main_Theme.ogg/revision/latest?cb=20150816212904',
+        'https://static.wikia.nocookie.net/animalcrossing/images/3/36/ACCF_Main_Theme.ogg'
+      ],
       artworkUrl: DEFAULT_MUSIC_ARTWORK_PATH,
       referenceUrl: 'https://nookipedia.com/wiki/Animal_Crossing:_Your_Favourite_Songs_-_Original_Soundtrack'
     }
@@ -107,11 +111,11 @@ const logPanelDrag = {
 };
 
 const DEFAULT_PLAYER = {
-  name: 'Barbara',
-  town: 'Okemos',
-  wallet: 1246,
-  bank: 999912003,
-  miles: 9999999,
+  name: '',
+  town: '',
+  wallet: 0,
+  bank: 0,
+  miles: 0,
   avatar: '/assets/items/Bob_NH.png'
 };
 
@@ -131,7 +135,17 @@ const DEFAULT_BRIDGE_STATE = {
   lastCommand: null,
   lastResponse: null,
   remoteStatus: null,
-  lastError: null
+  lastError: null,
+  inventoryAdapter: null,
+  inventorySource: 'local-cache',
+  lastInventorySyncAt: null,
+  gameDataSource: 'none',
+  lastGameDataSyncAt: null,
+  lastGameSaveAt: null,
+  lastGameDataFilePath: null,
+  ryujinxRunning: null,
+  ryujinxMatchCount: 0,
+  ryujinxMatches: []
 };
 const DEFAULT_CATALOG_STATE = Object.freeze({
   connectionState: 'fallback',
@@ -150,19 +164,7 @@ const LOOKUP_ITEM_LIMIT = 120;
 let modalSearchDebounceId = 0;
 let modalSearchToken = 0;
 
-const DEFAULT_FILLED_SLOTS = [
-  { slot: 1, itemName: 'Golden Axe', count: 1, uses: 27, flag0: 0, flag1: 0 },
-  { slot: 2, itemName: 'Iron Nugget', count: 30, uses: 0, flag0: 0, flag1: 0 },
-  { slot: 3, itemName: 'Gold Nugget', count: 12, uses: 0, flag0: 0, flag1: 0 },
-  { slot: 4, itemName: "Mom's Hand-Knit Sweater (Quilted Pattern)", count: 1, uses: 0, flag0: 0, flag1: 0 },
-  { slot: 5, itemName: 'Hardwood', count: 30, uses: 0, flag0: 0, flag1: 0 },
-  { slot: 6, itemName: 'Moon Jellyfish', count: 1, uses: 0, flag0: 0, flag1: 0 },
-  { slot: 7, itemName: 'Sea Pig', count: 1, uses: 0, flag0: 0, flag1: 0 },
-  { slot: 8, itemName: 'Sea Cucumber', count: 1, uses: 0, flag0: 0, flag1: 0 },
-  { slot: 9, itemName: 'Vine Ladder Set-Up Kit (Light Brown)', count: 1, uses: 0, flag0: 0, flag1: 0 },
-  { slot: 10, itemName: 'Ocarina', count: 1, uses: 0, flag0: 0, flag1: 0 },
-  { slot: 34, itemName: 'Gold Nugget', count: 1, uses: 0, flag0: 0, flag1: 0 }
-];
+const DEFAULT_FILLED_SLOTS = [];
 
 const state = {
   player: { ...DEFAULT_PLAYER },
@@ -179,7 +181,8 @@ const state = {
   inventory: [],
   copiedSlotPayload: null,
   overwriteGuard: null,
-  selectedSlotIndex: 5,
+  selectedSlotIndex: 0,
+  hasUserSelectedSlot: false,
   modalSearchQuery: '',
   modalSearchFilter: 'all',
   modalSearchOpen: false,
@@ -211,6 +214,12 @@ async function init() {
   restoreLocalState();
   applyTheme(false);
   renderAll();
+  primeSelectedMusicSource();
+  try {
+    await refreshBridgeStatus('Boot live sync');
+  } catch (error) {
+    console.error(error);
+  }
   finishBoot();
 }
 
@@ -223,6 +232,8 @@ function cacheDom() {
   el.catalogStatus = document.getElementById('catalog-status');
   el.catalogStatusLabel = document.getElementById('catalog-status-label');
   el.bridgeStatusInline = document.getElementById('bridge-status-inline');
+  el.ryujinxStatusChip = document.getElementById('ryujinx-status-chip');
+  el.acnhDataStatusChip = document.getElementById('acnh-data-status-chip');
   el.bridgeStatus = document.getElementById('bridge-status');
   el.logPanelResizeHandle = document.getElementById('log-panel-resize-handle');
   el.ipDisplay = document.getElementById('ip-display');
@@ -426,6 +437,11 @@ function bindEvents() {
       renderMusic();
     });
     el.musicAudio.addEventListener('error', () => {
+      const selectedTrack = getSelectedMusicTrack();
+      if (tryPlayFallbackAudioSource(selectedTrack)) {
+        return;
+      }
+
       state.music.isPlaying = false;
       state.music.pendingAutoplay = false;
       state.music.errorMessage = 'This browser could not start the selected aircheck.';
@@ -762,6 +778,9 @@ async function loadData() {
     const statusResponse = await fetch('/api/status', { cache: 'no-store' });
     if (statusResponse.ok) {
       syncBridgeStatus(await statusResponse.json());
+      if (state.bridge.connected) {
+        await refreshBridgeInventory({ reason: 'Loaded inventory from bridge', force: true });
+      }
     }
   } catch (error) {
     console.error(error);
@@ -787,6 +806,18 @@ function seedInventory() {
   }
 
   state.inventory = slots;
+  state.selectedSlotIndex = findFirstEmptySlotIndex(state.inventory);
+}
+
+function findFirstEmptySlotIndex(slots) {
+  const list = Array.isArray(slots) ? slots : [];
+  const emptyIndex = list.findIndex((entry) => !entry || !entry.item);
+
+  if (emptyIndex >= 0) {
+    return emptyIndex;
+  }
+
+  return 0;
 }
 
 function emptySlot(index) {
@@ -869,6 +900,68 @@ function renderBridge() {
   el.bridgeStatusInline.classList.toggle('is-bad', !state.bridge.connected);
   el.bridgeStatusInline.classList.remove('is-warn');
 
+  if (el.ryujinxStatusChip) {
+    let chipText = 'Ryujinx: Unknown';
+    let chipTitle = 'Ryujinx status unknown';
+    let chipClass = 'is-warn';
+
+    if (!state.bridge.connected) {
+      chipText = 'Ryujinx: Disconnected';
+      chipTitle = 'Bridge is disconnected';
+      chipClass = 'is-warn';
+    } else if (state.bridge.ryujinxRunning === true) {
+      chipText = 'Ryujinx: Running';
+      chipTitle = `Ryujinx process detected${state.bridge.ryujinxMatchCount ? ` (${state.bridge.ryujinxMatchCount})` : ''}`;
+      chipClass = 'is-ok';
+    } else if (state.bridge.ryujinxRunning === false) {
+      chipText = 'Ryujinx: Stopped';
+      chipTitle = 'Bridge connected, but no Ryujinx process match was found';
+      chipClass = 'is-bad';
+    }
+
+    el.ryujinxStatusChip.textContent = chipText;
+    el.ryujinxStatusChip.title = chipTitle;
+    el.ryujinxStatusChip.classList.toggle('is-ok', chipClass === 'is-ok');
+    el.ryujinxStatusChip.classList.toggle('is-bad', chipClass === 'is-bad');
+    el.ryujinxStatusChip.classList.toggle('is-warn', chipClass === 'is-warn');
+  }
+
+  if (el.acnhDataStatusChip) {
+    let chipText = 'ACNH Data: Unknown';
+    let chipTitle = 'ACNH data source unknown';
+    let chipClass = 'is-warn';
+
+    if (!state.bridge.connected) {
+      chipText = 'ACNH Data: Offline';
+      chipTitle = 'Bridge not connected';
+      chipClass = 'is-warn';
+    } else if (state.bridge.gameDataSource === 'live-memory') {
+      chipText = 'ACNH Data: Live';
+      chipTitle = 'Reading live memory data';
+      chipClass = 'is-ok';
+    } else if (
+      state.bridge.gameDataSource === 'unavailable' ||
+      state.bridge.gameDataSource === 'none' ||
+      state.bridge.gameDataSource === 'bridge-fallback' ||
+      state.bridge.gameDataSource === 'bridge-memory-tool' ||
+      state.bridge.gameDataSource === 'adapter-memory'
+    ) {
+      chipText = 'ACNH Data: Unavailable';
+      chipTitle = 'Live ACNH game-data is not available from the bridge';
+      chipClass = 'is-warn';
+    } else if (state.bridge.gameDataSource === 'error') {
+      chipText = 'ACNH Data: Error';
+      chipTitle = state.bridge.lastError || 'Data read error';
+      chipClass = 'is-bad';
+    }
+
+    el.acnhDataStatusChip.textContent = chipText;
+    el.acnhDataStatusChip.title = chipTitle;
+    el.acnhDataStatusChip.classList.toggle('is-ok', chipClass === 'is-ok');
+    el.acnhDataStatusChip.classList.toggle('is-bad', chipClass === 'is-bad');
+    el.acnhDataStatusChip.classList.toggle('is-warn', chipClass === 'is-warn');
+  }
+
   el.bridgeToggle.classList.toggle('is-on', state.bridge.connected);
   el.bridgeToggle.setAttribute('aria-pressed', state.bridge.connected ? 'true' : 'false');
   el.bridgeToggle.title = state.bridge.connected
@@ -893,6 +986,15 @@ function renderBridge() {
   }
 
   const selectedSlot = getSelectedSlot();
+  const bridgeCapabilities = Array.isArray(state.bridge.capabilities)
+    ? state.bridge.capabilities.map((entry) => String(entry || '').trim().toLowerCase()).filter(Boolean)
+    : [];
+  const supportsReadGameData = bridgeCapabilities.includes('read_game_data');
+  const bridgeWarnings = [];
+
+  if (state.bridge.connected && !supportsReadGameData) {
+    bridgeWarnings.push('Deck bridge client missing read_game_data capability. Live ACNH data is unavailable. Restart bridge with updated script.');
+  }
 
   const block = {
     connected: state.bridge.connected,
@@ -903,8 +1005,20 @@ function renderBridge() {
     deviceName: state.bridge.deviceName,
     protocolVersion: state.bridge.protocolVersion,
     capabilities: state.bridge.capabilities,
+    supportsReadGameData,
+    bridgeWarnings,
     pendingRequests: state.bridge.pendingRequests,
     mode: state.bridge.mode,
+    inventoryAdapter: state.bridge.inventoryAdapter,
+    inventorySource: state.bridge.inventorySource,
+    lastInventorySyncAt: state.bridge.lastInventorySyncAt,
+    gameDataSource: state.bridge.gameDataSource,
+    lastGameDataSyncAt: state.bridge.lastGameDataSyncAt,
+    lastGameSaveAt: state.bridge.lastGameSaveAt,
+    lastGameDataFilePath: state.bridge.lastGameDataFilePath,
+    ryujinxRunning: state.bridge.ryujinxRunning,
+    ryujinxMatchCount: state.bridge.ryujinxMatchCount,
+    ryujinxMatches: state.bridge.ryujinxMatches,
     catalogReady,
     catalogState: state.catalog.connectionState,
     catalogLabel: state.catalog.label,

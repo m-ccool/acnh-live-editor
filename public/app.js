@@ -1,5 +1,27 @@
 'use strict';
 
+let bridgeInventorySyncInFlight = false;
+
+function clearLiveGameDataDisplay() {
+  state.player = {
+    ...state.player,
+    name: '',
+    town: '',
+    wallet: 0,
+    bank: 0,
+    miles: 0,
+    avatar: '/assets/items/Bob_NH.png'
+  };
+  state.inventory = buildInventoryFromBridgeSlots([]);
+  state.hasUserSelectedSlot = false;
+  state.selectedSlotIndex = findFirstEmptySlotIndex(state.inventory);
+  renderPlayer();
+  renderInventory();
+  renderSelectedPreview();
+  renderClipboardState();
+  renderItemModal();
+}
+
 function updateClock() {
   const now = new Date();
 
@@ -21,10 +43,14 @@ function updateClock() {
 }
 
 async function refreshBridgeStatus(lastAction) {
+  let syncedFromBridge = false;
+
   try {
     const statusResponse = await fetch('/api/status', { cache: 'no-store' });
     if (statusResponse.ok) {
       syncBridgeStatus(await statusResponse.json());
+      syncedFromBridge = await refreshBridgeInventory({ reason: lastAction, force: true });
+      await refreshBridgeGameData();
     }
   } catch (error) {
     console.error(error);
@@ -33,7 +59,9 @@ async function refreshBridgeStatus(lastAction) {
   await refreshCatalogStatus();
   refreshCatalogDiagnostics();
 
-  state.bridge.lastAction = lastAction;
+  if (!syncedFromBridge) {
+    state.bridge.lastAction = lastAction;
+  }
   renderBridge();
   renderDerivedPanels();
   persistLocalState();
@@ -44,11 +72,99 @@ async function pollBridgeStatus() {
     const statusResponse = await fetch('/api/status', { cache: 'no-store' });
     if (statusResponse.ok) {
       syncBridgeStatus(await statusResponse.json());
+      await refreshBridgeInventory({ reason: 'Background inventory sync' });
+      await refreshBridgeGameData();
       renderBridge();
       renderDerivedPanels();
     }
   } catch (error) {
     console.error(error);
+  }
+}
+
+async function refreshBridgeGameData() {
+  if (!state.bridge.connected) {
+    state.bridge.gameDataSource = 'none';
+    state.bridge.lastGameSaveAt = null;
+    state.bridge.lastGameDataFilePath = null;
+    clearLiveGameDataDisplay();
+    return false;
+  }
+
+  try {
+    const response = await fetch('/api/bridge/read-game-data', { cache: 'no-store' });
+    const body = await response.json().catch(() => ({}));
+
+    if (!response.ok || body.ok === false) {
+      const message = body && body.error ? String(body.error) : `Bridge game-data read failed with ${response.status}`;
+      throw new Error(message);
+    }
+
+    const payload = body && body.payload && typeof body.payload === 'object' ? body.payload : body;
+    const payloadSource = payload && payload.source
+      ? String(payload.source)
+      : 'bridge-read';
+    const hasUnavailableGameData = (
+      payload && payload.unavailable === true
+    ) || (
+      payloadSource === 'unavailable' ||
+      payloadSource === 'none' ||
+      payloadSource === 'bridge-fallback' ||
+      payloadSource === 'bridge-memory-tool' ||
+      payloadSource === 'adapter-memory'
+    );
+
+    state.bridge.gameDataSource = hasUnavailableGameData
+      ? 'unavailable'
+      : payloadSource;
+    state.bridge.lastGameDataSyncAt = new Date().toISOString();
+    state.bridge.lastGameSaveAt = payload && payload.lastGameSaveAt
+      ? String(payload.lastGameSaveAt)
+      : null;
+    state.bridge.lastGameDataFilePath = payload && payload.lastGameDataFilePath
+      ? String(payload.lastGameDataFilePath)
+      : null;
+
+    if (hasUnavailableGameData) {
+      clearLiveGameDataDisplay();
+      persistLocalState();
+      return false;
+    }
+
+    if (payload && payload.player && typeof payload.player === 'object') {
+      state.player = {
+        ...state.player,
+        name: sanitizeText(payload.player.name, state.player.name),
+        town: sanitizeText(payload.player.town, state.player.town),
+        wallet: normalizeWholeNumber(payload.player.wallet, state.player.wallet),
+        bank: normalizeWholeNumber(payload.player.bank, state.player.bank),
+        miles: normalizeWholeNumber(payload.player.miles, state.player.miles),
+        avatar: sanitizeText(payload.player.avatar, state.player.avatar)
+      };
+      renderPlayer();
+    }
+
+    if (Array.isArray(payload && payload.slots)) {
+      const bridgeSlots = normalizeBridgeInventorySlots(payload.slots);
+      state.inventory = buildInventoryFromBridgeSlots(bridgeSlots);
+
+      if (!state.hasUserSelectedSlot) {
+        state.selectedSlotIndex = findFirstEmptySlotIndex(state.inventory);
+      }
+
+      renderInventory();
+      renderSelectedPreview();
+      renderClipboardState();
+      renderItemModal();
+    }
+
+    persistLocalState();
+
+    return true;
+  } catch (error) {
+    state.bridge.lastError = error.message;
+    state.bridge.gameDataSource = 'error';
+    return false;
   }
 }
 
@@ -385,12 +501,198 @@ function syncBridgeStatus(status) {
   state.bridge.remoteStatus = status && status.remoteStatus && typeof status.remoteStatus === 'object'
     ? status.remoteStatus
     : null;
+  state.bridge.inventoryAdapter = state.bridge.remoteStatus && state.bridge.remoteStatus.inventoryAdapter
+    ? String(state.bridge.remoteStatus.inventoryAdapter)
+    : null;
+  state.bridge.ryujinxRunning = state.bridge.remoteStatus && state.bridge.remoteStatus.ryujinx
+    ? Boolean(state.bridge.remoteStatus.ryujinx.running)
+    : null;
+  state.bridge.ryujinxMatchCount = state.bridge.remoteStatus && state.bridge.remoteStatus.ryujinx
+    ? Number(state.bridge.remoteStatus.ryujinx.matchCount || 0)
+    : 0;
+  state.bridge.ryujinxMatches = state.bridge.remoteStatus && state.bridge.remoteStatus.ryujinx && Array.isArray(state.bridge.remoteStatus.ryujinx.matches)
+    ? state.bridge.remoteStatus.ryujinx.matches.slice(0, 3)
+    : [];
   state.bridge.lastError = status && status.lastError ? String(status.lastError) : null;
   state.bridge.message = status && status.message
     ? String(status.message)
     : (state.bridge.connected
       ? `Bridge ${state.bridge.mode} and ready for sync.`
       : `Bridge ${state.bridge.mode}. Read/write disabled.`);
+}
+
+async function refreshBridgeInventory(options = {}) {
+  const reason = typeof options.reason === 'string' ? options.reason : '';
+  const force = options.force === true;
+
+  if (!state.bridge.connected) {
+    state.bridge.inventorySource = 'local-cache';
+    return false;
+  }
+
+  if (bridgeInventorySyncInFlight && !force) {
+    return false;
+  }
+
+  bridgeInventorySyncInFlight = true;
+
+  try {
+    const response = await fetch('/api/bridge/read-inventory', { cache: 'no-store' });
+    const body = await response.json().catch(() => ({}));
+
+    if (!response.ok || body.ok === false) {
+      const message = body && body.error ? String(body.error) : `Bridge read failed with ${response.status}`;
+      throw new Error(message);
+    }
+
+    const payload = body && body.payload && typeof body.payload === 'object' ? body.payload : body;
+    const bridgeSlots = normalizeBridgeInventorySlots(payload && payload.slots);
+    state.inventory = buildInventoryFromBridgeSlots(bridgeSlots);
+
+    if (!state.hasUserSelectedSlot) {
+      state.selectedSlotIndex = findFirstEmptySlotIndex(state.inventory);
+    }
+
+    state.bridge.inventorySource = 'bridge-read';
+    state.bridge.lastInventorySyncAt = new Date().toISOString();
+
+    if (payload && payload.adapter) {
+      state.bridge.inventoryAdapter = String(payload.adapter);
+    }
+
+    if (reason) {
+      state.bridge.lastAction = reason;
+    }
+
+    state.bridge.lastError = null;
+    renderInventory();
+    renderSelectedPreview();
+    renderClipboardState();
+    renderDerivedPanels();
+    renderItemModal();
+    persistLocalState();
+    return true;
+  } catch (error) {
+    state.bridge.lastError = error.message;
+    state.bridge.inventorySource = 'local-cache';
+    return false;
+  } finally {
+    bridgeInventorySyncInFlight = false;
+  }
+}
+
+function normalizeBridgeInventorySlots(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.map((entry) => {
+    const slot = Number(entry && entry.slot);
+    if (!Number.isInteger(slot) || slot < 1) {
+      return null;
+    }
+
+    return {
+      slot,
+      itemId: entry && entry.itemId ? String(entry.itemId) : null,
+      count: normalizeWholeNumber(entry && entry.count, 0),
+      uses: normalizeWholeNumber(entry && entry.uses, 0),
+      flag0: normalizeWholeNumber(entry && entry.flag0, 0),
+      flag1: normalizeWholeNumber(entry && entry.flag1, 0)
+    };
+  }).filter(Boolean);
+}
+
+function buildInventoryFromBridgeSlots(bridgeSlots) {
+  const nextSlots = [];
+
+  for (let index = 1; index <= TOTAL_SLOTS; index += 1) {
+    nextSlots.push(emptySlot(index));
+  }
+
+  bridgeSlots.forEach((entry) => {
+    if (entry.slot < 1 || entry.slot > TOTAL_SLOTS) {
+      return;
+    }
+
+    let item = null;
+    if (entry.itemId) {
+      item = findItemByLookup(entry.itemId, entry.itemId);
+      if (!item) {
+        item = createBridgePlaceholderItem(entry.itemId);
+        rememberCatalogItems([item]);
+      }
+    }
+
+    const slot = buildSlot(entry.slot, item, entry.count, entry.uses, entry.flag0, entry.flag1);
+    if (entry.itemId) {
+      slot.itemId = entry.itemId;
+    }
+
+    nextSlots[entry.slot - 1] = slot;
+  });
+
+  return nextSlots;
+}
+
+function createBridgePlaceholderItem(itemId) {
+  const safeName = String(itemId || 'Unknown item').replace(/[_-]+/g, ' ').trim();
+
+  return {
+    name: safeName || 'Unknown item',
+    category: 'Bridge',
+    icon_url: null,
+    image_url: null,
+    preview_url: null,
+    internal_id: null,
+    file_name: String(itemId || safeName || 'unknown-item'),
+    source_files: ['bridge-adapter']
+  };
+}
+
+async function writeSlotToBridge(slot, actionText) {
+  if (!state.bridge.connected || !slot) {
+    return false;
+  }
+
+  try {
+    const response = await fetch('/api/bridge/write-inventory-slot', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        slot: slot.slot,
+        itemId: slot.itemId,
+        count: normalizeWholeNumber(slot.count, 0),
+        uses: normalizeWholeNumber(slot.uses, 0),
+        flag0: normalizeWholeNumber(slot.flag0, 0),
+        flag1: normalizeWholeNumber(slot.flag1, 0)
+      })
+    });
+
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || body.ok === false) {
+      const message = body && body.error ? String(body.error) : `Bridge write failed with ${response.status}`;
+      throw new Error(message);
+    }
+
+    const payload = body && body.payload && typeof body.payload === 'object' ? body.payload : body;
+    if (payload && payload.adapter) {
+      state.bridge.inventoryAdapter = String(payload.adapter);
+    }
+
+    await refreshBridgeInventory({
+      reason: actionText || `Synced slot ${slot.slot} from bridge`,
+      force: true
+    });
+
+    return true;
+  } catch (error) {
+    state.bridge.lastError = error.message;
+    state.bridge.lastAction = `Bridge write failed on slot ${slot.slot}: ${error.message}`;
+    return false;
+  }
 }
 
 async function refreshCatalogStatus() {
@@ -513,7 +815,7 @@ function buildClipboardPayload(slot) {
   };
 }
 
-function applyCopiedPayloadToSlot(index, payload, overwroteExistingItem) {
+async function applyCopiedPayloadToSlot(index, payload, overwroteExistingItem) {
   const slot = state.inventory[index];
 
   if (!payload.itemId) {
@@ -556,6 +858,8 @@ function applyCopiedPayloadToSlot(index, payload, overwroteExistingItem) {
         : `Pasted "${item.name}" into slot ${slot.slot}`;
     }
   }
+
+  await writeSlotToBridge(slot, state.bridge.lastAction);
 
   renderBridge();
   renderInventory();

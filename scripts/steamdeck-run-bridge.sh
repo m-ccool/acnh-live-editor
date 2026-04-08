@@ -27,9 +27,11 @@ fi
 : "${BRIDGE_DEVICE_NAME:=steamdeck-bridge-client}"
 : "${BRIDGE_HEARTBEAT_MS:=5000}"
 : "${BRIDGE_COMMAND_TIMEOUT_MS:=4000}"
+: "${BRIDGE_ENABLE_FILE_FALLBACK:=0}"
 : "${BRIDGE_INVENTORY_FILE:=${REPO_DIR}/data/steamdeck-inventory.json}"
 : "${RYUJINX_READ_INVENTORY_CMD:=python3 scripts/steamdeck-adapters/bridge_memory_tool.py read_inventory}"
 : "${RYUJINX_WRITE_INVENTORY_CMD:=python3 scripts/steamdeck-adapters/bridge_memory_tool.py write_inventory_slot}"
+: "${RYUJINX_READ_GAME_DATA_CMD:=python3 scripts/steamdeck-adapters/bridge_memory_tool.py read_game_data}"
 
 if ! command -v node >/dev/null 2>&1; then
   echo "[acnh-bridge] node is not installed or not in PATH"
@@ -46,9 +48,11 @@ export BRIDGE_TARGET_PORT
 export BRIDGE_DEVICE_NAME
 export BRIDGE_HEARTBEAT_MS
 export BRIDGE_COMMAND_TIMEOUT_MS
+export BRIDGE_ENABLE_FILE_FALLBACK
 export BRIDGE_INVENTORY_FILE
 export RYUJINX_READ_INVENTORY_CMD
 export RYUJINX_WRITE_INVENTORY_CMD
+export RYUJINX_READ_GAME_DATA_CMD
 
 cd "${REPO_DIR}"
 echo "[acnh-bridge] Starting bridge client -> ${BRIDGE_TARGET_HOST}:${BRIDGE_TARGET_PORT}"

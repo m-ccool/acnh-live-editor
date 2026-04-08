@@ -11,6 +11,8 @@ function syncMusicLibrary(payload) {
       return null;
     }
 
+    const audioUrls = normalizeTrackAudioUrls(track);
+
     return {
       id,
       title,
@@ -18,7 +20,8 @@ function syncMusicLibrary(payload) {
       group: String(track.group || ''),
       source: String(track.source || 'Nookipedia music'),
       attribution: String(track.attribution || ''),
-      audioUrl: typeof track.audioUrl === 'string' ? track.audioUrl : null,
+      audioUrl: audioUrls[0] || null,
+      audioUrls,
       artworkUrl: typeof track.artworkUrl === 'string' && track.artworkUrl
         ? track.artworkUrl
         : DEFAULT_MUSIC_ARTWORK_PATH,
@@ -109,9 +112,47 @@ function mergeMusicTrack(existingTrack, nextTrack, preferExistingMetadata) {
     source: keepExistingSource ? existingTrack.source : (nextTrack.source || existingTrack.source),
     attribution: keepExistingAttribution ? existingTrack.attribution : (nextTrack.attribution || existingTrack.attribution),
     audioUrl: nextTrack.audioUrl || existingTrack.audioUrl || null,
+    audioUrls: mergeTrackAudioUrls(existingTrack, nextTrack),
     artworkUrl: shouldKeepExistingArtwork ? existingTrack.artworkUrl : (nextTrack.artworkUrl || existingTrack.artworkUrl || DEFAULT_MUSIC_ARTWORK_PATH),
     referenceUrl: shouldKeepExistingReference ? existingTrack.referenceUrl : (nextTrack.referenceUrl || existingTrack.referenceUrl || '')
   };
+}
+
+function normalizeTrackAudioUrls(track) {
+  const urls = [];
+
+  if (Array.isArray(track && track.audioUrls)) {
+    track.audioUrls.forEach((entry) => {
+      if (typeof entry !== 'string') {
+        return;
+      }
+
+      const candidate = entry.trim();
+      if (candidate) {
+        urls.push(candidate);
+      }
+    });
+  }
+
+  if (typeof track && typeof track.audioUrl === 'string') {
+    const singleUrl = track.audioUrl.trim();
+    if (singleUrl) {
+      urls.push(singleUrl);
+    }
+  }
+
+  return Array.from(new Set(urls));
+}
+
+function mergeTrackAudioUrls(existingTrack, nextTrack) {
+  const merged = [];
+  const nextUrls = normalizeTrackAudioUrls(nextTrack);
+  const existingUrls = normalizeTrackAudioUrls(existingTrack);
+
+  nextUrls.forEach((url) => merged.push(url));
+  existingUrls.forEach((url) => merged.push(url));
+
+  return Array.from(new Set(merged));
 }
 
 function isPlaceholderMusicArtwork(url) {
@@ -484,20 +525,51 @@ function startSelectedMusic(options = {}) {
   playAmbientRain();
 }
 
+function primeSelectedMusicSource() {
+  const track = getSelectedMusicTrack();
+  if (!track || track.kind !== 'audio') {
+    return;
+  }
+
+  const candidates = getTrackAudioUrls(track);
+  if (!candidates.length) {
+    return;
+  }
+
+  setAudioTrackSource(track, candidates[0], 0);
+}
+
+function getTrackAudioUrls(track) {
+  if (!track || track.kind !== 'audio') {
+    return [];
+  }
+
+  return normalizeTrackAudioUrls(track);
+}
+
 function playAudioTrack(track) {
-  if (!el.musicAudio || !track.audioUrl) {
+  if (!el.musicAudio) {
     state.music.isPlaying = false;
     state.music.errorMessage = 'No playable source was available for this track.';
     renderMusic();
     return;
   }
 
-  const shouldSwapSource = el.musicAudio.dataset.trackId !== track.id || el.musicAudio.src !== track.audioUrl;
+  const candidateUrls = getTrackAudioUrls(track);
+  if (!candidateUrls.length) {
+    state.music.isPlaying = false;
+    state.music.errorMessage = 'No playable source was available for this track.';
+    renderMusic();
+    return;
+  }
+
+  const currentSourceIndex = Number(el.musicAudio.dataset.sourceIndex || 0);
+  const currentSourceUrl = el.musicAudio.dataset.trackSource || '';
+  const shouldSwapSource = el.musicAudio.dataset.trackId !== track.id || !candidateUrls.includes(currentSourceUrl);
   if (shouldSwapSource) {
-    el.musicAudio.pause();
-    el.musicAudio.src = track.audioUrl;
-    el.musicAudio.dataset.trackId = track.id;
-    el.musicAudio.load();
+    setAudioTrackSource(track, candidateUrls[0], 0);
+  } else {
+    el.musicAudio.dataset.sourceIndex = String(Math.max(0, Math.min(currentSourceIndex, candidateUrls.length - 1)));
   }
 
   el.musicAudio.loop = state.music.loopEnabled;
@@ -524,6 +596,52 @@ function playAudioTrack(track) {
   state.music.isPlaying = true;
   renderMusic();
   persistLocalState();
+}
+
+function setAudioTrackSource(track, sourceUrl, sourceIndex) {
+  if (!el.musicAudio) {
+    return;
+  }
+
+  const nextUrl = String(sourceUrl || '').trim();
+  if (!nextUrl) {
+    return;
+  }
+
+  const shouldReload = el.musicAudio.dataset.trackId !== track.id || el.musicAudio.dataset.trackSource !== nextUrl;
+  if (!shouldReload) {
+    el.musicAudio.dataset.sourceIndex = String(Math.max(0, sourceIndex));
+    return;
+  }
+
+  el.musicAudio.pause();
+  el.musicAudio.src = nextUrl;
+  el.musicAudio.dataset.trackId = track.id;
+  el.musicAudio.dataset.trackSource = nextUrl;
+  el.musicAudio.dataset.sourceIndex = String(Math.max(0, sourceIndex));
+  el.musicAudio.load();
+}
+
+function tryPlayFallbackAudioSource(track) {
+  if (!el.musicAudio || !track || track.kind !== 'audio') {
+    return false;
+  }
+
+  const candidateUrls = getTrackAudioUrls(track);
+  if (!candidateUrls.length) {
+    return false;
+  }
+
+  const currentSourceUrl = el.musicAudio.dataset.trackSource || '';
+  const currentIndex = Math.max(0, candidateUrls.indexOf(currentSourceUrl));
+  const nextIndex = currentIndex + 1;
+  if (nextIndex >= candidateUrls.length) {
+    return false;
+  }
+
+  setAudioTrackSource(track, candidateUrls[nextIndex], nextIndex);
+  playAudioTrack(track);
+  return true;
 }
 
 function stopAudioTrack(shouldClearSource = false) {

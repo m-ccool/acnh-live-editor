@@ -1,18 +1,29 @@
 #!/usr/bin/env python3
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
+from datetime import datetime, timezone
 
 
-def resolve_inventory_path() -> Path:
+def resolve_inventory_path():
+    if os.environ.get("BRIDGE_ENABLE_FILE_FALLBACK", "0") != "1":
+        return None
+
     env_path = os.environ.get("BRIDGE_INVENTORY_FILE")
     if env_path:
         return Path(env_path).expanduser().resolve()
+    return None
 
-    # Keep default inventory storage stable regardless of the shell's cwd.
+
+def resolve_player_path() -> Path:
+    env_path = os.environ.get("BRIDGE_PLAYER_FILE")
+    if env_path:
+        return Path(env_path).expanduser().resolve()
+
     repo_root = Path(__file__).resolve().parents[2]
-    return (repo_root / "data" / "steamdeck-inventory.json").resolve()
+    return (repo_root / "data" / "player-state.json").resolve()
 
 
 def parse_stdin_json() -> dict:
@@ -29,6 +40,99 @@ def parse_stdin_json() -> dict:
         return value
 
     raise ValueError("stdin JSON must be an object")
+
+
+def run_json_command(command: str, payload: dict, label: str):
+    proc = subprocess.run(
+        ["sh", "-lc", command],
+        input=json.dumps(payload) + "\n",
+        text=True,
+        capture_output=True,
+        timeout=int(os.environ.get("BRIDGE_COMMAND_TIMEOUT_SECONDS", "5")),
+        check=False,
+    )
+
+    if proc.returncode != 0:
+        stderr = (proc.stderr or "").strip()
+        raise ValueError(f"{label} failed with exit {proc.returncode}: {stderr or 'no stderr'}")
+
+    output = (proc.stdout or "").strip()
+    if not output:
+        raise ValueError(f"{label} returned empty output")
+
+    try:
+        return json.loads(output)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"{label} must output valid JSON: {exc}") from exc
+
+
+def normalize_player(value):
+    if not isinstance(value, dict):
+        return None
+
+    def to_int(v, default=0):
+        try:
+            return int(v)
+        except (TypeError, ValueError):
+            return default
+
+    name = str(value.get("name") or "").strip()
+    town = str(value.get("town") or "").strip()
+    avatar = str(value.get("avatar") or "").strip() or "/assets/items/Bob_NH.png"
+
+    return {
+        "name": name,
+        "town": town,
+        "wallet": to_int(value.get("wallet", 0)),
+        "bank": to_int(value.get("bank", 0)),
+        "miles": to_int(value.get("miles", 0)),
+        "avatar": avatar,
+    }
+
+
+def detect_latest_ryujinx_save_file():
+    roots = []
+
+    env_roots = os.environ.get("RYUJINX_SAVE_SCAN_ROOTS", "").strip()
+    if env_roots:
+        roots.extend([Path(p).expanduser() for p in env_roots.split(":") if p.strip()])
+
+    home = Path.home()
+    roots.extend([
+        home / ".config" / "Ryujinx" / "bis" / "user" / "save",
+        home / ".var" / "app" / "org.ryujinx.Ryujinx" / "config" / "Ryujinx" / "bis" / "user" / "save",
+        home / "Emulation" / "saves" / "ryujinx",
+    ])
+
+    latest_path = None
+    latest_mtime = 0.0
+
+    for root in roots:
+        if not root.exists() or not root.is_dir():
+            continue
+
+        try:
+            for candidate in root.rglob("*"):
+                if not candidate.is_file():
+                    continue
+                mtime = candidate.stat().st_mtime
+                if mtime > latest_mtime:
+                    latest_mtime = mtime
+                    latest_path = candidate
+        except Exception:
+            continue
+
+    if not latest_path:
+        return {
+            "lastGameDataFilePath": None,
+            "lastGameSaveAt": None,
+        }
+
+    last_save_at = datetime.fromtimestamp(latest_mtime, tz=timezone.utc).isoformat()
+    return {
+        "lastGameDataFilePath": str(latest_path),
+        "lastGameSaveAt": last_save_at,
+    }
 
 
 def normalize_slot(entry):
@@ -63,6 +167,9 @@ def normalize_slot(entry):
 
 
 def load_slots(path: Path):
+    if path is None:
+        return []
+
     if not path.exists():
         return []
 
@@ -82,13 +189,26 @@ def load_slots(path: Path):
 
 
 def save_slots(path: Path, slots):
+    if path is None:
+        return
+
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(slots, indent=2) + "\n", encoding="utf-8")
 
 
 def cmd_read_inventory(path: Path):
+    live_cmd = os.environ.get("RYUJINX_LIVE_READ_INVENTORY_CMD")
+    if live_cmd:
+        payload = run_json_command(live_cmd, {"command": "read_inventory"}, "RYUJINX_LIVE_READ_INVENTORY_CMD")
+        source = payload if isinstance(payload, list) else payload.get("slots")
+        if not isinstance(source, list):
+            raise ValueError("RYUJINX_LIVE_READ_INVENTORY_CMD output must be list or object with slots")
+        slots = [slot for slot in (normalize_slot(entry) for entry in source) if slot]
+        print(json.dumps({"slots": slots, "source": "live-memory"}))
+        return
+
     slots = load_slots(path)
-    print(json.dumps({"slots": slots}))
+    print(json.dumps({"slots": slots, "source": "adapter-memory" if path is None else "bridge-memory-tool"}))
 
 
 def cmd_write_inventory_slot(path: Path):
@@ -98,6 +218,24 @@ def cmd_write_inventory_slot(path: Path):
     slot_payload = normalize_slot(payload)
     if not slot_payload:
         raise ValueError("payload.slot must be a positive integer")
+
+    live_cmd = os.environ.get("RYUJINX_LIVE_WRITE_INVENTORY_CMD")
+    if live_cmd:
+        result = run_json_command(
+            live_cmd,
+            {"command": "write_inventory_slot", "payload": slot_payload},
+            "RYUJINX_LIVE_WRITE_INVENTORY_CMD",
+        )
+        if isinstance(result, dict) and isinstance(result.get("slot"), dict):
+            normalized_slot = normalize_slot(result.get("slot")) or slot_payload
+            response_slots = result.get("slots")
+            if isinstance(response_slots, list):
+                response_slots = [slot for slot in (normalize_slot(entry) for entry in response_slots) if slot]
+            print(json.dumps({"slot": normalized_slot, "slots": response_slots, "source": "live-memory"}))
+            return
+
+        print(json.dumps({"slot": slot_payload, "source": "live-memory"}))
+        return
 
     slots = load_slots(path)
     index = next((i for i, entry in enumerate(slots) if entry.get("slot") == slot_payload["slot"]), -1)
@@ -109,7 +247,59 @@ def cmd_write_inventory_slot(path: Path):
 
     slots.sort(key=lambda x: x.get("slot", 0))
     save_slots(path, slots)
-    print(json.dumps({"slot": slot_payload, "slots": slots}))
+    source = "adapter-memory" if path is None else "bridge-memory-tool"
+    print(json.dumps({"slot": slot_payload, "slots": slots, "source": source}))
+
+
+def cmd_read_game_data(player_path: Path, inventory_path: Path):
+    live_cmd = os.environ.get("RYUJINX_LIVE_READ_GAME_DATA_CMD")
+    if live_cmd:
+        payload = run_json_command(live_cmd, {"command": "read_game_data"}, "RYUJINX_LIVE_READ_GAME_DATA_CMD")
+        if not isinstance(payload, dict):
+            raise ValueError("RYUJINX_LIVE_READ_GAME_DATA_CMD must output a JSON object")
+
+        player_source = payload.get("player") if isinstance(payload.get("player"), dict) else payload
+        player = normalize_player(player_source)
+        if not player:
+            raise ValueError("RYUJINX_LIVE_READ_GAME_DATA_CMD must include player object fields")
+
+        slots = payload.get("slots")
+        if not isinstance(slots, list):
+            slots = []
+        slots = [slot for slot in (normalize_slot(entry) for entry in slots) if slot]
+
+        response = {
+            "player": player,
+            "slots": slots,
+            "source": payload.get("source") or "live-memory",
+            "lastGameSaveAt": payload.get("lastGameSaveAt"),
+            "lastGameDataFilePath": payload.get("lastGameDataFilePath"),
+        }
+
+        if not response["lastGameDataFilePath"] or not response["lastGameSaveAt"]:
+            response.update(detect_latest_ryujinx_save_file())
+
+        print(json.dumps(response))
+        return
+
+    player = None
+
+    if player_path.exists():
+        try:
+            parsed = json.loads(player_path.read_text(encoding="utf-8"))
+            if isinstance(parsed, dict):
+                player = normalize_player(parsed)
+        except Exception as exc:
+            raise ValueError(f"failed to parse player file: {exc}") from exc
+
+    slots = load_slots(inventory_path)
+    response = {
+        "player": player,
+        "slots": slots,
+        "source": "adapter-memory" if inventory_path is None else "bridge-memory-tool",
+    }
+    response.update(detect_latest_ryujinx_save_file())
+    print(json.dumps(response))
 
 
 def print_help():
@@ -118,9 +308,15 @@ def print_help():
         "Commands:\n"
         "  read_inventory      Read slots and output JSON object with slots array\n"
         "  write_inventory_slot Read stdin JSON and write one slot\n"
+        "  read_game_data      Read player + inventory payload for UI sync\n"
         "\n"
         "Environment:\n"
         "  BRIDGE_INVENTORY_FILE  Optional path to inventory JSON file\n"
+        "  BRIDGE_ENABLE_FILE_FALLBACK Set to 1 and BRIDGE_INVENTORY_FILE to persist fallback slots\n"
+        "  BRIDGE_PLAYER_FILE     Optional path to player JSON file\n"
+        "  RYUJINX_LIVE_READ_INVENTORY_CMD  Optional live memory read command\n"
+        "  RYUJINX_LIVE_WRITE_INVENTORY_CMD Optional live memory write command\n"
+        "  RYUJINX_LIVE_READ_GAME_DATA_CMD  Optional live game-data read command\n"
     )
 
 
@@ -131,14 +327,18 @@ def main():
         return 0
 
     command = args[0]
-    path = resolve_inventory_path()
+    inventory_path = resolve_inventory_path()
 
     if command == "read_inventory":
-        cmd_read_inventory(path)
+        cmd_read_inventory(inventory_path)
         return 0
 
     if command == "write_inventory_slot":
-        cmd_write_inventory_slot(path)
+        cmd_write_inventory_slot(inventory_path)
+        return 0
+
+    if command == "read_game_data":
+        cmd_read_game_data(resolve_player_path(), inventory_path)
         return 0
 
     raise ValueError(f"unsupported command: {command}")

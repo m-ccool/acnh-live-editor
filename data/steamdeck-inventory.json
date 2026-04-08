@@ -1,0 +1,26 @@
+[
+  {
+    "slot": 1,
+    "itemId": "gold_nugget",
+    "count": 5,
+    "uses": 0,
+    "flag0": 0,
+    "flag1": 0
+  },
+  {
+    "slot": 2,
+    "itemId": "iron_nugget",
+    "count": 7,
+    "uses": 0,
+    "flag0": 0,
+    "flag1": 0
+  },
+  {
+    "slot": 4,
+    "itemId": "wood",
+    "count": 15,
+    "uses": 0,
+    "flag0": 0,
+    "flag1": 0
+  }
+]

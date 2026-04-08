@@ -4,7 +4,8 @@ const BRIDGE_HOST = process.env.BRIDGE_HOST || '0.0.0.0'
 const BRIDGE_PORT = Number(process.env.BRIDGE_PORT || 32840)
 const HEARTBEAT_STALE_MS = 15000
 const BRIDGE_REQUEST_TIMEOUT_MS = Number(process.env.BRIDGE_REQUEST_TIMEOUT_MS || 5000)
-const SUPPORTED_COMMANDS = Object.freeze(['read_status', 'read_inventory', 'write_inventory_slot'])
+const BRIDGE_STATUS_REFRESH_MS = Math.max(1000, Number(process.env.BRIDGE_STATUS_REFRESH_MS || 3000))
+const SUPPORTED_COMMANDS = Object.freeze(['read_status', 'read_inventory', 'write_inventory_slot', 'read_game_data'])
 
 const pendingRequests = new Map()
 let requestCounter = 0
@@ -33,9 +34,11 @@ const state = {
   remotePort: null,
   deviceName: null,
   remoteStatus: null,
+  supportsReadGameData: null,
   server: null,
   client: null,
-  heartbeatTimer: null
+  heartbeatTimer: null,
+  statusPollTimer: null
 }
 
 function start() {
@@ -133,6 +136,8 @@ function attachClient(socket) {
       state.protocolVersion = null
       state.capabilities = []
       state.remoteStatus = null
+      state.supportsReadGameData = null
+      clearStatusPolling()
     }
   })
 }
@@ -148,11 +153,13 @@ function handleBridgeMessage(message) {
     state.version = message.version ? String(message.version) : null
     state.protocolVersion = message.protocolVersion ? String(message.protocolVersion) : null
     state.capabilities = normalizeCapabilities(message.capabilities || message.supportedCommands)
+    state.supportsReadGameData = state.capabilities.includes('read_game_data')
     state.deviceName = message.deviceName ? String(message.deviceName) : null
     state.lastHandshakeAt = new Date().toISOString()
     state.lastHeartbeatAt = state.lastHandshakeAt
     state.message = `Bridge connected from ${formatRemoteLabel()}`
     scheduleHeartbeatWatch()
+    startStatusPolling()
     sendMessage({
       type: 'hello_ack',
       protocolVersion: '1',
@@ -206,6 +213,31 @@ function clearHeartbeatTimer() {
   if (state.heartbeatTimer) {
     clearTimeout(state.heartbeatTimer)
     state.heartbeatTimer = null
+  }
+}
+
+function startStatusPolling() {
+  clearStatusPolling()
+
+  state.statusPollTimer = setInterval(() => {
+    if (!state.client || !state.connected) {
+      return
+    }
+
+    if (pendingRequests.size > 0) {
+      return
+    }
+
+    readStatus().catch((error) => {
+      state.lastError = error.message
+    })
+  }, BRIDGE_STATUS_REFRESH_MS)
+}
+
+function clearStatusPolling() {
+  if (state.statusPollTimer) {
+    clearInterval(state.statusPollTimer)
+    state.statusPollTimer = null
   }
 }
 
@@ -298,6 +330,37 @@ function writeInventorySlot(payload) {
   })
 }
 
+function readGameData() {
+  if (state.supportsReadGameData === false) {
+    return buildGameDataUnavailableResponse()
+  }
+
+  return sendCommand('read_game_data').catch(async (error) => {
+    const message = String(error && error.message || '')
+    if (!/not implemented|unsupported/i.test(message)) {
+      throw error
+    }
+
+    state.supportsReadGameData = false
+    return buildGameDataUnavailableResponse()
+  })
+}
+
+function buildGameDataUnavailableResponse() {
+  return {
+    requestId: `bridge-unavailable-${Date.now()}`,
+    command: 'read_game_data',
+    ok: true,
+    payload: {
+      player: null,
+      slots: [],
+      source: 'unavailable',
+      unavailable: true,
+      bridgeSupportsReadGameData: state.supportsReadGameData === true
+    }
+  }
+}
+
 function handleBridgeResponse(message) {
   const requestId = String(message && message.requestId || '').trim()
   if (!requestId || !pendingRequests.has(requestId)) {
@@ -340,6 +403,7 @@ function handleBridgeResponse(message) {
     }
     if (payload.capabilities || payload.supportedCommands) {
       state.capabilities = normalizeCapabilities(payload.capabilities || payload.supportedCommands)
+      state.supportsReadGameData = state.capabilities.includes('read_game_data')
     }
   }
 
@@ -412,6 +476,7 @@ module.exports = {
   BRIDGE_HOST,
   BRIDGE_PORT,
   getStatus,
+  readGameData,
   readInventory,
   readStatus,
   sendCommand,
