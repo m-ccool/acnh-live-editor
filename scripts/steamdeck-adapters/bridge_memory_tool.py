@@ -15,8 +15,11 @@ def discover_live_command(env_var_name: str, action: str):
     if explicit:
         return explicit
 
+    repo_reader = Path(__file__).resolve().parent / "acnh_memory_reader.py"
+
     home = Path.home()
     candidates = [
+        repo_reader,
         home / "tools" / "acnh_memory_reader.py",
         home / "tools" / "acnh-memory-reader.py",
         home / "acnh-tools" / "acnh_memory_reader.py",
@@ -414,6 +417,21 @@ def cmd_read_game_data(player_path: Path, inventory_path: Path):
         print(json.dumps(response))
         return
 
+    allow_file_game_data = os.environ.get("BRIDGE_ALLOW_FILE_GAME_DATA", "0") == "1"
+
+    if not allow_file_game_data:
+        print(json.dumps({
+            "player": None,
+            "slots": [],
+            "source": "unavailable",
+            "unavailable": True,
+            "reason": "live-game-data backend not configured",
+            "hint": "Set RYUJINX_LIVE_READ_GAME_DATA_CMD to a working reader command",
+            "discoveredCommand": live_cmd or None,
+            **detect_latest_ryujinx_save_file(),
+        }))
+        return
+
     live_json_payload = find_latest_live_game_json_payload()
     if live_json_payload and (live_json_payload.get("player") or live_json_payload.get("slots")):
         print(json.dumps(live_json_payload))
@@ -456,6 +474,7 @@ def print_help():
         "  BRIDGE_INVENTORY_FILE  Optional path to inventory JSON file\n"
         "  BRIDGE_ENABLE_FILE_FALLBACK Set to 1 and BRIDGE_INVENTORY_FILE to persist fallback slots\n"
         "  BRIDGE_PLAYER_FILE     Optional path to player JSON file\n"
+        "  BRIDGE_ALLOW_FILE_GAME_DATA Set to 1 to allow file-based game data fallback\n"
         "  RYUJINX_LIVE_READ_INVENTORY_CMD  Optional live memory read command\n"
         "  RYUJINX_LIVE_WRITE_INVENTORY_CMD Optional live memory write command\n"
         "  RYUJINX_LIVE_READ_GAME_DATA_CMD  Optional live game-data read command\n"
