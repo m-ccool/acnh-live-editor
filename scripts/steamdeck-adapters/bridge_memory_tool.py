@@ -10,6 +10,25 @@ from datetime import datetime, timezone
 PLAYER_HINT_KEYS = {"name", "town", "wallet", "bank", "miles", "avatar"}
 
 
+def discover_live_command(env_var_name: str, action: str):
+    explicit = os.environ.get(env_var_name, "").strip()
+    if explicit:
+        return explicit
+
+    home = Path.home()
+    candidates = [
+        home / "tools" / "acnh_memory_reader.py",
+        home / "tools" / "acnh-memory-reader.py",
+        home / "acnh-tools" / "acnh_memory_reader.py",
+    ]
+
+    for script_path in candidates:
+        if script_path.exists() and script_path.is_file():
+            return f"python3 {script_path} {action}"
+
+    return ""
+
+
 def resolve_inventory_path():
     if os.environ.get("BRIDGE_ENABLE_FILE_FALLBACK", "0") != "1":
         return None
@@ -310,7 +329,7 @@ def save_slots(path: Path, slots):
 
 
 def cmd_read_inventory(path: Path):
-    live_cmd = os.environ.get("RYUJINX_LIVE_READ_INVENTORY_CMD")
+    live_cmd = discover_live_command("RYUJINX_LIVE_READ_INVENTORY_CMD", "read_inventory")
     if live_cmd:
         payload = run_json_command(live_cmd, {"command": "read_inventory"}, "RYUJINX_LIVE_READ_INVENTORY_CMD")
         source = payload if isinstance(payload, list) else payload.get("slots")
@@ -332,7 +351,7 @@ def cmd_write_inventory_slot(path: Path):
     if not slot_payload:
         raise ValueError("payload.slot must be a positive integer")
 
-    live_cmd = os.environ.get("RYUJINX_LIVE_WRITE_INVENTORY_CMD")
+    live_cmd = discover_live_command("RYUJINX_LIVE_WRITE_INVENTORY_CMD", "write_inventory_slot")
     if live_cmd:
         result = run_json_command(
             live_cmd,
@@ -365,7 +384,7 @@ def cmd_write_inventory_slot(path: Path):
 
 
 def cmd_read_game_data(player_path: Path, inventory_path: Path):
-    live_cmd = os.environ.get("RYUJINX_LIVE_READ_GAME_DATA_CMD")
+    live_cmd = discover_live_command("RYUJINX_LIVE_READ_GAME_DATA_CMD", "read_game_data")
     if live_cmd:
         payload = run_json_command(live_cmd, {"command": "read_game_data"}, "RYUJINX_LIVE_READ_GAME_DATA_CMD")
         if not isinstance(payload, dict):
