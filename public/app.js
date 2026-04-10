@@ -104,14 +104,18 @@ async function refreshBridgeGameData() {
     const payloadSource = payload && payload.source
       ? String(payload.source)
       : 'bridge-read';
+    const hasPlayerPayload = Boolean(payload && payload.player && typeof payload.player === 'object');
+    const hasSlotsPayload = Array.isArray(payload && payload.slots) && payload.slots.length > 0;
     const hasUnavailableGameData = (
       payload && payload.unavailable === true
     ) || (
       payloadSource === 'unavailable' ||
       payloadSource === 'none' ||
-      payloadSource === 'bridge-fallback' ||
-      payloadSource === 'bridge-memory-tool' ||
-      payloadSource === 'adapter-memory'
+      payloadSource === 'bridge-fallback'
+    ) || (
+      (payloadSource === 'bridge-memory-tool' || payloadSource === 'adapter-memory') &&
+      !hasPlayerPayload &&
+      !hasSlotsPayload
     );
 
     state.bridge.gameDataSource = hasUnavailableGameData
