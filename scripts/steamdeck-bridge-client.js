@@ -34,13 +34,12 @@ let socket = null
 let reconnectTimer = null
 let reconnectAttempt = 0
 let isShuttingDown = false
+let buffer = ''
+let heartbeatTimer = null
 
 renderStartupPanel()
 
 connectSocket()
-
-let buffer = ''
-let heartbeatTimer = null
 
 process.on('SIGINT', () => {
   isShuttingDown = true
