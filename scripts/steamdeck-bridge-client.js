@@ -27,8 +27,15 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
 
 const inventoryState = loadInventoryState(inventoryPath)
 const startedAt = new Date().toISOString()
+let panelConnectionState = 'CONNECTING'
+let panelConnectionDetail = `Connecting to ${host}:${port}`
+
+renderStartupPanel()
 
 const socket = net.createConnection({ host, port }, () => {
+  panelConnectionState = 'CONNECTED'
+  panelConnectionDetail = `Connected to ${host}:${port}`
+  renderStartupPanel()
   log(`Connected to bridge listener ${host}:${port}`)
   send(buildHello())
   startHeartbeat()
@@ -60,11 +67,19 @@ socket.on('data', (chunk) => {
 })
 
 socket.on('error', (error) => {
+  panelConnectionState = 'ERROR'
+  panelConnectionDetail = error.message
+  renderStartupPanel()
   log(`Socket error: ${error.message}`)
   process.exitCode = 1
 })
 
 socket.on('close', () => {
+  if (panelConnectionState !== 'ERROR') {
+    panelConnectionState = 'CLOSED'
+    panelConnectionDetail = 'Socket closed'
+    renderStartupPanel()
+  }
   clearIntervalIfSet()
   log('Socket closed')
 })
@@ -363,22 +378,16 @@ function normalizeGameDataResult(value) {
     throw new Error('RYUJINX_READ_GAME_DATA_CMD must output a JSON object')
   }
 
-  const playerSource = value.player && typeof value.player === 'object'
-    ? value.player
-    : value
-
-  const player = {
-    name: normalizePlayerString(playerSource.name, 'Player'),
-    town: normalizePlayerString(playerSource.town, 'Island'),
-    wallet: normalizeWholeNumber(playerSource.wallet, 0),
-    bank: normalizeWholeNumber(playerSource.bank, 0),
-    miles: normalizeWholeNumber(playerSource.miles, 0),
-    avatar: normalizePlayerString(playerSource.avatar, '/assets/items/Bob_NH.png')
-  }
+  const player = normalizeGameDataPlayer(value)
+  const hasUnavailableFlag = value.unavailable === true || player === null
 
   const payload = {
     player,
-    source: value.source ? String(value.source) : 'custom-command'
+    source: value.source ? String(value.source) : (hasUnavailableFlag ? 'unavailable' : 'custom-command')
+  }
+
+  if (hasUnavailableFlag) {
+    payload.unavailable = true
   }
 
   if (Array.isArray(value.slots)) {
@@ -386,6 +395,38 @@ function normalizeGameDataResult(value) {
   }
 
   return payload
+}
+
+function normalizeGameDataPlayer(value) {
+  const playerSource = value.player && typeof value.player === 'object'
+    ? value.player
+    : (value && typeof value === 'object' ? value : null)
+
+  if (!playerSource || typeof playerSource !== 'object') {
+    return null
+  }
+
+  const hasPlayerFields = (
+    Object.prototype.hasOwnProperty.call(playerSource, 'name') ||
+    Object.prototype.hasOwnProperty.call(playerSource, 'town') ||
+    Object.prototype.hasOwnProperty.call(playerSource, 'wallet') ||
+    Object.prototype.hasOwnProperty.call(playerSource, 'bank') ||
+    Object.prototype.hasOwnProperty.call(playerSource, 'miles') ||
+    Object.prototype.hasOwnProperty.call(playerSource, 'avatar')
+  )
+
+  if (!hasPlayerFields) {
+    return null
+  }
+
+  return {
+    name: normalizePlayerString(playerSource.name, ''),
+    town: normalizePlayerString(playerSource.town, ''),
+    wallet: normalizeWholeNumber(playerSource.wallet, 0),
+    bank: normalizeWholeNumber(playerSource.bank, 0),
+    miles: normalizeWholeNumber(playerSource.miles, 0),
+    avatar: normalizePlayerString(playerSource.avatar, '/assets/items/Bob_NH.png')
+  }
 }
 
 function normalizePlayerString(value, fallback) {
@@ -645,6 +686,55 @@ function normalize(value) {
 
 function log(message) {
   process.stdout.write(`[steamdeck-bridge] ${message}\n`)
+}
+
+function renderStartupPanel() {
+  const title = 'ACNH LIVE BRIDGE'
+  const statusColor = resolvePanelStatusColor(panelConnectionState)
+  const resetColor = '\u001b[0m'
+  const dimColor = '\u001b[2m'
+  const accentColor = '\u001b[36m'
+
+  const lines = [
+    `${accentColor}${title}${resetColor}`,
+    `Target   : ${host}:${port}`,
+    `Device   : ${deviceName}`,
+    `Status   : ${statusColor}${panelConnectionState}${resetColor}`,
+    `Detail   : ${panelConnectionDetail}`,
+    `${dimColor}Press Ctrl+C to stop bridge client.${resetColor}`
+  ]
+
+  const width = Math.max(...lines.map((line) => stripAnsi(line).length))
+  const border = `+${'-'.repeat(width + 2)}+`
+
+  process.stdout.write('\u001b[2J\u001b[H')
+  process.stdout.write(`${border}\n`)
+  lines.forEach((line) => {
+    const visibleLength = stripAnsi(line).length
+    const padding = ' '.repeat(width - visibleLength)
+    process.stdout.write(`| ${line}${padding} |\n`)
+  })
+  process.stdout.write(`${border}\n`)
+}
+
+function resolvePanelStatusColor(status) {
+  if (status === 'CONNECTED') {
+    return '\u001b[32m'
+  }
+
+  if (status === 'ERROR') {
+    return '\u001b[31m'
+  }
+
+  if (status === 'CLOSED') {
+    return '\u001b[33m'
+  }
+
+  return '\u001b[36m'
+}
+
+function stripAnsi(value) {
+  return String(value || '').replace(/\u001b\[[0-9;]*m/g, '')
 }
 
 function printHelp() {

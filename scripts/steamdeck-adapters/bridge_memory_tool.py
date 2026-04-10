@@ -7,6 +7,9 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 
+PLAYER_HINT_KEYS = {"name", "town", "wallet", "bank", "miles", "avatar"}
+
+
 def resolve_inventory_path():
     if os.environ.get("BRIDGE_ENABLE_FILE_FALLBACK", "0") != "1":
         return None
@@ -91,18 +94,7 @@ def normalize_player(value):
 
 
 def detect_latest_ryujinx_save_file():
-    roots = []
-
-    env_roots = os.environ.get("RYUJINX_SAVE_SCAN_ROOTS", "").strip()
-    if env_roots:
-        roots.extend([Path(p).expanduser() for p in env_roots.split(":") if p.strip()])
-
-    home = Path.home()
-    roots.extend([
-        home / ".config" / "Ryujinx" / "bis" / "user" / "save",
-        home / ".var" / "app" / "org.ryujinx.Ryujinx" / "config" / "Ryujinx" / "bis" / "user" / "save",
-        home / "Emulation" / "saves" / "ryujinx",
-    ])
+    roots = get_save_roots()
 
     latest_path = None
     latest_mtime = 0.0
@@ -133,6 +125,127 @@ def detect_latest_ryujinx_save_file():
         "lastGameDataFilePath": str(latest_path),
         "lastGameSaveAt": last_save_at,
     }
+
+
+def get_save_roots():
+    roots = []
+
+    env_roots = os.environ.get("RYUJINX_SAVE_SCAN_ROOTS", "").strip()
+    if env_roots:
+        roots.extend([Path(p).expanduser() for p in env_roots.split(":") if p.strip()])
+
+    home = Path.home()
+    roots.extend([
+        home / ".config" / "Ryujinx" / "bis" / "user" / "save",
+        home / ".var" / "app" / "org.ryujinx.Ryujinx" / "config" / "Ryujinx" / "bis" / "user" / "save",
+        home / "Emulation" / "saves" / "ryujinx",
+    ])
+
+    return roots
+
+
+def find_latest_live_game_json_payload():
+    latest = None
+
+    for root in get_save_roots():
+        if not root.exists() or not root.is_dir():
+            continue
+
+        try:
+            for candidate in root.rglob("*.json"):
+                if not candidate.is_file():
+                    continue
+
+                try:
+                    parsed = json.loads(candidate.read_text(encoding="utf-8"))
+                except Exception:
+                    continue
+
+                player = extract_player_payload(parsed)
+                slots = extract_slots_payload(parsed)
+
+                if not player and not slots:
+                    continue
+
+                mtime = candidate.stat().st_mtime
+                if latest is None or mtime > latest["mtime"]:
+                    latest = {
+                        "mtime": mtime,
+                        "path": candidate,
+                        "player": player,
+                        "slots": slots,
+                    }
+        except Exception:
+            continue
+
+    if not latest:
+        return None
+
+    return {
+        "player": latest["player"],
+        "slots": latest["slots"],
+        "source": "live-save-json",
+        "lastGameDataFilePath": str(latest["path"]),
+        "lastGameSaveAt": datetime.fromtimestamp(latest["mtime"], tz=timezone.utc).isoformat(),
+    }
+
+
+def extract_player_payload(value):
+    if isinstance(value, dict):
+        if looks_like_player_dict(value):
+            normalized = normalize_player(value)
+            if normalized:
+                return normalized
+
+        for nested in value.values():
+            found = extract_player_payload(nested)
+            if found:
+                return found
+        return None
+
+    if isinstance(value, list):
+        for nested in value:
+            found = extract_player_payload(nested)
+            if found:
+                return found
+
+    return None
+
+
+def looks_like_player_dict(value):
+    if not isinstance(value, dict):
+        return False
+
+    lowered = {str(key).strip().lower() for key in value.keys()}
+    key_hits = lowered & PLAYER_HINT_KEYS
+    return ("name" in lowered or "town" in lowered) and len(key_hits) >= 2
+
+
+def extract_slots_payload(value):
+    if isinstance(value, dict):
+        raw_slots = value.get("slots")
+        if isinstance(raw_slots, list):
+            normalized = [slot for slot in (normalize_slot(entry) for entry in raw_slots) if slot]
+            if normalized:
+                return normalized
+
+        for nested in value.values():
+            found = extract_slots_payload(nested)
+            if found:
+                return found
+        return []
+
+    if isinstance(value, list):
+        normalized = [slot for slot in (normalize_slot(entry) for entry in value) if slot]
+        if normalized:
+            return normalized
+
+        for nested in value:
+            found = extract_slots_payload(nested)
+            if found:
+                return found
+
+    return []
 
 
 def normalize_slot(entry):
@@ -282,6 +395,11 @@ def cmd_read_game_data(player_path: Path, inventory_path: Path):
         print(json.dumps(response))
         return
 
+    live_json_payload = find_latest_live_game_json_payload()
+    if live_json_payload and (live_json_payload.get("player") or live_json_payload.get("slots")):
+        print(json.dumps(live_json_payload))
+        return
+
     player = None
 
     if player_path.exists():
@@ -293,10 +411,15 @@ def cmd_read_game_data(player_path: Path, inventory_path: Path):
             raise ValueError(f"failed to parse player file: {exc}") from exc
 
     slots = load_slots(inventory_path)
+
+    has_fallback_data = bool(player) or bool(slots)
+    source = "bridge-memory-tool" if has_fallback_data else "unavailable"
+
     response = {
         "player": player,
         "slots": slots,
-        "source": "adapter-memory" if inventory_path is None else "bridge-memory-tool",
+        "source": source,
+        "unavailable": not has_fallback_data,
     }
     response.update(detect_latest_ryujinx_save_file())
     print(json.dumps(response))

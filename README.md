@@ -116,6 +116,12 @@ bash scripts/install-steamdeck-launcher.sh
 
 After that, just double-click the `ACNH Live Bridge` icon on Desktop to run the bridge client.
 
+What you should see on launch:
+
+- A short Steam Deck connector startup banner from `scripts/steamdeck-run-bridge.sh`.
+- A themed status panel from `scripts/steamdeck-bridge-client.js`.
+- The panel status transitions from `CONNECTING` to `CONNECTED` when the bridge socket is live.
+
 Notes:
 
 - Default icon is `public/assets/icons/Apple_NL_Icon.png`.
@@ -158,6 +164,26 @@ Adapter behavior:
 - If `RYUJINX_READ_INVENTORY_CMD` is set, `read_inventory` uses that command.
 - If `RYUJINX_WRITE_INVENTORY_CMD` is set, `write_inventory_slot` uses that command.
 - Otherwise the client uses in-memory/file fallback slot state.
+
+### Updating This On Steam Deck
+
+Do you have to run `git pull`?
+
+- Yes, if your Steam Deck repo is a git clone and you want the latest script changes from your remote branch.
+- No, if you manually copied the updated files to Steam Deck by another method (for example `scp`, Syncthing, or a ZIP copy).
+
+Typical update flow on Steam Deck (git clone setup):
+
+```bash
+cd ~/acnh-live-editor
+git status --short
+git pull --ff-only origin master
+bash scripts/install-steamdeck-launcher.sh
+```
+
+Why rerun the launcher installer after pull:
+
+- It refreshes the Desktop/application launcher entry and keeps the one-click setup aligned with the current scripts.
 
 ### Next-Step Wiring (Ready To Run)
 

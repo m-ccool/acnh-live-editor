@@ -55,5 +55,9 @@ export RYUJINX_WRITE_INVENTORY_CMD
 export RYUJINX_READ_GAME_DATA_CMD
 
 cd "${REPO_DIR}"
+printf '\033[36m====================================================\033[0m\n'
+printf '\033[36m  ACNH Live Bridge (Steam Deck Connector) Starting  \033[0m\n'
+printf '\033[36m====================================================\033[0m\n'
+echo "[acnh-bridge] Repo: ${REPO_DIR}"
 echo "[acnh-bridge] Starting bridge client -> ${BRIDGE_TARGET_HOST}:${BRIDGE_TARGET_PORT}"
 exec node scripts/steamdeck-bridge-client.js
