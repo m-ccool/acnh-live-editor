@@ -19,6 +19,7 @@ const customReadInventoryCommand = process.env.RYUJINX_READ_INVENTORY_CMD || ''
 const customWriteInventoryCommand = process.env.RYUJINX_WRITE_INVENTORY_CMD || ''
 const customReadGameDataCommand = process.env.RYUJINX_READ_GAME_DATA_CMD || ''
 const commandTimeoutMs = Number(process.env.BRIDGE_COMMAND_TIMEOUT_MS || 4000)
+const reconnectDelayMs = Number(process.env.BRIDGE_RECONNECT_DELAY_MS || 3000)
 
 if (process.argv.includes('--help') || process.argv.includes('-h')) {
   printHelp()
@@ -29,65 +30,124 @@ const inventoryState = loadInventoryState(inventoryPath)
 const startedAt = new Date().toISOString()
 let panelConnectionState = 'CONNECTING'
 let panelConnectionDetail = `Connecting to ${host}:${port}`
+let socket = null
+let reconnectTimer = null
+let reconnectAttempt = 0
+let isShuttingDown = false
 
 renderStartupPanel()
 
-const socket = net.createConnection({ host, port }, () => {
-  panelConnectionState = 'CONNECTED'
-  panelConnectionDetail = `Connected to ${host}:${port}`
-  renderStartupPanel()
-  log(`Connected to bridge listener ${host}:${port}`)
-  send(buildHello())
-  startHeartbeat()
-})
-
-socket.setEncoding('utf8')
+connectSocket()
 
 let buffer = ''
 let heartbeatTimer = null
 
-socket.on('data', (chunk) => {
-  buffer += chunk
-
-  while (buffer.includes('\n')) {
-    const newlineIndex = buffer.indexOf('\n')
-    const line = buffer.slice(0, newlineIndex).trim()
-    buffer = buffer.slice(newlineIndex + 1)
-
-    if (!line) {
-      continue
-    }
-
-    try {
-      handleMessage(JSON.parse(line))
-    } catch (error) {
-      log(`Invalid JSON payload from listener: ${error.message}`)
-    }
-  }
-})
-
-socket.on('error', (error) => {
-  panelConnectionState = 'ERROR'
-  panelConnectionDetail = error.message
-  renderStartupPanel()
-  log(`Socket error: ${error.message}`)
-  process.exitCode = 1
-})
-
-socket.on('close', () => {
-  if (panelConnectionState !== 'ERROR') {
-    panelConnectionState = 'CLOSED'
-    panelConnectionDetail = 'Socket closed'
-    renderStartupPanel()
-  }
-  clearIntervalIfSet()
-  log('Socket closed')
-})
-
 process.on('SIGINT', () => {
+  isShuttingDown = true
+  clearReconnectTimerIfSet()
   send({ type: 'goodbye', deviceName })
-  socket.end()
+  if (socket && !socket.destroyed) {
+    socket.end()
+  }
 })
+
+process.on('SIGTERM', () => {
+  isShuttingDown = true
+  clearReconnectTimerIfSet()
+  send({ type: 'goodbye', deviceName })
+  if (socket && !socket.destroyed) {
+    socket.end()
+  }
+})
+
+function connectSocket() {
+  if (isShuttingDown) {
+    return
+  }
+
+  panelConnectionState = 'CONNECTING'
+  panelConnectionDetail = reconnectAttempt > 0
+    ? `Reconnect attempt ${reconnectAttempt} to ${host}:${port}`
+    : `Connecting to ${host}:${port}`
+  renderStartupPanel()
+
+  socket = net.createConnection({ host, port }, () => {
+    reconnectAttempt = 0
+    clearReconnectTimerIfSet()
+    panelConnectionState = 'CONNECTED'
+    panelConnectionDetail = `Connected to ${host}:${port}`
+    renderStartupPanel()
+    log(`Connected to bridge listener ${host}:${port}`)
+    send(buildHello())
+    startHeartbeat()
+  })
+
+  socket.setEncoding('utf8')
+  buffer = ''
+
+  socket.on('data', (chunk) => {
+    buffer += chunk
+
+    while (buffer.includes('\n')) {
+      const newlineIndex = buffer.indexOf('\n')
+      const line = buffer.slice(0, newlineIndex).trim()
+      buffer = buffer.slice(newlineIndex + 1)
+
+      if (!line) {
+        continue
+      }
+
+      try {
+        handleMessage(JSON.parse(line))
+      } catch (error) {
+        log(`Invalid JSON payload from listener: ${error.message}`)
+      }
+    }
+  })
+
+  socket.on('error', (error) => {
+    panelConnectionState = 'ERROR'
+    panelConnectionDetail = `${error.message} (retrying in ${Math.ceil(reconnectDelayMs / 1000)}s)`
+    renderStartupPanel()
+    log(`Socket error: ${error.message}`)
+  })
+
+  socket.on('close', () => {
+    clearIntervalIfSet()
+    log('Socket closed')
+
+    if (isShuttingDown) {
+      panelConnectionState = 'CLOSED'
+      panelConnectionDetail = 'Bridge client stopped'
+      renderStartupPanel()
+      return
+    }
+
+    panelConnectionState = 'CLOSED'
+    panelConnectionDetail = `Disconnected from ${host}:${port}`
+    renderStartupPanel()
+    scheduleReconnect()
+  })
+}
+
+function scheduleReconnect() {
+  if (isShuttingDown || reconnectTimer) {
+    return
+  }
+
+  reconnectAttempt += 1
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null
+    connectSocket()
+  }, reconnectDelayMs)
+}
+
+function clearReconnectTimerIfSet() {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer)
+    reconnectTimer = null
+  }
+}
 
 function startHeartbeat() {
   clearIntervalIfSet()
@@ -120,7 +180,7 @@ function buildHello() {
 }
 
 function send(payload) {
-  if (!socket.destroyed) {
+  if (socket && !socket.destroyed) {
     socket.write(`${JSON.stringify(payload)}\n`)
   }
 }
@@ -740,5 +800,5 @@ function stripAnsi(value) {
 function printHelp() {
   process.stdout.write('Steam Deck bridge client for ACNH Live Editor\n')
   process.stdout.write('Required: set BRIDGE_TARGET_HOST to your PC LAN IP.\n')
-  process.stdout.write('Optional env: BRIDGE_TARGET_PORT, BRIDGE_DEVICE_NAME, BRIDGE_HEARTBEAT_MS, BRIDGE_COMMAND_TIMEOUT_MS, RYUJINX_PROCESS_MATCH, RYUJINX_STRICT_PROCESS_CHECK, RYUJINX_STATUS_CMD, RYUJINX_READ_INVENTORY_CMD, RYUJINX_WRITE_INVENTORY_CMD, RYUJINX_READ_GAME_DATA_CMD, BRIDGE_INVENTORY_FILE, BRIDGE_PERSIST_INVENTORY\n')
+  process.stdout.write('Optional env: BRIDGE_TARGET_PORT, BRIDGE_DEVICE_NAME, BRIDGE_HEARTBEAT_MS, BRIDGE_COMMAND_TIMEOUT_MS, BRIDGE_RECONNECT_DELAY_MS, RYUJINX_PROCESS_MATCH, RYUJINX_STRICT_PROCESS_CHECK, RYUJINX_STATUS_CMD, RYUJINX_READ_INVENTORY_CMD, RYUJINX_WRITE_INVENTORY_CMD, RYUJINX_READ_GAME_DATA_CMD, BRIDGE_INVENTORY_FILE, BRIDGE_PERSIST_INVENTORY\n')
 }

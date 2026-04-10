@@ -121,6 +121,14 @@ What you should see on launch:
 - A short Steam Deck connector startup banner from `scripts/steamdeck-run-bridge.sh`.
 - A themed status panel from `scripts/steamdeck-bridge-client.js`.
 - The panel status transitions from `CONNECTING` to `CONNECTED` when the bridge socket is live.
+- If the PC bridge is unavailable, the Deck client stays open and retries automatically.
+
+If it keeps retrying and does not connect:
+
+1. On PC, start the app server (`npm run dev`) and confirm bridge port `32840` is open.
+2. On Steam Deck, verify `.steamdeck-bridge.env` has the correct `BRIDGE_TARGET_HOST` (your PC LAN IP).
+3. On Steam Deck, rerun `bash scripts/install-steamdeck-launcher.sh` after updates.
+4. Relaunch `ACNH Live Bridge` and watch the panel detail line for connection errors.
 
 Notes:
 
