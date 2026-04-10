@@ -128,12 +128,44 @@ def main():
 
     command = sys.argv[1].strip()
     host = os.environ.get("ACNH_BOTBASE_HOST", "127.0.0.1")
-    port = int(os.environ.get("ACNH_BOTBASE_PORT", "6000"))
+    timeout_seconds = float(os.environ.get("ACNH_BOTBASE_TIMEOUT_SECONDS", "2.0"))
+    ports_text = os.environ.get("ACNH_BOTBASE_PORTS", "").strip()
+    if ports_text:
+        ports = [int(part.strip()) for part in ports_text.split(",") if part.strip()]
+    else:
+        ports = [int(os.environ.get("ACNH_BOTBASE_PORT", "6000")), 6001]
 
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.settimeout(float(os.environ.get("ACNH_BOTBASE_TIMEOUT_SECONDS", "2.0")))
+    # Preserve order while removing duplicates.
+    seen = set()
+    ports = [port for port in ports if not (port in seen or seen.add(port))]
+
+    sock = None
+    last_error = None
+    connected_endpoint = None
+
+    for port in ports:
+        candidate = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        candidate.settimeout(timeout_seconds)
+        try:
+            candidate.connect((host, port))
+            sock = candidate
+            connected_endpoint = f"{host}:{port}"
+            break
+        except Exception as exc:
+            last_error = exc
+            try:
+                candidate.close()
+            except Exception:
+                pass
+
+    if sock is None:
+        attempted = ", ".join([f"{host}:{port}" for port in ports])
+        raise RuntimeError(
+            f"Unable to connect to botbase endpoint(s): {attempted}. "
+            f"Last error: {last_error}. Ensure sys-botbase is running and the game exposes botbase."
+        )
+
     try:
-        sock.connect((host, port))
 
         if command == "read_game_data":
             read_game_data(sock)
@@ -150,7 +182,8 @@ def main():
         raise RuntimeError(f"Unsupported command: {command}")
     finally:
         try:
-            sock.close()
+            if sock:
+                sock.close()
         except Exception:
             pass
 
