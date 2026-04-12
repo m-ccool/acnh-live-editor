@@ -23,35 +23,18 @@ if [[ -z "${BRIDGE_TARGET_HOST:-}" ]]; then
   fi
 fi
 
-# Check ptrace_scope and warn if live memory reads will be blocked
-PTRACE_SCOPE_PATH="/proc/sys/kernel/yama/ptrace_scope"
-if [[ -f "${PTRACE_SCOPE_PATH}" ]]; then
-  PTRACE_SCOPE=$(cat "${PTRACE_SCOPE_PATH}")
-  if [[ "${PTRACE_SCOPE}" -gt 0 ]]; then
-    echo "[acnh-bridge] ⚠ ptrace_scope=${PTRACE_SCOPE}: live memory reads disabled."
-    echo "[acnh-bridge]   To enable proc/mem live backend, run ONCE:"
-    echo "[acnh-bridge]     sudo sysctl -w kernel.yama.ptrace_scope=0"
-    echo "[acnh-bridge]   (resets on reboot; add to /etc/sysctl.d/99-ptrace.conf to persist)"
-  fi
-fi
-
 : "${BRIDGE_TARGET_PORT:=32840}"
 : "${BRIDGE_DEVICE_NAME:=steamdeck-bridge-client}"
 : "${BRIDGE_HEARTBEAT_MS:=5000}"
 : "${BRIDGE_COMMAND_TIMEOUT_MS:=4000}"
 : "${BRIDGE_ENABLE_FILE_FALLBACK:=0}"
 : "${BRIDGE_INVENTORY_FILE:=${REPO_DIR}/data/steamdeck-inventory.json}"
-: "${RYUJINX_READ_INVENTORY_CMD:=python3 scripts/steamdeck-adapters/bridge_memory_tool.py read_inventory}"
-: "${RYUJINX_WRITE_INVENTORY_CMD:=python3 scripts/steamdeck-adapters/bridge_memory_tool.py write_inventory_slot}"
-: "${RYUJINX_READ_GAME_DATA_CMD:=python3 scripts/steamdeck-adapters/bridge_memory_tool.py read_game_data}"
+: "${RYUJINX_READ_INVENTORY_CMD:=node scripts/steamdeck-adapters/read-inventory.js}"
+: "${RYUJINX_WRITE_INVENTORY_CMD:=node scripts/steamdeck-adapters/write-inventory-slot.js}"
+: "${RYUJINX_READ_GAME_DATA_CMD:=node scripts/steamdeck-adapters/read-game-data.js}"
 
 if ! command -v node >/dev/null 2>&1; then
   echo "[acnh-bridge] node is not installed or not in PATH"
-  exit 1
-fi
-
-if ! command -v python3 >/dev/null 2>&1; then
-  echo "[acnh-bridge] python3 is not installed or not in PATH"
   exit 1
 fi
 
@@ -72,4 +55,5 @@ printf '\033[36m  ACNH Live Bridge (Steam Deck Connector) Starting  \033[0m\n'
 printf '\033[36m====================================================\033[0m\n'
 echo "[acnh-bridge] Repo: ${REPO_DIR}"
 echo "[acnh-bridge] Starting bridge client -> ${BRIDGE_TARGET_HOST}:${BRIDGE_TARGET_PORT}"
+echo "[acnh-bridge] Adapter mode: live Ryujinx save files"
 exec node scripts/steamdeck-bridge-client.js

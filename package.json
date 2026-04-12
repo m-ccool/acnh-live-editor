@@ -12,6 +12,7 @@
     "sync:nookipedia": "node scripts/sync-nookipedia-catalog.js",
     "bridge:test-client": "node scripts/bridge-test-client.js",
     "bridge:steamdeck": "node scripts/steamdeck-bridge-client.js",
+    "bridge:adapter:game": "node scripts/steamdeck-adapters/read-game-data.js",
     "bridge:adapter:read": "node scripts/steamdeck-adapters/read-inventory.js",
     "bridge:adapter:write": "node scripts/steamdeck-adapters/write-inventory-slot.js"
   },
