@@ -23,6 +23,18 @@ if [[ -z "${BRIDGE_TARGET_HOST:-}" ]]; then
   fi
 fi
 
+# Check ptrace_scope and warn if live memory reads will be blocked
+PTRACE_SCOPE_PATH="/proc/sys/kernel/yama/ptrace_scope"
+if [[ -f "${PTRACE_SCOPE_PATH}" ]]; then
+  PTRACE_SCOPE=$(cat "${PTRACE_SCOPE_PATH}")
+  if [[ "${PTRACE_SCOPE}" -gt 0 ]]; then
+    echo "[acnh-bridge] ⚠ ptrace_scope=${PTRACE_SCOPE}: live memory reads disabled."
+    echo "[acnh-bridge]   To enable proc/mem live backend, run ONCE:"
+    echo "[acnh-bridge]     sudo sysctl -w kernel.yama.ptrace_scope=0"
+    echo "[acnh-bridge]   (resets on reboot; add to /etc/sysctl.d/99-ptrace.conf to persist)"
+  fi
+fi
+
 : "${BRIDGE_TARGET_PORT:=32840}"
 : "${BRIDGE_DEVICE_NAME:=steamdeck-bridge-client}"
 : "${BRIDGE_HEARTBEAT_MS:=5000}"
