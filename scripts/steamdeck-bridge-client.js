@@ -709,6 +709,13 @@ function isLikelyRyujinxBinary(entry) {
 
   const command = String(entry.command || '')
   const args = String(entry.args || '')
+  const commandLower = command.toLowerCase()
+  const argsLower = args.toLowerCase()
+
+  // Dolphin can include ~/.config/Ryujinx in args when browsing files.
+  if (/(^|\/|\\)dolphin$/i.test(command) || /\.config\/ryujinx/.test(argsLower)) {
+    return false
+  }
 
   if (/(^|\/|\\)ryujinx(\.headless)?$/i.test(command)) {
     return true
@@ -718,7 +725,9 @@ function isLikelyRyujinxBinary(entry) {
     return true
   }
 
-  if (/\bryujinx(\.headless)?\b/i.test(args) && !/launchers\/ryujinx\.sh/i.test(args)) {
+  if ((/(^|\s|"|')ryujinx(\.headless)?(\s|$|"|')/i.test(args) ||
+      /(^|\s|"|')[^\s"']*\/ryujinx(\.headless)?(\s|$|"|')/i.test(args)) &&
+      !/launchers\/ryujinx\.sh/i.test(argsLower)) {
     return true
   }
 
