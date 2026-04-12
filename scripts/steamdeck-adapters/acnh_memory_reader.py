@@ -127,6 +127,71 @@ def _parse_maps(pid: int):
     return regions
 
 
+def _decode_utf16le_safe(data: bytes) -> str:
+    try:
+        return data.decode("utf-16le", errors="ignore").split("\x00")[0].strip()
+    except Exception:
+        return ""
+
+
+def _is_plausible_text(value: str) -> bool:
+    if not value:
+        return False
+    if len(value) > 12:
+        return False
+    printable = sum(1 for ch in value if ch.isprintable())
+    return printable == len(value)
+
+
+def _score_dram_candidate(pid: int, dram_base: int, offsets: dict):
+    score = 0
+    details = {}
+
+    for field in ("name", "town"):
+        try:
+            raw = _read_switch_va(pid, dram_base, offsets[field], 16)
+            text = _decode_utf16le_safe(raw)
+            details[field] = text
+            if _is_plausible_text(text):
+                score += 3
+        except RuntimeError as exc:
+            details[field] = f"ERR:{exc}"
+
+    for field in ("wallet", "bank", "miles"):
+        try:
+            raw = _read_switch_va(pid, dram_base, offsets[field], 4)
+            value = _read_uint32(raw)
+            details[field] = value
+            if 0 <= value <= 999999999:
+                score += 1
+        except RuntimeError as exc:
+            details[field] = f"ERR:{exc}"
+
+    return score, details
+
+
+def _candidate_dram_bases(pid: int, offsets: dict):
+    candidates = []
+    seen = set()
+    for start, end, perms, label in _parse_maps(pid):
+        if start in seen:
+            continue
+        seen.add(start)
+        score, details = _score_dram_candidate(pid, start, offsets)
+        size = end - start
+        candidates.append({
+            "base": start,
+            "score": score,
+            "size": size,
+            "perms": perms,
+            "label": label,
+            "details": details,
+        })
+
+    candidates.sort(key=lambda entry: (entry["score"], entry["size"]), reverse=True)
+    return candidates
+
+
 def _find_dram_base(pid: int) -> int:
     """
     Locate Ryujinx's flat DRAM region: the largest rw memfd:doublemapper region
@@ -136,22 +201,23 @@ def _find_dram_base(pid: int) -> int:
     if override:
         return int(override, 16)
 
-    regions = _parse_maps(pid)
-    largest = None
-    largest_size = 0
-    for (start, end, _perms, label) in regions:
-        size = end - start
-        if "memfd" in label and size > largest_size:
-            largest_size = size
-            largest = start
+    offsets = _get_offsets()
+    candidates = _candidate_dram_bases(pid, offsets)
+    if candidates and candidates[0]["score"] >= 5:
+        return candidates[0]["base"]
 
-    if largest is None or largest_size < _MIN_DRAM_SIZE:
+    if candidates:
+        top = candidates[0]
         raise RuntimeError(
-            f"Could not find Ryujinx DRAM region in /proc/{pid}/maps "
-            f"(need >{_MIN_DRAM_SIZE // 1024 // 1024}MB rw memfd region). "
-            "Try: export ACNH_DRAM_OFFSET=<hex base addr>"
+            "Could not confidently determine Ryujinx DRAM base. "
+            f"Best candidate was {hex(top['base'])} with score {top['score']}. "
+            "Run --scan to inspect candidates or set ACNH_DRAM_OFFSET manually."
         )
-    return largest
+
+    raise RuntimeError(
+        f"Could not find writable regions in /proc/{pid}/maps. "
+        "Run --scan to inspect mappings or set ACNH_DRAM_OFFSET manually."
+    )
 
 
 def _mem_read(pid: int, host_addr: int, size: int) -> bytes:
@@ -263,6 +329,10 @@ def cmd_scan():
 
     regions = _parse_maps(pid)
     print(f"[scan] Total rw regions: {len(regions)}", file=sys.stderr)
+    print("[scan] Largest rw regions overall:", file=sys.stderr)
+    for (s, e, p, l) in sorted(regions, key=lambda r: r[1] - r[0], reverse=True)[:8]:
+        size_mb = (e - s) / 1024 / 1024
+        print(f"  {hex(s)}-{hex(e)}  {size_mb:.1f}MB  {p}  {l}", file=sys.stderr)
     print("[scan] Largest rw memfd regions:", file=sys.stderr)
     memfd_regions = sorted(
         [(s, e, p, l) for s, e, p, l in regions if "memfd" in l],
@@ -272,18 +342,26 @@ def cmd_scan():
         size_mb = (e - s) / 1024 / 1024
         print(f"  {hex(s)}-{hex(e)}  {size_mb:.1f}MB  {p}  {l}", file=sys.stderr)
 
-    dram_base = _find_dram_base(pid)
-    print(f"[scan] DRAM base: {hex(dram_base)}", file=sys.stderr)
     offs = _get_offsets()
-    for field, switch_va in offs.items():
-        host_addr = _switch_va_to_host(dram_base, switch_va)
-        try:
-            raw = _mem_read(pid, host_addr, 4)
-            as_uint32 = _read_uint32(raw)
-            as_hex = raw.hex()
-            print(f"  {field:8s}  switch={hex(switch_va)}  host={hex(host_addr)}  raw={as_hex}  uint32={as_uint32}", file=sys.stderr)
-        except RuntimeError as exc:
-            print(f"  {field:8s}  switch={hex(switch_va)}  FAILED: {exc}", file=sys.stderr)
+    candidates = _candidate_dram_bases(pid, offs)
+    if not candidates:
+        print("[scan] No candidate DRAM bases found", file=sys.stderr)
+        return 1
+
+    print("[scan] Top candidate bases:", file=sys.stderr)
+    for entry in candidates[:8]:
+        size_mb = entry["size"] / 1024 / 1024
+        details = entry["details"]
+        print(
+            f"  base={hex(entry['base'])} score={entry['score']} size={size_mb:.1f}MB "
+            f"perms={entry['perms']} label={entry['label']} "
+            f"name={details.get('name')!r} town={details.get('town')!r} "
+            f"wallet={details.get('wallet')} bank={details.get('bank')} miles={details.get('miles')}",
+            file=sys.stderr,
+        )
+
+    best = candidates[0]
+    print(f"[scan] Best candidate base: {hex(best['base'])} (score {best['score']})", file=sys.stderr)
     return 0
 
 
