@@ -29,12 +29,24 @@ fi
 : "${BRIDGE_COMMAND_TIMEOUT_MS:=4000}"
 : "${BRIDGE_ENABLE_FILE_FALLBACK:=0}"
 : "${BRIDGE_INVENTORY_FILE:=${REPO_DIR}/data/steamdeck-inventory.json}"
-: "${RYUJINX_READ_INVENTORY_CMD:=node scripts/steamdeck-adapters/read-inventory.js}"
-: "${RYUJINX_WRITE_INVENTORY_CMD:=node scripts/steamdeck-adapters/write-inventory-slot.js}"
-: "${RYUJINX_READ_GAME_DATA_CMD:=node scripts/steamdeck-adapters/read-game-data.js}"
+: "${RYUJINX_READ_INVENTORY_CMD:=python3 scripts/steamdeck-adapters/bridge_memory_tool.py read_inventory}"
+: "${RYUJINX_WRITE_INVENTORY_CMD:=python3 scripts/steamdeck-adapters/bridge_memory_tool.py write_inventory_slot}"
+: "${RYUJINX_READ_GAME_DATA_CMD:=python3 scripts/steamdeck-adapters/bridge_memory_tool.py read_game_data}"
+: "${RYUJINX_LIVE_READ_INVENTORY_CMD:=python3 scripts/steamdeck-adapters/acnh_memory_reader.py read_inventory}"
+: "${RYUJINX_LIVE_WRITE_INVENTORY_CMD:=python3 scripts/steamdeck-adapters/acnh_memory_reader.py write_inventory_slot}"
+: "${RYUJINX_LIVE_READ_GAME_DATA_CMD:=python3 scripts/steamdeck-adapters/acnh_memory_reader.py read_game_data}"
+
+if [[ "${RYUJINX_PERSONAL_SAVE_DIR:-}" == *"/games/01006f8002326000/cache/cpu/"* ]]; then
+  echo "[acnh-bridge] Scope guard: RYUJINX_PERSONAL_SAVE_DIR points to a CPU cache path, not live memory or personal save data."
+fi
 
 if ! command -v node >/dev/null 2>&1; then
   echo "[acnh-bridge] node is not installed or not in PATH"
+  exit 1
+fi
+
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "[acnh-bridge] python3 is not installed or not in PATH"
   exit 1
 fi
 
@@ -48,6 +60,9 @@ export BRIDGE_INVENTORY_FILE
 export RYUJINX_READ_INVENTORY_CMD
 export RYUJINX_WRITE_INVENTORY_CMD
 export RYUJINX_READ_GAME_DATA_CMD
+export RYUJINX_LIVE_READ_INVENTORY_CMD
+export RYUJINX_LIVE_WRITE_INVENTORY_CMD
+export RYUJINX_LIVE_READ_GAME_DATA_CMD
 
 cd "${REPO_DIR}"
 printf '\033[36m====================================================\033[0m\n'
@@ -55,5 +70,5 @@ printf '\033[36m  ACNH Live Bridge (Steam Deck Connector) Starting  \033[0m\n'
 printf '\033[36m====================================================\033[0m\n'
 echo "[acnh-bridge] Repo: ${REPO_DIR}"
 echo "[acnh-bridge] Starting bridge client -> ${BRIDGE_TARGET_HOST}:${BRIDGE_TARGET_PORT}"
-echo "[acnh-bridge] Adapter mode: live Ryujinx save files"
+echo "[acnh-bridge] Adapter mode: live Ryujinx memory"
 exec node scripts/steamdeck-bridge-client.js

@@ -193,25 +193,26 @@ Why rerun the launcher installer after pull:
 
 - It refreshes the Desktop/application launcher entry and keeps the one-click setup aligned with the current scripts.
 
-### Next-Step Wiring (Ready To Run)
+### Next-Step Wiring (Live Memory)
 
-This repo now includes adapter scripts:
-
-- `scripts/steamdeck-adapters/read-inventory.js`
-- `scripts/steamdeck-adapters/write-inventory-slot.js`
-
-Use them immediately as command adapters:
+Use the live-memory bridge tool plus the live reader commands:
 
 ```bash
 BRIDGE_TARGET_HOST=192.168.1.25 \
 BRIDGE_TARGET_PORT=32840 \
-BRIDGE_INVENTORY_FILE=/home/deck/acnh-live-editor/data/steamdeck-inventory.json \
-RYUJINX_READ_INVENTORY_CMD="node scripts/steamdeck-adapters/read-inventory.js" \
-RYUJINX_WRITE_INVENTORY_CMD="node scripts/steamdeck-adapters/write-inventory-slot.js" \
+RYUJINX_READ_INVENTORY_CMD="python3 scripts/steamdeck-adapters/bridge_memory_tool.py read_inventory" \
+RYUJINX_WRITE_INVENTORY_CMD="python3 scripts/steamdeck-adapters/bridge_memory_tool.py write_inventory_slot" \
+RYUJINX_READ_GAME_DATA_CMD="python3 scripts/steamdeck-adapters/bridge_memory_tool.py read_game_data" \
+RYUJINX_LIVE_READ_INVENTORY_CMD="python3 scripts/steamdeck-adapters/acnh_memory_reader.py read_inventory" \
+RYUJINX_LIVE_WRITE_INVENTORY_CMD="python3 scripts/steamdeck-adapters/acnh_memory_reader.py write_inventory_slot" \
+RYUJINX_LIVE_READ_GAME_DATA_CMD="python3 scripts/steamdeck-adapters/acnh_memory_reader.py read_game_data" \
 node scripts/steamdeck-bridge-client.js
 ```
 
-With this setup, your bridge reads and writes live through adapter commands over stdin/stdout JSON. You can later replace adapter internals with direct Ryujinx memory tooling while keeping the same bridge env contract.
+Scope guard for Steam Deck MVP:
+
+- Live bridge backend is memory (`acnh_memory_reader.py`) via `bridge_memory_tool.py`.
+- `.../games/01006f8002326000/cache/cpu/0` is Ryujinx CPU cache and not the live bridge read/write backend.
 
 ## Development Notes
 
