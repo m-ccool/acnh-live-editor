@@ -74,8 +74,23 @@ async function pollBridgeStatus() {
       syncBridgeStatus(await statusResponse.json());
       await refreshBridgeInventory({ reason: 'Background inventory sync' });
       await refreshBridgeGameData();
+      
+      const playerChanged = hasPlayerDataChanged();
+      const inventoryChanged = hasInventoryChanged();
+      
       renderBridge();
       renderDerivedPanels();
+      
+      if (playerChanged) {
+        const playerCard = document.querySelector('.player-panel');
+        if (playerCard) applyUpdateFade(playerCard);
+      }
+      if (inventoryChanged) {
+        const inventoryCard = document.querySelector('.inventory-area');
+        if (inventoryCard) applyUpdateFade(inventoryCard);
+      }
+      
+      updateDataSnapshot();
     }
   } catch (error) {
     console.error(error);
@@ -902,13 +917,24 @@ function isClipboardPayload(value) {
 }
 
 function findItemByLookup(itemId, itemName) {
+  const baseLookups = [itemId, itemName]
+    .map((value) => normalizeItemLookup(value))
+    .filter(Boolean);
+  const fallbackLookups = [itemId, itemName]
+    .map(stripVariationSuffix)
+    .map((value) => normalizeItemLookup(value))
+    .filter(Boolean);
+  const allLookups = Array.from(new Set(baseLookups.concat(fallbackLookups)));
+
   return getKnownCatalogItems().find((item) => {
-    return (
-      normalizeItemLookup(item.file_name) === normalizeItemLookup(itemId) ||
-      normalizeItemLookup(item.name) === normalizeItemLookup(itemId) ||
-      normalizeItemLookup(item.name) === normalizeItemLookup(itemName)
-    );
+    const itemFileName = normalizeItemLookup(item.file_name);
+    const itemNameLookup = normalizeItemLookup(item.name);
+    return allLookups.some((lookup) => lookup === itemFileName || lookup === itemNameLookup);
   }) || null;
+}
+
+function stripVariationSuffix(value) {
+  return String(value || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
 }
 
 function getKnownCatalogItems() {

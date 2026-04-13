@@ -72,6 +72,10 @@ const QUICK_CHEAT_LABELS = Object.freeze({
   wallWalk: 'wall walk'
 });
 let shootingStarTimeoutId = 0;
+const prevDataSnapshot = {
+  playerHash: '',
+  inventoryHash: ''
+};
 const dragScroll = {
   pointerId: null,
   active: false,
@@ -147,7 +151,8 @@ const DEFAULT_BRIDGE_STATE = {
   lastGameDataFilePath: null,
   ryujinxRunning: null,
   ryujinxMatchCount: 0,
-  ryujinxMatches: []
+  ryujinxMatches: [],
+  pollPaused: false
 };
 const DEFAULT_CATALOG_STATE = Object.freeze({
   connectionState: 'fallback',
@@ -199,7 +204,8 @@ const state = {
   music: {
     ...DEFAULT_MUSIC_STATE,
     library: DEFAULT_MUSIC_LIBRARY.tracks.slice()
-  }
+  },
+  bridgePollIntervalId: null
 };
 
 const el = {};
@@ -216,6 +222,7 @@ async function init() {
   restoreLocalState();
   applyTheme(false);
   renderAll();
+  updateDataSnapshot();
   primeSelectedMusicSource();
   try {
     await refreshBridgeStatus('Boot live sync');
@@ -272,6 +279,8 @@ function cacheDom() {
   el.bankValue = document.getElementById('bank-value');
   el.milesValue = document.getElementById('miles-value');
   el.playerAvatar = document.getElementById('player-avatar');
+  el.pauseBridgeButton = document.getElementById('pause-bridge-button');
+  el.writeBridgeButton = document.getElementById('write-bridge-button');
 
   el.selectedItemArtbox = document.getElementById('selected-item-artbox');
   el.selectedPreviewImage = document.getElementById('selected-preview-image');
@@ -467,6 +476,9 @@ function bindEvents() {
   el.playerModalSave.addEventListener('click', applyPlayerEdits);
   bindInlinePlayerFieldEvents();
 
+  el.pauseBridgeButton.addEventListener('click', toggleBridgePoll);
+  el.writeBridgeButton.addEventListener('click', writePlayerChanges);
+
   el.openSelectedSearchButton.addEventListener('click', () => openItemModalForSelectedSlot());
   el.selectedItemArtbox.addEventListener('click', () => openItemModalForSelectedSlot());
 
@@ -583,7 +595,7 @@ function bindEvents() {
   document.addEventListener('keydown', registerMusicInteraction);
 
   window.setInterval(updateClock, 30000);
-  window.setInterval(pollBridgeStatus, 4000);
+  state.bridgePollIntervalId = window.setInterval(pollBridgeStatus, 4000);
   window.setInterval(refreshCatalogStatus, 15000);
   window.addEventListener('resize', renderMusicRibbonPosition, { passive: true });
   window.addEventListener('resize', renderLogPanelSize, { passive: true });
@@ -861,12 +873,43 @@ function normalizeItemLookup(value) {
     .toLowerCase();
 }
 
+function getPlayerDataHash() {
+  return JSON.stringify([state.player.name, state.player.town, state.player.wallet, state.player.bank, state.player.miles]);
+}
+
+function getInventoryHash() {
+  return JSON.stringify(state.inventory.map(slot => [slot.itemId, slot.count, slot.uses, slot.flag0, slot.flag1]));
+}
+
+function hasPlayerDataChanged() {
+  const current = getPlayerDataHash();
+  return current !== prevDataSnapshot.playerHash;
+}
+
+function hasInventoryChanged() {
+  const current = getInventoryHash();
+  return current !== prevDataSnapshot.inventoryHash;
+}
+
+function updateDataSnapshot() {
+  prevDataSnapshot.playerHash = getPlayerDataHash();
+  prevDataSnapshot.inventoryHash = getInventoryHash();
+}
+
+function applyUpdateFade(element) {
+  if (!element) return;
+  element.classList.remove('is-updating');
+  void element.offsetWidth;
+  element.classList.add('is-updating');
+}
+
 function renderAll() {
   renderLogPanelSize();
   renderThemeToggle();
   renderBridge();
   renderMusic();
   renderPlayer();
+  renderBridgePollButton();
   renderQuickCheatButtons();
   renderShortcutButtons();
   renderInventory();

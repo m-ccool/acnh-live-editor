@@ -4,6 +4,7 @@ const path = require('path')
 const crypto = require('crypto')
 
 const ITEMS_PATH = path.join(process.cwd(), 'data', 'items.json')
+const ITEM_NAMES_PATH = path.join(process.cwd(), 'data', 'item-names-en.txt')
 const ITEM_NONE = 0xFFFE
 const ITEM_SIZE = 8
 const ENCRYPTION_CONSTANT = 0x80E32B11
@@ -633,25 +634,29 @@ function getItemIndex() {
   const byInternalId = new Map()
   const byLookup = new Map()
 
-  if (fs.existsSync(ITEMS_PATH)) {
+  if (fs.existsSync(ITEM_NAMES_PATH)) {
+    const lines = fs.readFileSync(ITEM_NAMES_PATH, 'utf8').split('\n')
+    for (let i = 0; i < lines.length; i++) {
+      const name = lines[i].trim()
+      if (!name) continue
+      const entry = { name, file_name: name }
+      byInternalId.set(i, entry)
+      const normalized = normalizeItemLookup(name)
+      if (normalized) byLookup.set(normalized, entry)
+    }
+  } else if (fs.existsSync(ITEMS_PATH)) {
     const raw = fs.readFileSync(ITEMS_PATH, 'utf8')
     const items = JSON.parse(raw)
     for (const item of Array.isArray(items) ? items : []) {
-      if (!item || typeof item !== 'object') {
-        continue
-      }
-
+      if (!item || typeof item !== 'object') continue
       const internalId = Number(item.internal_id)
       if (Number.isInteger(internalId) && internalId >= 0 && internalId <= 0xFFFF) {
         byInternalId.set(internalId, item)
       }
-
       const keys = [item.file_name, item.name]
       for (const key of keys) {
         const normalized = normalizeItemLookup(key)
-        if (normalized) {
-          byLookup.set(normalized, item)
-        }
+        if (normalized) byLookup.set(normalized, item)
       }
     }
   }

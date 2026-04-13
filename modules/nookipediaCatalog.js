@@ -10,7 +10,7 @@ require('dotenv').config({
 const NOOKIPEDIA_API_BASE_URL = 'https://api.nookipedia.com'
 const DEFAULT_ACCEPT_VERSION = process.env.NOOKIPEDIA_ACCEPT_VERSION || '1.7.0'
 const CACHE_TTL_MS = 1000 * 60 * 60 * 12
-const REQUEST_TIMEOUT_MS = 8000
+const REQUEST_TIMEOUT_MS = 30000
 const FAILURE_TTL_MS = 1000 * 60 * 5
 const DISK_CACHE_PATH = path.join(__dirname, '..', 'data', 'nookipedia-items-cache.json')
 const DIAGNOSTICS_TTL_MS = 15000
@@ -225,6 +225,20 @@ async function getCatalogItems() {
   return catalogCache.promise
 }
 
+function refreshCatalogInBackground() {
+  if (!hasNookipediaApiKey()) {
+    return
+  }
+
+  if (catalogCache.promise) {
+    return
+  }
+
+  getCatalogItems().catch(() => {
+    // Errors are surfaced via getCatalogSyncState().lastSyncError.
+  })
+}
+
 function getCachedCatalogItems() {
   if (Array.isArray(catalogCache.value) && catalogCache.value.length) {
     return catalogCache.value
@@ -243,24 +257,6 @@ function getCachedCatalogItems() {
   }
 
   return []
-}
-
-function refreshCatalogInBackground() {
-  if (!hasNookipediaApiKey()) {
-    return null
-  }
-
-  const now = Date.now()
-  if (catalogCache.promise || catalogCache.failureExpiresAt > now) {
-    return catalogCache.promise
-  }
-
-  const refreshPromise = getCatalogItems().catch((error) => {
-    console.warn(`Background Nookipedia refresh failed: ${error.message}`)
-    return null
-  })
-
-  return refreshPromise
 }
 
 function getCatalogSyncState() {

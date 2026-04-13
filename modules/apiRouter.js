@@ -90,6 +90,22 @@ function createApiRouter(options = {}) {
     }
   })
 
+  router.post('/api/bridge/write-player', async (req, res) => {
+    const playerData = req.body && req.body.player
+    
+    if (!playerData || typeof playerData !== 'object') {
+      res.status(400).json({ error: 'player data is required' })
+      return
+    }
+
+    try {
+      const result = await bridgeService.writePlayerData(playerData)
+      res.json(result)
+    } catch (error) {
+      res.status(resolveBridgeErrorStatus(error)).json({ error: error.message })
+    }
+  })
+
   router.get('/api/items', (req, res) => {
     try {
       res.json(listStarterItemsWithPreview())

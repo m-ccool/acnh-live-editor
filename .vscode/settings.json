@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^cd C:\\\\Users\\\\mccoo\\\\OneDrive\\\\Developer\\\\acnh-live-editor; node -e \"\nconst https = require\\('https'\\);\nfunction get\\(url\\) \\{\n  return new Promise\\(\\(res, rej\\) => \\{\n    https\\.get\\(url, r => \\{\n      let body = '';\n      r\\.on\\('data', c => body \\+= c\\);\n      r\\.on\\('end', \\(\\) => \\{ res\\(\\{status: r\\.statusCode, raw: body\\.slice\\(0,300\\)\\}\\); \\}\\);\n    \\}\\)\\.on\\('error', e => res\\(\\{err: e\\.message\\}\\)\\);\n  \\}\\);\n\\}\n// Try acnhapi\\.com item list\nget\\('https://acnhapi\\.com/v1/items'\\)\\.then\\(r => console\\.log\\('acnhapi:', r\\.status, r\\.raw\\)\\);\n\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

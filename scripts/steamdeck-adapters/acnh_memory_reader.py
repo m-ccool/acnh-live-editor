@@ -348,22 +348,32 @@ def _load_item_index():
 
     by_internal_id = {}
     by_file_name = {}
+    names_path = Path(__file__).resolve().parents[2] / "data" / "item-names-en.txt"
     items_path = Path(__file__).resolve().parents[2] / "data" / "items.json"
-    try:
-        parsed = json.loads(items_path.read_text(encoding="utf-8"))
-    except Exception:
-        parsed = []
 
-    if isinstance(parsed, list):
-        for entry in parsed:
-            if not isinstance(entry, dict):
+    if names_path.exists():
+        lines = names_path.read_text(encoding="utf-8").splitlines()
+        for i, line in enumerate(lines):
+            name = line.strip()
+            if not name:
                 continue
-            file_name = str(entry.get("file_name") or "").strip()
-            internal_id = entry.get("internal_id")
-            if isinstance(internal_id, int):
-                by_internal_id[internal_id] = file_name or None
-            if file_name:
-                by_file_name[file_name] = internal_id
+            by_internal_id[i] = name
+            by_file_name[name] = i
+    else:
+        try:
+            parsed = json.loads(items_path.read_text(encoding="utf-8"))
+        except Exception:
+            parsed = []
+        if isinstance(parsed, list):
+            for entry in parsed:
+                if not isinstance(entry, dict):
+                    continue
+                file_name = str(entry.get("file_name") or "").strip()
+                internal_id = entry.get("internal_id")
+                if isinstance(internal_id, int):
+                    by_internal_id[internal_id] = file_name or None
+                if file_name:
+                    by_file_name[file_name] = internal_id
 
     _ITEM_INDEX = {
         "by_internal_id": by_internal_id,

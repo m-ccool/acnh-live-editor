@@ -1,5 +1,81 @@
 'use strict';
 
+function pauseBridgePoll() {
+  if (state.bridge.pollPaused) return;
+  
+  state.bridge.pollPaused = true;
+  if (state.bridgePollIntervalId !== null) {
+    window.clearInterval(state.bridgePollIntervalId);
+    state.bridgePollIntervalId = null;
+  }
+  
+  renderBridgePollButton();
+  persistLocalState();
+}
+
+function resumeBridgePoll() {
+  if (!state.bridge.pollPaused) return;
+  
+  state.bridge.pollPaused = false;
+  state.bridgePollIntervalId = window.setInterval(pollBridgeStatus, 4000);
+  
+  renderBridgePollButton();
+  persistLocalState();
+}
+
+function toggleBridgePoll() {
+  if (state.bridge.pollPaused) {
+    resumeBridgePoll();
+  } else {
+    pauseBridgePoll();
+  }
+}
+
+function renderBridgePollButton() {
+  if (!el.pauseBridgeButton) return;
+  
+  const isPaused = state.bridge.pollPaused;
+  el.pauseBridgeButton.classList.toggle('is-active', isPaused);
+  el.pauseBridgeButton.setAttribute('aria-pressed', isPaused ? 'true' : 'false');
+  el.pauseBridgeButton.title = isPaused ? 'Resume bridge read' : 'Pause bridge read';
+}
+
+async function writePlayerChanges() {
+  if (!state.bridge.connected) {
+    alert('Bridge is not connected. Cannot write changes.');
+    return;
+  }
+
+  el.writeBridgeButton.disabled = true;
+  el.writeBridgeButton.classList.add('is-loading');
+
+  try {
+    const response = await fetch('/api/bridge/write-player', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        player: state.player
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || `Write failed with status ${response.status}`);
+    }
+
+    const result = await response.json();
+    state.bridge.lastAction = 'Player changes written to game';
+    renderBridge();
+    renderDerivedPanels();
+  } catch (error) {
+    console.error(error);
+    alert(`Failed to write player changes: ${error.message}`);
+  } finally {
+    el.writeBridgeButton.disabled = false;
+    el.writeBridgeButton.classList.remove('is-loading');
+  }
+}
+
 function renderPlayer() {
   el.playerName.value = state.player.name || '';
   el.townName.value = state.player.town || '';
@@ -682,6 +758,8 @@ function bindInlinePlayerFieldEvents() {
 
   inlineFields.forEach((field) => {
     field.addEventListener('focus', () => {
+      pauseBridgePoll();
+      
       if (field === el.walletValue) {
         field.value = String(state.player.wallet);
       } else if (field === el.bankValue) {

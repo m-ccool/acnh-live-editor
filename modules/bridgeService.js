@@ -330,6 +330,26 @@ function writeInventorySlot(payload) {
   })
 }
 
+function writePlayerData(playerData) {
+  // PlayerData includes name, town, wallet, bank, miles
+  // Send as write_game_data command; if not supported, server will respond with appropriate error
+  return sendCommand('write_game_data', { player: playerData }, {
+    timeoutMs: 8000
+  }).catch((error) => {
+    // If write_game_data is not supported, return a response indicating the limitation
+    const message = String(error && error.message || '')
+    if (/not implemented|unsupported|unknown command/i.test(message)) {
+      return {
+        requestId: `write-player-unsupported-${Date.now()}`,
+        command: 'write_game_data',
+        ok: false,
+        error: 'Player data writing is not yet supported by the bridge adapter. Only inventory slot writes are available.'
+      }
+    }
+    throw error
+  })
+}
+
 function readGameData() {
   if (state.supportsReadGameData === false) {
     return buildGameDataUnavailableResponse()
@@ -494,5 +514,6 @@ module.exports = {
   readStatus,
   sendCommand,
   start,
-  writeInventorySlot
+  writeInventorySlot,
+  writePlayerData
 }

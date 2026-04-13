@@ -355,6 +355,39 @@
         </div>
       </div>
 
+      <div class="player-actions-bar">
+        <button
+          id="pause-bridge-button"
+          class="toolbar-icon-btn action-btn"
+          type="button"
+          aria-label="Pause bridge read"
+          aria-pressed="false"
+        >
+          <img
+            src="/assets/icons/line-md--pause.svg"
+            alt=""
+            class="icon-img icon-white"
+            onerror="this.style.display='none';this.parentNode.textContent='⏸';"
+          />
+          <span>Pause</span>
+        </button>
+
+        <button
+          id="write-bridge-button"
+          class="toolbar-icon-btn action-btn"
+          type="button"
+          aria-label="Write changes to game"
+        >
+          <img
+            src="/assets/icons/line-md--uploading-loop.svg"
+            alt=""
+            class="icon-img icon-white"
+            onerror="this.style.display='none';this.parentNode.textContent='↗';"
+          />
+          <span>Write</span>
+        </button>
+      </div>
+
         <div class="inventory-area">
           <div id="inventory-card" class="inventory-card">
             <div id="inventory-grid" class="inventory-grid"></div>
