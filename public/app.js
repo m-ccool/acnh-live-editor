@@ -994,9 +994,9 @@ function getKnownCatalogItems() {
 
   [state.items, state.catalog.lookupItems].forEach((list) => {
     (Array.isArray(list) ? list : []).forEach((item) => {
-      const key = normalizeItemLookup(item && (item.file_name || item.name));
-      if (!key || seen.has(key)) return;
-      seen.add(key);
+      const keys = getCatalogLookupKeys(item);
+      if (!keys.length || keys.some((key) => seen.has(key))) return;
+      keys.forEach((key) => seen.add(key));
       merged.push(item);
     });
   });
@@ -1007,9 +1007,15 @@ function getKnownCatalogItems() {
 function rememberCatalogItems(items) {
   (Array.isArray(items) ? items : []).forEach((item) => {
     if (!isCatalogItemSnapshot(item)) return;
-    const key = normalizeItemLookup(item.file_name || item.name);
+    const itemNameKey = normalizeItemLookup(item.name);
+    const itemFileKey = normalizeItemLookup(item.file_name);
     const existingIndex = state.catalog.lookupItems.findIndex((entry) => {
-      return normalizeItemLookup(entry.file_name || entry.name) === key;
+      const entryNameKey = normalizeItemLookup(entry.name);
+      const entryFileKey = normalizeItemLookup(entry.file_name);
+      return (
+        (itemNameKey && entryNameKey === itemNameKey) ||
+        (itemFileKey && entryFileKey === itemFileKey)
+      );
     });
 
     if (existingIndex >= 0) {
@@ -1022,6 +1028,19 @@ function rememberCatalogItems(items) {
   if (state.catalog.lookupItems.length > LOOKUP_ITEM_LIMIT) {
     state.catalog.lookupItems = state.catalog.lookupItems.slice(-LOOKUP_ITEM_LIMIT);
   }
+}
+
+function getCatalogLookupKeys(item) {
+  if (!item || typeof item !== 'object') {
+    return [];
+  }
+
+  const keys = [
+    normalizeItemLookup(item.name),
+    normalizeItemLookup(item.file_name)
+  ].filter(Boolean);
+
+  return Array.from(new Set(keys));
 }
 
 function createCatalogItemSnapshot(item) {

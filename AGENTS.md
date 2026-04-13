@@ -29,6 +29,8 @@ These rules are mandatory for any agent working in this repository.
 - Keep responses and code changes tightly scoped to the current user request.
 - Do not change files, code paths, response formats, or tooling outside the exact requested change.
 - No opportunistic edits: if it was not requested, do not modify it.
+- Do not add or modify agent rules unless the user explicitly requests that exact change.
+- Do not go outside active scope unless the user explicitly expands scope.
 - When providing commands or scripts, always use plain copy-paste code blocks.
 - Keep code blocks clean and runnable with no inline commentary inside the block.
 - When providing runnable commands, always provide explicit step-by-step run instructions.

@@ -53,6 +53,18 @@ npm run dev
 
 The app starts on `http://localhost:3000` by default.
 
+### Standard Startup (PowerShell)
+
+Use this command set to stop any existing local server first, then start a fresh dev server:
+
+```powershell
+$port = 3000
+$pids = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique
+if ($pids) { $pids | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue } }
+cd ~\acnh-live-editor
+npm run dev
+```
+
 ## Environment Variables
 
 Create a local `.env` file if needed.

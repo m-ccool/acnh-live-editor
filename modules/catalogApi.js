@@ -10,6 +10,14 @@ const {
 
 const dataPath = path.join(__dirname, '..', 'data', 'items.json')
 const itemsAssetDir = path.join(__dirname, '..', 'public', 'assets', 'items')
+const BRIDGE_FALLBACK_ITEMS_BY_NAME = Object.freeze({
+  'empty can': createBridgeFallbackItem('Empty can', 'Material', 'https://dodo.ac/np/images/8/89/Empty_Can_NH_Icon.png', 'bridge_fallback_empty_can'),
+  'nook miles ticket': createBridgeFallbackItem('Nook Miles Ticket', 'Material', 'https://dodo.ac/np/images/f/f5/Nook_Miles_Ticket_NH_Icon.png', 'bridge_fallback_nook_miles_ticket'),
+  'clump of weeds': createBridgeFallbackItem('Clump of weeds', 'Material', 'https://dodo.ac/np/images/8/82/Clump_of_Weeds_NH_Icon.png', 'bridge_fallback_clump_of_weeds'),
+  'tree branch': createBridgeFallbackItem('Tree branch', 'Material', 'https://dodo.ac/np/images/5/5d/Tree_Branch_NH_Icon.png', 'bridge_fallback_tree_branch'),
+  'cherry': createBridgeFallbackItem('Cherry', 'Food', 'https://dodo.ac/np/images/6/67/Cherry_NH_Icon.png', 'bridge_fallback_cherry'),
+  'vaulting pole': createBridgeFallbackItem('Vaulting pole', 'Tool', 'https://dodo.ac/np/images/2/24/Vaulting_Pole_NH_DIY_Icon.png', 'bridge_fallback_vaulting_pole')
+})
 
 function listStarterItemsWithPreview() {
   const items = readStarterItems()
@@ -242,12 +250,15 @@ function findCatalogItemByName(items, name) {
   }
 
   const bellsAlias = resolveBellBagAlias(name)
-  if (!bellsAlias) {
-    return null
+  if (bellsAlias) {
+    const bellsLookup = normalizeLookupLabel(bellsAlias)
+    const bellsMatch = (Array.isArray(items) ? items : []).find((item) => normalizeLookupLabel(item && item.name) === bellsLookup)
+    if (bellsMatch) {
+      return bellsMatch
+    }
   }
 
-  const bellsLookup = normalizeLookupLabel(bellsAlias)
-  return (Array.isArray(items) ? items : []).find((item) => normalizeLookupLabel(item && item.name) === bellsLookup) || null
+  return getBridgeFallbackItem(name)
 }
 
 function resolveBellBagAlias(name) {
@@ -262,6 +273,25 @@ function resolveBellBagAlias(name) {
   }
 
   return amount >= 99000 ? '99k Bells' : '30,000 Bells'
+}
+
+function getBridgeFallbackItem(name) {
+  const key = normalizeLookupLabel(name)
+  return BRIDGE_FALLBACK_ITEMS_BY_NAME[key] || null
+}
+
+function createBridgeFallbackItem(name, category, url, fileName) {
+  const imageUrl = String(url || '').trim()
+  return {
+    name,
+    category,
+    icon_url: imageUrl || null,
+    image_url: imageUrl || null,
+    preview_url: imageUrl || null,
+    file_name: fileName,
+    source_notes: 'Bridge fallback catalog item',
+    source_files: []
+  }
 }
 
 function mergeCatalogItems(primaryItems, fallbackItems) {

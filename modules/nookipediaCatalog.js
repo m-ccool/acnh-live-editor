@@ -365,7 +365,7 @@ async function buildCatalogItems(apiKey) {
   )
 
   const endpointErrors = []
-  const items = responses
+  const fetchedItems = responses
     .flatMap((result, index) => {
       if (result.status === 'fulfilled') {
         return result.value
@@ -378,6 +378,12 @@ async function buildCatalogItems(apiKey) {
       return []
     })
     .flat()
+
+  const mergedItems = endpointErrors.length
+    ? mergeCatalogWithDiskCache(fetchedItems)
+    : fetchedItems
+
+  const items = mergedItems
     .sort((left, right) => {
       const byName = left.name.localeCompare(right.name)
       if (byName !== 0) {
@@ -399,6 +405,49 @@ async function buildCatalogItems(apiKey) {
   }
 
   return items
+}
+
+function mergeCatalogWithDiskCache(fetchedItems) {
+  const diskState = readDiskCatalogCache()
+  const diskItems = Array.isArray(diskState.items) ? diskState.items : []
+  if (!diskItems.length) {
+    return Array.isArray(fetchedItems) ? fetchedItems : []
+  }
+
+  const merged = []
+  const seen = new Set()
+
+  ;[fetchedItems, diskItems].forEach((list) => {
+    ;(Array.isArray(list) ? list : []).forEach((item) => {
+      if (!item || typeof item !== 'object') {
+        return
+      }
+
+      const key = buildCatalogMergeKey(item)
+      if (!key || seen.has(key)) {
+        return
+      }
+
+      seen.add(key)
+      merged.push(item)
+    })
+  })
+
+  return merged
+}
+
+function buildCatalogMergeKey(item) {
+  const nameKey = String(item.name || '').trim().toLowerCase()
+  if (nameKey) {
+    return `name:${nameKey}`
+  }
+
+  const fileKey = String(item.file_name || '').trim().toLowerCase()
+  if (fileKey) {
+    return `file:${fileKey}`
+  }
+
+  return ''
 }
 
 function normalizeEndpointEntries(endpoint, entries) {
