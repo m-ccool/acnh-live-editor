@@ -70,6 +70,24 @@ function searchCatalogItems(options = {}) {
   }
 }
 
+function lookupCatalogItems(names = []) {
+  const requestedNames = Array.isArray(names)
+    ? names.map((name) => String(name || '').trim()).filter(Boolean)
+    : []
+
+  if (!requestedNames.length) {
+    return []
+  }
+
+  const localItems = listStarterItemsWithPreview()
+  const cachedItems = getCachedCatalogItems()
+  const catalogItems = mergeCatalogItems(cachedItems, localItems)
+
+  return requestedNames
+    .map((name) => findCatalogItemByName(catalogItems, name))
+    .filter(Boolean)
+}
+
 function buildCatalogStatusResponse(localItems = readLocalItems(), cachedItems = getCachedCatalogItems()) {
   const syncState = getCatalogSyncState()
   const hasWarmMemory = syncState.inMemoryCount > 0 && syncState.memorySource === 'api'
@@ -198,6 +216,52 @@ function scoreSearchResult(item, query) {
 
 function normalizeCategoryLabel(value) {
   return String(value || '').trim().toLowerCase()
+}
+
+function normalizeLookupLabel(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s*\([^)]*\)\s*$/, '')
+}
+
+function findCatalogItemByName(items, name) {
+  const exactLookup = normalizeLookupLabel(name)
+  if (!exactLookup) {
+    return null
+  }
+
+  const directMatch = (Array.isArray(items) ? items : []).find((item) => {
+    const itemName = normalizeLookupLabel(item && item.name)
+    const itemFileName = normalizeLookupLabel(item && item.file_name)
+    return itemName === exactLookup || itemFileName === exactLookup
+  })
+
+  if (directMatch) {
+    return directMatch
+  }
+
+  const bellsAlias = resolveBellBagAlias(name)
+  if (!bellsAlias) {
+    return null
+  }
+
+  const bellsLookup = normalizeLookupLabel(bellsAlias)
+  return (Array.isArray(items) ? items : []).find((item) => normalizeLookupLabel(item && item.name) === bellsLookup) || null
+}
+
+function resolveBellBagAlias(name) {
+  const match = String(name || '').trim().match(/^(\d{1,3}(?:,\d{3})*)\s+bells$/i)
+  if (!match) {
+    return ''
+  }
+
+  const amount = Number(String(match[1]).replace(/,/g, ''))
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return ''
+  }
+
+  return amount >= 99000 ? '99k Bells' : '30,000 Bells'
 }
 
 function mergeCatalogItems(primaryItems, fallbackItems) {
@@ -329,5 +393,6 @@ function findAsset(assetNames, candidate) {
 module.exports = {
   buildCatalogStatusResponse,
   listStarterItemsWithPreview,
+  lookupCatalogItems,
   searchCatalogItems
 }

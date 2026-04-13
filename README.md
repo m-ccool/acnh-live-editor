@@ -246,6 +246,17 @@ This order is optimized for smaller diffs, lower context cost, and faster Codex 
 - [ ] Decide the client direction: either remove unused `react` / `react-dom` dependencies or commit to a real React build path.
 - [ ] Keep the README/runbook current as the MVP scope gets completed.
 
+### Return TODOs
+
+- [ ] Fix the refresh-item glitch.
+- [ ] Write items into game successfully.
+- [ ] Remove clipboard buttons.
+- [ ] Add interaction flow: hold item to copy, tap empty slot to assign, double tap already assigned slot to overwrite.
+- [ ] On overwrite intent, show a soft red overlay on the pocket on first click so the user knows overwrite is about to happen.
+- [ ] Begin the framework for import mods.
+- [ ] Add an `Edit Skin` button on Edit Player.
+- [ ] Add an `Edit Skin` button on Villager Edit.
+
 ## MVP Outline Status
 
 Confirmed in this repo:

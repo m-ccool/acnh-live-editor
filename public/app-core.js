@@ -802,6 +802,10 @@ async function loadData() {
 }
 
 function seedInventory() {
+  if (Array.isArray(state.inventory) && state.inventory.length === TOTAL_SLOTS) {
+    return;
+  }
+
   const slots = [];
 
   for (let i = 1; i <= TOTAL_SLOTS; i += 1) {

@@ -11,6 +11,7 @@ const {
 const {
   buildCatalogStatusResponse,
   listStarterItemsWithPreview,
+  lookupCatalogItems,
   searchCatalogItems
 } = require('./catalogApi')
 const {
@@ -126,6 +127,16 @@ function createApiRouter(options = {}) {
     } catch (error) {
       console.error(error)
       res.status(500).json({ error: 'Failed to search catalog' })
+    }
+  })
+
+  router.post('/api/items/lookup', express.json(), (req, res) => {
+    try {
+      const names = Array.isArray(req.body && req.body.names) ? req.body.names : []
+      res.json({ items: lookupCatalogItems(names) })
+    } catch (error) {
+      console.error(error)
+      res.status(500).json({ error: 'Failed to lookup catalog items' })
     }
   })
 

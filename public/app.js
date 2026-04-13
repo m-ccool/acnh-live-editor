@@ -165,6 +165,7 @@ async function refreshBridgeGameData() {
 
     if (Array.isArray(payload && payload.slots)) {
       const bridgeSlots = normalizeBridgeInventorySlots(payload.slots);
+      await hydrateBridgeCatalogItems(bridgeSlots);
       state.inventory = buildInventoryFromBridgeSlots(bridgeSlots);
 
       if (!state.hasUserSelectedSlot) {
@@ -568,6 +569,7 @@ async function refreshBridgeInventory(options = {}) {
 
     const payload = body && body.payload && typeof body.payload === 'object' ? body.payload : body;
     const bridgeSlots = normalizeBridgeInventorySlots(payload && payload.slots);
+    await hydrateBridgeCatalogItems(bridgeSlots);
     state.inventory = buildInventoryFromBridgeSlots(bridgeSlots);
 
     if (!state.hasUserSelectedSlot) {
@@ -599,6 +601,40 @@ async function refreshBridgeInventory(options = {}) {
     return false;
   } finally {
     bridgeInventorySyncInFlight = false;
+  }
+}
+
+async function hydrateBridgeCatalogItems(bridgeSlots) {
+  const missingNames = Array.from(new Set(
+    (Array.isArray(bridgeSlots) ? bridgeSlots : [])
+      .map((entry) => entry && entry.itemId ? String(entry.itemId).trim() : '')
+      .filter(Boolean)
+      .filter((itemId) => !findItemByLookup(itemId, itemId))
+  ));
+
+  if (!missingNames.length) {
+    return;
+  }
+
+  try {
+    const response = await fetch('/api/items/lookup', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ names: missingNames })
+    });
+
+    if (!response.ok) {
+      return;
+    }
+
+    const payload = await response.json();
+    if (Array.isArray(payload && payload.items) && payload.items.length) {
+      rememberCatalogItems(payload.items);
+    }
+  } catch (error) {
+    console.error(error);
   }
 }
 
@@ -922,6 +958,7 @@ function findItemByLookup(itemId, itemName) {
     .filter(Boolean);
   const fallbackLookups = [itemId, itemName]
     .map(stripVariationSuffix)
+    .concat([resolveBellBagAlias(itemId), resolveBellBagAlias(itemName)])
     .map((value) => normalizeItemLookup(value))
     .filter(Boolean);
   const allLookups = Array.from(new Set(baseLookups.concat(fallbackLookups)));
@@ -935,6 +972,20 @@ function findItemByLookup(itemId, itemName) {
 
 function stripVariationSuffix(value) {
   return String(value || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+}
+
+function resolveBellBagAlias(value) {
+  const match = String(value || '').trim().match(/^(\d{1,3}(?:,\d{3})*)\s+bells$/i);
+  if (!match) {
+    return '';
+  }
+
+  const amount = Number(String(match[1]).replace(/,/g, ''));
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return '';
+  }
+
+  return amount >= 99000 ? '99k Bells' : '30,000 Bells';
 }
 
 function getKnownCatalogItems() {
