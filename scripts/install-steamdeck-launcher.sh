@@ -18,6 +18,7 @@ if [[ ! -f "${ENV_FILE}" ]]; then
 # Set this to your PC LAN IP running acnh-live-editor.
 BRIDGE_TARGET_HOST=10.0.0.25
 BRIDGE_TARGET_PORT=32840
+ACNH_READER_MODE=procmem
 EOF
   echo "[acnh-bridge] Created ${ENV_FILE}. Update BRIDGE_TARGET_HOST before running."
 fi

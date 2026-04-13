@@ -6,11 +6,10 @@
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js",
-    "smoke": "node scripts/smoke-test.js",
+    "verify:bridge-backend": "node scripts/verify-bridge-backend.js",
     "sync:react-runtime": "node scripts/sync-react-runtime.js",
     "import:catalogue": "node scripts/import-catalogue.js",
     "sync:nookipedia": "node scripts/sync-nookipedia-catalog.js",
-    "bridge:test-client": "node scripts/bridge-test-client.js",
     "bridge:steamdeck": "node scripts/steamdeck-bridge-client.js",
     "bridge:adapter:game": "node scripts/steamdeck-adapters/read-game-data.js",
     "bridge:adapter:read": "node scripts/steamdeck-adapters/read-inventory.js",

@@ -33,9 +33,12 @@ function createApiRouter(options = {}) {
 
   router.get('/api/status', (req, res) => {
     const bridgeStatus = bridgeService.getStatus()
+    const listenerIp = getPreferredLocalIp(req)
     res.json({
       ...bridgeStatus,
-      ip: bridgeStatus.ip || getPreferredLocalIp(req),
+      ip: listenerIp || bridgeStatus.ip,
+      listenerIp,
+      clientIp: bridgeStatus.ip || null,
       bridgeHost: bridgeStatus.bridgeHost || BRIDGE_HOST,
       bridgePort: bridgeStatus.bridgePort || BRIDGE_PORT
     })

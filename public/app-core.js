@@ -122,6 +122,8 @@ const DEFAULT_PLAYER = {
 const DEFAULT_BRIDGE_STATE = {
   connected: false,
   ip: '00.00.00.00',
+  listenerIp: null,
+  clientIp: null,
   mode: 'offline',
   message: 'Bridge listener offline.',
   lastAction: 'Waiting for bridge activity',
@@ -970,7 +972,7 @@ function renderBridge() {
 
   el.ipDisplay.textContent = state.bridge.connected
     ? `Bridge: ${state.bridge.ip}`
-    : `Listening: ${state.bridge.host}:${state.bridge.port}`;
+    : `Listening: ${state.bridge.listenerIp || state.bridge.host}:${state.bridge.port}`;
 
   if (el.logConnectionIndicator) {
     el.logConnectionIndicator.classList.toggle('is-online', state.bridge.connected);
@@ -999,6 +1001,8 @@ function renderBridge() {
   const block = {
     connected: state.bridge.connected,
     ip: state.bridge.ip,
+    listenerIp: state.bridge.listenerIp,
+    clientIp: state.bridge.clientIp,
     host: state.bridge.host,
     port: state.bridge.port,
     listening: state.bridge.listening,

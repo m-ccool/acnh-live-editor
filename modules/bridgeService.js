@@ -153,7 +153,7 @@ function handleBridgeMessage(message) {
     state.version = message.version ? String(message.version) : null
     state.protocolVersion = message.protocolVersion ? String(message.protocolVersion) : null
     state.capabilities = normalizeCapabilities(message.capabilities || message.supportedCommands)
-    state.supportsReadGameData = state.capabilities.includes('read_game_data')
+    state.supportsReadGameData = inferReadGameDataSupport(state.capabilities)
     state.deviceName = message.deviceName ? String(message.deviceName) : null
     state.lastHandshakeAt = new Date().toISOString()
     state.lastHeartbeatAt = state.lastHandshakeAt
@@ -335,15 +335,20 @@ function readGameData() {
     return buildGameDataUnavailableResponse()
   }
 
-  return sendCommand('read_game_data').catch(async (error) => {
-    const message = String(error && error.message || '')
-    if (!/not implemented|unsupported/i.test(message)) {
-      throw error
-    }
+  return sendCommand('read_game_data')
+    .then((response) => {
+      state.supportsReadGameData = true
+      return response
+    })
+    .catch(async (error) => {
+      const message = String(error && error.message || '')
+      if (!/not implemented|unsupported/i.test(message)) {
+        throw error
+      }
 
-    state.supportsReadGameData = false
-    return buildGameDataUnavailableResponse()
-  })
+      state.supportsReadGameData = false
+      return buildGameDataUnavailableResponse()
+    })
 }
 
 function buildGameDataUnavailableResponse() {
@@ -401,9 +406,9 @@ function handleBridgeResponse(message) {
     if (payload.protocolVersion) {
       state.protocolVersion = String(payload.protocolVersion)
     }
-    if (payload.capabilities || payload.supportedCommands) {
+    if (Object.prototype.hasOwnProperty.call(payload, 'capabilities') || Object.prototype.hasOwnProperty.call(payload, 'supportedCommands')) {
       state.capabilities = normalizeCapabilities(payload.capabilities || payload.supportedCommands)
-      state.supportsReadGameData = state.capabilities.includes('read_game_data')
+      state.supportsReadGameData = inferReadGameDataSupport(state.capabilities)
     }
   }
 
@@ -457,6 +462,14 @@ function normalizeCapabilities(value) {
         .filter(Boolean)
     )
   )
+}
+
+function inferReadGameDataSupport(capabilities) {
+  if (!Array.isArray(capabilities) || capabilities.length === 0) {
+    return null
+  }
+
+  return capabilities.includes('read_game_data')
 }
 
 function normalizeRemoteAddress(value) {

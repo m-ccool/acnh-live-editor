@@ -7,6 +7,11 @@ const localIpCache = {
 }
 
 function getPreferredLocalIp(req) {
+  const configuredIp = getConfiguredLocalIp()
+  if (configuredIp) {
+    return configuredIp
+  }
+
   const requestHostIp = getRequestHostIp(req)
   if (requestHostIp) {
     return requestHostIp
@@ -21,6 +26,16 @@ function getPreferredLocalIp(req) {
   localIpCache.value = detectedIp
   localIpCache.expiresAt = now + 15000
   return detectedIp
+}
+
+function getConfiguredLocalIp() {
+  const configured = String(
+    process.env.BRIDGE_DISPLAY_IP ||
+    process.env.BRIDGE_LISTENER_IP ||
+    ''
+  ).trim()
+
+  return isIpv4Address(configured) ? configured : null
 }
 
 function getRequestHostIp(req) {

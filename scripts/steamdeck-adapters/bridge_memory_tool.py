@@ -1,57 +1,33 @@
 #!/usr/bin/env python3
 import json
 import os
+import shlex
 import subprocess
 import sys
 from pathlib import Path
-from datetime import datetime, timezone
 
 
-PLAYER_HINT_KEYS = {"name", "town", "wallet", "bank", "miles", "avatar"}
+COMMAND_ENV_BY_ACTION = {
+    "read_inventory": "RYUJINX_LIVE_READ_INVENTORY_CMD",
+    "write_inventory_slot": "RYUJINX_LIVE_WRITE_INVENTORY_CMD",
+    "read_game_data": "RYUJINX_LIVE_READ_GAME_DATA_CMD",
+}
 
 
-def discover_live_command(env_var_name: str, action: str):
-    explicit = os.environ.get(env_var_name, "").strip()
+def resolve_live_command(action: str) -> str:
+    env_var = COMMAND_ENV_BY_ACTION[action]
+    explicit = os.environ.get(env_var, "").strip()
     if explicit:
         return explicit
 
-    repo_reader = Path(__file__).resolve().parent / "acnh_memory_reader.py"
-
-    home = Path.home()
-    candidates = [
-        repo_reader,
-        home / "tools" / "acnh_memory_reader.py",
-        home / "tools" / "acnh-memory-reader.py",
-        home / "acnh-tools" / "acnh_memory_reader.py",
-    ]
-
-    for script_path in candidates:
-        if script_path.exists() and script_path.is_file():
-            return f"python3 {script_path} {action}"
+    reader_path = Path(__file__).with_name("acnh_memory_reader.py")
+    if reader_path.exists() and reader_path.is_file():
+        return f"python3 {shlex.quote(str(reader_path))} {action}"
 
     return ""
 
 
-def resolve_inventory_path():
-    if os.environ.get("BRIDGE_ENABLE_FILE_FALLBACK", "0") != "1":
-        return None
-
-    env_path = os.environ.get("BRIDGE_INVENTORY_FILE")
-    if env_path:
-        return Path(env_path).expanduser().resolve()
-    return None
-
-
-def resolve_player_path() -> Path:
-    env_path = os.environ.get("BRIDGE_PLAYER_FILE")
-    if env_path:
-        return Path(env_path).expanduser().resolve()
-
-    repo_root = Path(__file__).resolve().parents[2]
-    return (repo_root / "data" / "player-state.json").resolve()
-
-
-def parse_stdin_json() -> dict:
+def read_stdin_object() -> dict:
     text = sys.stdin.read().strip()
     if not text:
         return {}
@@ -61,25 +37,27 @@ def parse_stdin_json() -> dict:
     except json.JSONDecodeError as exc:
         raise ValueError(f"stdin must contain valid JSON: {exc}") from exc
 
-    if isinstance(value, dict):
-        return value
+    if not isinstance(value, dict):
+        raise ValueError("stdin JSON must be an object")
 
-    raise ValueError("stdin JSON must be an object")
+    return value
 
 
 def run_json_command(command: str, payload: dict, label: str):
+    timeout_seconds = max(1, int(os.environ.get("BRIDGE_COMMAND_TIMEOUT_SECONDS", "6")))
+
     proc = subprocess.run(
         ["sh", "-lc", command],
         input=json.dumps(payload) + "\n",
         text=True,
         capture_output=True,
-        timeout=int(os.environ.get("BRIDGE_COMMAND_TIMEOUT_SECONDS", "5")),
+        timeout=timeout_seconds,
         check=False,
     )
 
+    stderr_text = (proc.stderr or "").strip()
     if proc.returncode != 0:
-        stderr = (proc.stderr or "").strip()
-        raise ValueError(f"{label} failed with exit {proc.returncode}: {stderr or 'no stderr'}")
+        raise ValueError(f"{label} failed with exit {proc.returncode}: {stderr_text or 'no stderr'}")
 
     output = (proc.stdout or "").strip()
     if not output:
@@ -91,185 +69,6 @@ def run_json_command(command: str, payload: dict, label: str):
         raise ValueError(f"{label} must output valid JSON: {exc}") from exc
 
 
-def normalize_player(value):
-    if not isinstance(value, dict):
-        return None
-
-    def to_int(v, default=0):
-        try:
-            return int(v)
-        except (TypeError, ValueError):
-            return default
-
-    name = str(value.get("name") or "").strip()
-    town = str(value.get("town") or "").strip()
-    avatar = str(value.get("avatar") or "").strip() or "/assets/items/Bob_NH.png"
-
-    return {
-        "name": name,
-        "town": town,
-        "wallet": to_int(value.get("wallet", 0)),
-        "bank": to_int(value.get("bank", 0)),
-        "miles": to_int(value.get("miles", 0)),
-        "avatar": avatar,
-    }
-
-
-def detect_latest_ryujinx_save_file():
-    roots = get_save_roots()
-
-    latest_path = None
-    latest_mtime = 0.0
-
-    for root in roots:
-        if not root.exists() or not root.is_dir():
-            continue
-
-        try:
-            for candidate in root.rglob("*"):
-                if not candidate.is_file():
-                    continue
-                mtime = candidate.stat().st_mtime
-                if mtime > latest_mtime:
-                    latest_mtime = mtime
-                    latest_path = candidate
-        except Exception:
-            continue
-
-    if not latest_path:
-        return {
-            "lastGameDataFilePath": None,
-            "lastGameSaveAt": None,
-        }
-
-    last_save_at = datetime.fromtimestamp(latest_mtime, tz=timezone.utc).isoformat()
-    return {
-        "lastGameDataFilePath": str(latest_path),
-        "lastGameSaveAt": last_save_at,
-    }
-
-
-def get_save_roots():
-    roots = []
-
-    env_roots = os.environ.get("RYUJINX_SAVE_SCAN_ROOTS", "").strip()
-    if env_roots:
-        roots.extend([Path(p).expanduser() for p in env_roots.split(":") if p.strip()])
-
-    home = Path.home()
-    roots.extend([
-        home / ".config" / "Ryujinx" / "bis" / "user" / "save",
-        home / ".var" / "app" / "org.ryujinx.Ryujinx" / "config" / "Ryujinx" / "bis" / "user" / "save",
-        home / "Emulation" / "saves" / "ryujinx",
-    ])
-
-    return roots
-
-
-def find_latest_live_game_json_payload():
-    latest = None
-
-    for root in get_save_roots():
-        if not root.exists() or not root.is_dir():
-            continue
-
-        try:
-            for candidate in root.rglob("*.json"):
-                if not candidate.is_file():
-                    continue
-
-                try:
-                    parsed = json.loads(candidate.read_text(encoding="utf-8"))
-                except Exception:
-                    continue
-
-                player = extract_player_payload(parsed)
-                slots = extract_slots_payload(parsed)
-
-                if not player and not slots:
-                    continue
-
-                mtime = candidate.stat().st_mtime
-                if latest is None or mtime > latest["mtime"]:
-                    latest = {
-                        "mtime": mtime,
-                        "path": candidate,
-                        "player": player,
-                        "slots": slots,
-                    }
-        except Exception:
-            continue
-
-    if not latest:
-        return None
-
-    return {
-        "player": latest["player"],
-        "slots": latest["slots"],
-        "source": "live-save-json",
-        "lastGameDataFilePath": str(latest["path"]),
-        "lastGameSaveAt": datetime.fromtimestamp(latest["mtime"], tz=timezone.utc).isoformat(),
-    }
-
-
-def extract_player_payload(value):
-    if isinstance(value, dict):
-        if looks_like_player_dict(value):
-            normalized = normalize_player(value)
-            if normalized:
-                return normalized
-
-        for nested in value.values():
-            found = extract_player_payload(nested)
-            if found:
-                return found
-        return None
-
-    if isinstance(value, list):
-        for nested in value:
-            found = extract_player_payload(nested)
-            if found:
-                return found
-
-    return None
-
-
-def looks_like_player_dict(value):
-    if not isinstance(value, dict):
-        return False
-
-    lowered = {str(key).strip().lower() for key in value.keys()}
-    key_hits = lowered & PLAYER_HINT_KEYS
-    return ("name" in lowered or "town" in lowered) and len(key_hits) >= 2
-
-
-def extract_slots_payload(value):
-    if isinstance(value, dict):
-        raw_slots = value.get("slots")
-        if isinstance(raw_slots, list):
-            normalized = [slot for slot in (normalize_slot(entry) for entry in raw_slots) if slot]
-            if normalized:
-                return normalized
-
-        for nested in value.values():
-            found = extract_slots_payload(nested)
-            if found:
-                return found
-        return []
-
-    if isinstance(value, list):
-        normalized = [slot for slot in (normalize_slot(entry) for entry in value) if slot]
-        if normalized:
-            return normalized
-
-        for nested in value:
-            found = extract_slots_payload(nested)
-            if found:
-                return found
-
-    return []
-
-
 def normalize_slot(entry):
     if not isinstance(entry, dict):
         return None
@@ -279,205 +78,143 @@ def normalize_slot(entry):
     except (TypeError, ValueError):
         return None
 
-    if slot < 1:
+    if slot < 1 or slot > 40:
         return None
-
-    def to_int(value, default=0):
-        try:
-            return int(value)
-        except (TypeError, ValueError):
-            return default
-
-    item_id = entry.get("itemId")
-    item_id = str(item_id) if item_id is not None and str(item_id) != "" else None
 
     return {
         "slot": slot,
-        "itemId": item_id,
-        "count": to_int(entry.get("count", 0)),
-        "uses": to_int(entry.get("uses", 0)),
-        "flag0": to_int(entry.get("flag0", 0)),
-        "flag1": to_int(entry.get("flag1", 0)),
+        "itemId": normalize_text(entry.get("itemId")) or None,
+        "count": clamp_int(entry.get("count"), 0, 0xFFFF),
+        "uses": clamp_int(entry.get("uses"), 0, 0xFFFF),
+        "flag0": clamp_int(entry.get("flag0"), 0, 0xFF),
+        "flag1": clamp_int(entry.get("flag1"), 0, 0xFF),
     }
 
 
-def load_slots(path: Path):
-    if path is None:
-        return []
-
-    if not path.exists():
-        return []
-
-    try:
-        parsed = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"failed to parse inventory file: {exc}") from exc
-
-    if isinstance(parsed, list):
-        source = parsed
-    elif isinstance(parsed, dict) and isinstance(parsed.get("slots"), list):
-        source = parsed["slots"]
+def normalize_slots(value):
+    if isinstance(value, list):
+        source = value
+    elif isinstance(value, dict) and isinstance(value.get("slots"), list):
+        source = value["slots"]
     else:
         source = []
 
     return [slot for slot in (normalize_slot(entry) for entry in source) if slot]
 
 
-def save_slots(path: Path, slots):
-    if path is None:
-        return
+def normalize_player(value):
+    if not isinstance(value, dict):
+        return None
 
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(slots, indent=2) + "\n", encoding="utf-8")
-
-
-def cmd_read_inventory(path: Path):
-    live_cmd = discover_live_command("RYUJINX_LIVE_READ_INVENTORY_CMD", "read_inventory")
-    if live_cmd:
-        payload = run_json_command(live_cmd, {"command": "read_inventory"}, "RYUJINX_LIVE_READ_INVENTORY_CMD")
-        source = payload if isinstance(payload, list) else payload.get("slots")
-        if not isinstance(source, list):
-            raise ValueError("RYUJINX_LIVE_READ_INVENTORY_CMD output must be list or object with slots")
-        slots = [slot for slot in (normalize_slot(entry) for entry in source) if slot]
-        print(json.dumps({"slots": slots, "source": "live-memory"}))
-        return
-
-    slots = load_slots(path)
-    print(json.dumps({"slots": slots, "source": "adapter-memory" if path is None else "bridge-memory-tool"}))
+    return {
+        "name": normalize_text(value.get("name")) or "",
+        "town": normalize_text(value.get("town")) or "",
+        "wallet": clamp_int(value.get("wallet"), 0, 999999999),
+        "bank": clamp_int(value.get("bank"), 0, 999999999),
+        "miles": clamp_int(value.get("miles"), 0, 999999999),
+        "avatar": normalize_text(value.get("avatar")) or "/assets/items/Bob_NH.png",
+    }
 
 
-def cmd_write_inventory_slot(path: Path):
-    request = parse_stdin_json()
+def clamp_int(value, minimum, maximum):
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return minimum
+
+    return max(minimum, min(maximum, parsed))
+
+
+def normalize_text(value):
+    return str(value or "").strip()
+
+
+def cmd_read_inventory():
+    command = resolve_live_command("read_inventory")
+    if not command:
+        raise ValueError("No live inventory reader is configured")
+
+    output = run_json_command(command, {"command": "read_inventory"}, "RYUJINX_LIVE_READ_INVENTORY_CMD")
+    print(json.dumps({
+        "slots": normalize_slots(output),
+        "source": normalize_text(output.get("source") if isinstance(output, dict) else "") or "live-memory",
+        "backend": normalize_text(output.get("backend") if isinstance(output, dict) else "") or None,
+        "lastGameSaveAt": normalize_text(output.get("lastGameSaveAt") if isinstance(output, dict) else "") or None,
+        "lastGameDataFilePath": normalize_text(output.get("lastGameDataFilePath") if isinstance(output, dict) else "") or None,
+    }))
+
+
+def cmd_write_inventory_slot():
+    command = resolve_live_command("write_inventory_slot")
+    if not command:
+        raise ValueError("No live inventory writer is configured")
+
+    request = read_stdin_object()
     payload = request.get("payload") if isinstance(request.get("payload"), dict) else request
-
     slot_payload = normalize_slot(payload)
     if not slot_payload:
-        raise ValueError("payload.slot must be a positive integer")
+        raise ValueError("payload.slot must be an integer from 1 to 40")
 
-    live_cmd = discover_live_command("RYUJINX_LIVE_WRITE_INVENTORY_CMD", "write_inventory_slot")
-    if live_cmd:
-        result = run_json_command(
-            live_cmd,
-            {"command": "write_inventory_slot", "payload": slot_payload},
-            "RYUJINX_LIVE_WRITE_INVENTORY_CMD",
-        )
-        if isinstance(result, dict) and isinstance(result.get("slot"), dict):
-            normalized_slot = normalize_slot(result.get("slot")) or slot_payload
-            response_slots = result.get("slots")
-            if isinstance(response_slots, list):
-                response_slots = [slot for slot in (normalize_slot(entry) for entry in response_slots) if slot]
-            print(json.dumps({"slot": normalized_slot, "slots": response_slots, "source": "live-memory"}))
-            return
+    output = run_json_command(
+        command,
+        {"command": "write_inventory_slot", "payload": slot_payload},
+        "RYUJINX_LIVE_WRITE_INVENTORY_CMD",
+    )
 
-        print(json.dumps({"slot": slot_payload, "source": "live-memory"}))
-        return
+    response_slot = None
+    if isinstance(output, dict):
+        response_slot = normalize_slot(output.get("slot"))
 
-    slots = load_slots(path)
-    index = next((i for i, entry in enumerate(slots) if entry.get("slot") == slot_payload["slot"]), -1)
-
-    if index >= 0:
-        slots[index] = slot_payload
-    else:
-        slots.append(slot_payload)
-
-    slots.sort(key=lambda x: x.get("slot", 0))
-    save_slots(path, slots)
-    source = "adapter-memory" if path is None else "bridge-memory-tool"
-    print(json.dumps({"slot": slot_payload, "slots": slots, "source": source}))
-
-
-def cmd_read_game_data(player_path: Path, inventory_path: Path):
-    live_cmd = discover_live_command("RYUJINX_LIVE_READ_GAME_DATA_CMD", "read_game_data")
-    if live_cmd:
-        payload = run_json_command(live_cmd, {"command": "read_game_data"}, "RYUJINX_LIVE_READ_GAME_DATA_CMD")
-        if not isinstance(payload, dict):
-            raise ValueError("RYUJINX_LIVE_READ_GAME_DATA_CMD must output a JSON object")
-
-        player_source = payload.get("player") if isinstance(payload.get("player"), dict) else payload
-        player = normalize_player(player_source)
-        if not player:
-            raise ValueError("RYUJINX_LIVE_READ_GAME_DATA_CMD must include player object fields")
-
-        slots = payload.get("slots")
-        if not isinstance(slots, list):
-            slots = []
-        slots = [slot for slot in (normalize_slot(entry) for entry in slots) if slot]
-
-        response = {
-            "player": player,
-            "slots": slots,
-            "source": payload.get("source") or "live-memory",
-            "lastGameSaveAt": payload.get("lastGameSaveAt"),
-            "lastGameDataFilePath": payload.get("lastGameDataFilePath"),
-        }
-
-        if not response["lastGameDataFilePath"] or not response["lastGameSaveAt"]:
-            response.update(detect_latest_ryujinx_save_file())
-
-        print(json.dumps(response))
-        return
-
-    allow_file_game_data = os.environ.get("BRIDGE_ALLOW_FILE_GAME_DATA", "0") == "1"
-
-    if not allow_file_game_data:
-        print(json.dumps({
-            "player": None,
-            "slots": [],
-            "source": "unavailable",
-            "unavailable": True,
-            "reason": "live-game-data backend not configured",
-            "hint": "Set RYUJINX_LIVE_READ_GAME_DATA_CMD to a working reader command",
-            "discoveredCommand": live_cmd or None,
-            **detect_latest_ryujinx_save_file(),
-        }))
-        return
-
-    live_json_payload = find_latest_live_game_json_payload()
-    if live_json_payload and (live_json_payload.get("player") or live_json_payload.get("slots")):
-        print(json.dumps(live_json_payload))
-        return
-
-    player = None
-
-    if player_path.exists():
-        try:
-            parsed = json.loads(player_path.read_text(encoding="utf-8"))
-            if isinstance(parsed, dict):
-                player = normalize_player(parsed)
-        except Exception as exc:
-            raise ValueError(f"failed to parse player file: {exc}") from exc
-
-    slots = load_slots(inventory_path)
-
-    has_fallback_data = bool(player) or bool(slots)
-    source = "bridge-memory-tool" if has_fallback_data else "unavailable"
-
+    slots = normalize_slots(output)
     response = {
-        "player": player,
-        "slots": slots,
-        "source": source,
-        "unavailable": not has_fallback_data,
+        "slot": response_slot or slot_payload,
+        "source": normalize_text(output.get("source") if isinstance(output, dict) else "") or "live-memory",
+        "backend": normalize_text(output.get("backend") if isinstance(output, dict) else "") or None,
     }
-    response.update(detect_latest_ryujinx_save_file())
+
+    if slots:
+        response["slots"] = slots
+
     print(json.dumps(response))
+
+
+def cmd_read_game_data():
+    command = resolve_live_command("read_game_data")
+    if not command:
+        raise ValueError("No live game-data reader is configured")
+
+    output = run_json_command(command, {"command": "read_game_data"}, "RYUJINX_LIVE_READ_GAME_DATA_CMD")
+    if not isinstance(output, dict):
+        raise ValueError("RYUJINX_LIVE_READ_GAME_DATA_CMD must output a JSON object")
+
+    player = normalize_player(output.get("player"))
+    unavailable = output.get("unavailable") is True
+
+    if not player and not unavailable:
+        raise ValueError("RYUJINX_LIVE_READ_GAME_DATA_CMD must include a player object or unavailable=true")
+
+    print(json.dumps({
+        "player": player,
+        "slots": normalize_slots(output),
+        "source": normalize_text(output.get("source")) or ("unavailable" if unavailable else "live-memory"),
+        "backend": normalize_text(output.get("backend")) or None,
+        "unavailable": unavailable,
+        "lastGameSaveAt": normalize_text(output.get("lastGameSaveAt")) or None,
+        "lastGameDataFilePath": normalize_text(output.get("lastGameDataFilePath")) or None,
+    }))
 
 
 def print_help():
     sys.stdout.write(
         "Usage: bridge_memory_tool.py <command>\n"
         "Commands:\n"
-        "  read_inventory      Read slots and output JSON object with slots array\n"
-        "  write_inventory_slot Read stdin JSON and write one slot\n"
-        "  read_game_data      Read player + inventory payload for UI sync\n"
+        "  read_inventory\n"
+        "  write_inventory_slot\n"
+        "  read_game_data\n"
         "\n"
-        "Environment:\n"
-        "  BRIDGE_INVENTORY_FILE  Optional path to inventory JSON file\n"
-        "  BRIDGE_ENABLE_FILE_FALLBACK Set to 1 and BRIDGE_INVENTORY_FILE to persist fallback slots\n"
-        "  BRIDGE_PLAYER_FILE     Optional path to player JSON file\n"
-        "  BRIDGE_ALLOW_FILE_GAME_DATA Set to 1 to allow file-based game data fallback\n"
-        "  RYUJINX_LIVE_READ_INVENTORY_CMD  Optional live memory read command\n"
-        "  RYUJINX_LIVE_WRITE_INVENTORY_CMD Optional live memory write command\n"
-        "  RYUJINX_LIVE_READ_GAME_DATA_CMD  Optional live game-data read command\n"
+        "Behavior:\n"
+        "  Delegates directly to the live ACNH reader.\n"
+        "  No fake bridge-memory/file fallback is used in MVP mode.\n"
     )
 
 
@@ -488,18 +225,14 @@ def main():
         return 0
 
     command = args[0]
-    inventory_path = resolve_inventory_path()
-
     if command == "read_inventory":
-        cmd_read_inventory(inventory_path)
+        cmd_read_inventory()
         return 0
-
     if command == "write_inventory_slot":
-        cmd_write_inventory_slot(inventory_path)
+        cmd_write_inventory_slot()
         return 0
-
     if command == "read_game_data":
-        cmd_read_game_data(resolve_player_path(), inventory_path)
+        cmd_read_game_data()
         return 0
 
     raise ValueError(f"unsupported command: {command}")

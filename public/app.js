@@ -489,6 +489,8 @@ function syncBridgeStatus(status) {
   state.bridge.connected = !!status.connected;
   state.bridge.mode = String(status.bridge || state.bridge.mode || 'pending');
   state.bridge.ip = getBridgeIp(status);
+  state.bridge.listenerIp = status && status.listenerIp ? String(status.listenerIp) : null;
+  state.bridge.clientIp = status && status.clientIp ? String(status.clientIp) : null;
   state.bridge.host = String(status && status.bridgeHost || state.bridge.host || '0.0.0.0');
   state.bridge.port = Number(status && status.bridgePort || state.bridge.port || 32840);
   state.bridge.listening = Boolean(status && status.listening);
@@ -786,6 +788,9 @@ function getCatalogDiagnosticsSummary() {
 }
 
 function getBridgeIp(status) {
+  const listenerIp = status && typeof status.listenerIp === 'string' ? status.listenerIp.trim() : '';
+  if (listenerIp) return listenerIp;
+
   const raw = status && typeof status.ip === 'string' ? status.ip.trim() : '';
   if (raw) return raw;
 

@@ -26,6 +26,7 @@ import os
 import struct
 import sys
 from datetime import datetime, timezone
+from pathlib import Path
 
 # ---------------------------------------------------------------------------
 # Default ACNH 2.0.7 absolute Switch virtual addresses (single-player island).
@@ -48,8 +49,16 @@ _DEFAULT_OFFSETS = {
     }
 }
 
-# Minimum DRAM region size in bytes to identify Ryujinx's flat Switch DRAM mapping.
-_MIN_DRAM_SIZE = 512 * 1024 * 1024   # 512 MB; real is 4 GB but partial maps work too
+_ITEM_NONE = 0xFFFE
+_ITEM_SIZE = 8
+_DEFAULT_INVENTORY_OFFSETS = {
+    "2.0.7": {
+        "slot1": 0xAFB1E6E0,
+        "slot21": 0xAFB1E6E0 - ((20 * _ITEM_SIZE) + 0x18),
+    }
+}
+
+_ITEM_INDEX = None
 
 BOTBASE_FALLBACK_PORTS = [6000, 6001]
 
@@ -249,6 +258,26 @@ def _read_switch_va(pid: int, dram_base: int, switch_va: int, size: int) -> byte
     return _mem_read(pid, _switch_va_to_host(dram_base, switch_va), size)
 
 
+def _write_switch_va(pid: int, dram_base: int, switch_va: int, data: bytes):
+    mem_path = f"/proc/{pid}/mem"
+    host_addr = _switch_va_to_host(dram_base, switch_va)
+    try:
+        with open(mem_path, "r+b", buffering=0) as fh:
+            fh.seek(host_addr)
+            written = fh.write(data)
+    except PermissionError as exc:
+        raise RuntimeError(
+            f"Cannot write {mem_path}: {exc}\n"
+            "Run: sudo sysctl -w kernel.yama.ptrace_scope=0"
+        ) from exc
+    except OSError as exc:
+        raise RuntimeError(f"Memory write failed at {hex(host_addr)}: {exc}") from exc
+    if written != len(data):
+        raise RuntimeError(
+            f"Short write at {hex(host_addr)}: expected {len(data)} bytes, wrote {written}"
+        )
+
+
 def _decode_utf16le(data: bytes) -> str:
     text = data.decode("utf-16le", errors="ignore")
     return text.split("\x00")[0].strip()
@@ -273,6 +302,181 @@ def _get_offsets() -> dict:
         "bank":   pick("ACNH_PLAYER_BANK_OFFSET",   defaults["bank"]),
         "miles":  pick("ACNH_PLAYER_MILES_OFFSET",  defaults["miles"]),
     }
+
+
+def _get_inventory_offsets() -> dict:
+    version = os.environ.get("ACNH_GAME_VERSION", "2.0.7").strip()
+    defaults = _DEFAULT_INVENTORY_OFFSETS.get(version, _DEFAULT_INVENTORY_OFFSETS["2.0.7"])
+
+    def pick(env_key, default):
+        val = os.environ.get(env_key, "").strip()
+        return int(val, 16) if val else default
+
+    return {
+        "slot1": pick("ACNH_INVENTORY_SLOT1_OFFSET", defaults["slot1"]),
+        "slot21": pick("ACNH_INVENTORY_SLOT21_OFFSET", defaults["slot21"]),
+    }
+
+
+def _slot_switch_va(slot: int, offsets: dict) -> int:
+    if slot < 1 or slot > 40:
+        raise ValueError(f"slot out of range: {slot}")
+    if slot <= 20:
+        return offsets["slot1"] + ((slot - 1) * _ITEM_SIZE)
+    return offsets["slot21"] + ((slot - 21) * _ITEM_SIZE)
+
+
+def _empty_slot(slot: int) -> dict:
+    return {
+        "slot": slot,
+        "itemId": None,
+        "count": 0,
+        "uses": 0,
+        "flag0": 0,
+        "flag1": 0,
+    }
+
+
+def _format_fallback_item_id(item_id: int) -> str:
+    return f"0x{item_id:04X}"
+
+
+def _load_item_index():
+    global _ITEM_INDEX
+    if _ITEM_INDEX is not None:
+        return _ITEM_INDEX
+
+    by_internal_id = {}
+    by_file_name = {}
+    items_path = Path(__file__).resolve().parents[2] / "data" / "items.json"
+    try:
+        parsed = json.loads(items_path.read_text(encoding="utf-8"))
+    except Exception:
+        parsed = []
+
+    if isinstance(parsed, list):
+        for entry in parsed:
+            if not isinstance(entry, dict):
+                continue
+            file_name = str(entry.get("file_name") or "").strip()
+            internal_id = entry.get("internal_id")
+            if isinstance(internal_id, int):
+                by_internal_id[internal_id] = file_name or None
+            if file_name:
+                by_file_name[file_name] = internal_id
+
+    _ITEM_INDEX = {
+        "by_internal_id": by_internal_id,
+        "by_file_name": by_file_name,
+    }
+    return _ITEM_INDEX
+
+
+def _normalize_slot_payload(value):
+    if not isinstance(value, dict):
+        return None
+    try:
+        slot = int(value.get("slot", 0))
+    except (TypeError, ValueError):
+        return None
+    if slot < 1 or slot > 40:
+        return None
+
+    def to_u16(raw):
+        try:
+            return max(0, min(0xFFFF, int(raw)))
+        except (TypeError, ValueError):
+            return 0
+
+    def to_u8(raw):
+        try:
+            return max(0, min(0xFF, int(raw)))
+        except (TypeError, ValueError):
+            return 0
+
+    item_id = value.get("itemId")
+    item_id = str(item_id).strip() if item_id is not None else None
+    if item_id == "":
+        item_id = None
+
+    return {
+        "slot": slot,
+        "itemId": item_id,
+        "count": to_u16(value.get("count", 0)),
+        "uses": to_u16(value.get("uses", 0)),
+        "flag0": to_u8(value.get("flag0", 0)),
+        "flag1": to_u8(value.get("flag1", 0)),
+    }
+
+
+def _resolve_item_id(raw_item_id):
+    if raw_item_id is None:
+        return _ITEM_NONE
+    text = str(raw_item_id).strip()
+    if not text:
+        return _ITEM_NONE
+    if text.lower().startswith("0x"):
+        return int(text, 16)
+
+    index = _load_item_index()
+    internal_id = index["by_file_name"].get(text)
+    if isinstance(internal_id, int):
+        return internal_id
+
+    raise RuntimeError(f"Unknown ACNH item id: {text}")
+
+
+def _decode_slot(raw: bytes, slot: int) -> dict:
+    item_id = struct.unpack_from("<H", raw, 0)[0]
+    flag0 = raw[2]
+    flag1 = raw[3]
+    count = struct.unpack_from("<H", raw, 4)[0]
+    uses = struct.unpack_from("<H", raw, 6)[0]
+
+    if item_id == _ITEM_NONE:
+        return _empty_slot(slot)
+
+    index = _load_item_index()
+    item_name = index["by_internal_id"].get(item_id) or _format_fallback_item_id(item_id)
+    return {
+        "slot": slot,
+        "itemId": item_name,
+        "count": count,
+        "uses": uses,
+        "flag0": flag0,
+        "flag1": flag1,
+    }
+
+
+def _encode_slot(slot_payload: dict) -> bytes:
+    item_id = _resolve_item_id(slot_payload.get("itemId"))
+    if item_id == _ITEM_NONE:
+        return struct.pack("<HBBHH", _ITEM_NONE, 0, 0, 0, 0)
+    return struct.pack(
+        "<HBBHH",
+        item_id & 0xFFFF,
+        slot_payload.get("flag0", 0) & 0xFF,
+        slot_payload.get("flag1", 0) & 0xFF,
+        slot_payload.get("count", 0) & 0xFFFF,
+        slot_payload.get("uses", 0) & 0xFFFF,
+    )
+
+
+def _read_all_slots_procmem(pid: int, dram_base: int):
+    offsets = _get_inventory_offsets()
+    slots = []
+    for slot in range(1, 41):
+        raw = _read_switch_va(pid, dram_base, _slot_switch_va(slot, offsets), _ITEM_SIZE)
+        slots.append(_decode_slot(raw, slot))
+    return slots
+
+
+def _write_slot_procmem(pid: int, dram_base: int, slot_payload: dict):
+    offsets = _get_inventory_offsets()
+    raw = _encode_slot(slot_payload)
+    _write_switch_va(pid, dram_base, _slot_switch_va(slot_payload["slot"], offsets), raw)
+    refreshed = _read_switch_va(pid, dram_base, _slot_switch_va(slot_payload["slot"], offsets), _ITEM_SIZE)
+    return _decode_slot(refreshed, slot_payload["slot"])
 
 
 # ---------------------------------------------------------------------------
@@ -300,8 +504,9 @@ def read_game_data_procmem():
             "miles":  miles,
             "avatar": os.environ.get("ACNH_PLAYER_AVATAR", "/assets/items/Bob_NH.png"),
         },
-        "slots": [],
-        "source": "live-procmem",
+        "slots": _read_all_slots_procmem(pid, dram_base),
+        "source": "live-memory",
+        "backend": "procmem",
         "ryujinxPid": pid,
         "dramBase": hex(dram_base),
         "lastGameSaveAt": datetime.now(timezone.utc).isoformat(),
@@ -311,9 +516,36 @@ def read_game_data_procmem():
 
 
 def read_inventory_procmem():
-    # Inventory reads require per-slot Switch VAs; return empty list for now.
-    # The bridge still shows game data; this enables full slot reads later.
-    print(json.dumps({"slots": [], "source": "live-procmem"}))
+    _check_ptrace_scope()
+    pid = _find_ryujinx_pid()
+    dram_base = _find_dram_base(pid)
+    print(json.dumps({
+        "slots": _read_all_slots_procmem(pid, dram_base),
+        "source": "live-memory",
+        "backend": "procmem",
+        "ryujinxPid": pid,
+        "dramBase": hex(dram_base),
+    }))
+
+
+def write_inventory_slot_procmem(request):
+    _check_ptrace_scope()
+    pid = _find_ryujinx_pid()
+    dram_base = _find_dram_base(pid)
+    payload = request.get("payload") if isinstance(request.get("payload"), dict) else request
+    slot_payload = _normalize_slot_payload(payload)
+    if not slot_payload:
+        raise RuntimeError("payload.slot must be an integer from 1 to 40")
+
+    written = _write_slot_procmem(pid, dram_base, slot_payload)
+    print(json.dumps({
+        "slot": written,
+        "slots": _read_all_slots_procmem(pid, dram_base),
+        "source": "live-memory",
+        "backend": "procmem",
+        "ryujinxPid": pid,
+        "dramBase": hex(dram_base),
+    }))
 
 
 def cmd_scan():
@@ -457,7 +689,8 @@ def read_game_data_botbase(sock):
             "avatar": os.environ.get("ACNH_PLAYER_AVATAR", "/assets/items/Bob_NH.png"),
         },
         "slots": [],
-        "source": "live-botbase",
+        "source": "live-memory",
+        "backend": "botbase",
         "lastGameSaveAt": datetime.now(timezone.utc).isoformat(),
         "lastGameDataFilePath": None,
     }))
@@ -466,12 +699,12 @@ def read_game_data_botbase(sock):
 def read_inventory_botbase(sock):
     custom_cmd = os.environ.get("ACNH_INVENTORY_JSON_CMD", "").strip()
     if not custom_cmd:
-        print(json.dumps({"slots": [], "source": "live-botbase"}))
+        print(json.dumps({"slots": [], "source": "live-memory", "backend": "botbase"}))
         return
     text = _send_botbase_command(sock, custom_cmd)
     parsed = json.loads(text)
     slots = parsed if isinstance(parsed, list) else parsed.get("slots", [])
-    print(json.dumps({"slots": slots, "source": "live-botbase"}))
+    print(json.dumps({"slots": slots, "source": "live-memory", "backend": "botbase"}))
 
 
 # ---------------------------------------------------------------------------
@@ -510,8 +743,7 @@ def main():
             return 0
         if command == "write_inventory_slot":
             request = json.loads(sys.stdin.read().strip() or "{}")
-            payload = request.get("payload") if isinstance(request.get("payload"), dict) else request
-            print(json.dumps({"slot": payload, "source": "live-procmem"}))
+            write_inventory_slot_procmem(request)
             return 0
         raise RuntimeError(f"Unsupported command: {command}")
     else:
@@ -526,7 +758,7 @@ def main():
             if command == "write_inventory_slot":
                 request = json.loads(sys.stdin.read().strip() or "{}")
                 payload = request.get("payload") if isinstance(request.get("payload"), dict) else request
-                print(json.dumps({"slot": payload, "source": "live-botbase"}))
+                print(json.dumps({"slot": payload, "source": "live-memory", "backend": "botbase"}))
                 return 0
             raise RuntimeError(f"Unsupported command: {command}")
         finally:
