@@ -144,9 +144,14 @@ def _decode_utf16le_safe(data: bytes) -> str:
 
 
 def _is_plausible_text(value: str) -> bool:
+    value = str(value or "").strip()
     if not value:
         return False
     if len(value) > 12:
+        return False
+    if set(value).issubset({"ÿ", "þ", "ý", "�"}):
+        return False
+    if len(value) > 1 and len(set(value)) == 1:
         return False
     printable = sum(1 for ch in value if ch.isprintable())
     return printable == len(value)
@@ -186,8 +191,12 @@ def _candidate_dram_bases(pid: int, offsets: dict):
         if start in seen:
             continue
         seen.add(start)
-        score, details = _score_dram_candidate(pid, start, offsets)
         size = end - start
+        label_lc = str(label or "").lower()
+        # Restrict scoring to likely DRAM regions; small anonymous rw regions are noisy.
+        if "memfd" not in label_lc and "doublemapper" not in label_lc and size < (512 * 1024 * 1024):
+            continue
+        score, details = _score_dram_candidate(pid, start, offsets)
         candidates.append({
             "base": start,
             "score": score,
