@@ -216,17 +216,44 @@ Adapter behavior:
 
 ### Updating This On Steam Deck
 
+### Branch Policy For Bridge Testing
+
+Moving forward:
+
+- Run all new bridge and MVP test work on `dev` first.
+- Promote tested changes to `master` only after they are confirmed working.
+- Keep Steam Deck and Windows repos on the same branch during a test cycle to avoid mismatch.
+
+Recommended branch flow:
+
+```bash
+cd ~/acnh-live-editor
+git checkout dev
+git pull --ff-only origin dev
+```
+
+After `dev` validation passes and you are ready to publish stable bridge behavior:
+
+```bash
+cd ~/acnh-live-editor
+git checkout master
+git pull --ff-only origin master
+git merge --ff-only dev
+git push origin master
+```
+
 Do you have to run `git pull`?
 
 - Yes, if your Steam Deck repo is a git clone and you want the latest script changes from your remote branch.
 - No, if you manually copied the updated files to Steam Deck by another method (for example `scp`, Syncthing, or a ZIP copy).
 
-Typical update flow on Steam Deck (git clone setup):
+Typical update flow on Steam Deck (git clone setup, test branch `dev`):
 
 ```bash
 cd ~/acnh-live-editor
 git status --short
-git pull --ff-only origin master
+git checkout dev
+git pull --ff-only origin dev
 bash scripts/install-steamdeck-launcher.sh
 ```
 
@@ -327,6 +354,7 @@ This order is optimized for smaller diffs, lower context cost, and faster Codex 
 Confirmed in this repo:
 
 - Scope is pinned to bridge reliability, correct IP usage, Steam Deck connectivity, and Ryujinx live-memory reads/writes feeding the existing Windows UI.
+- Branch workflow for new testing is `dev` first, then promote to `master` after working validation.
 - The Windows UI bridge address is `http://10.0.0.25:3000`.
 - The Steam Deck bridge target is `10.0.0.25:32840`.
 - The active live bridge chain is `scripts/steamdeck-run-bridge.sh` -> `scripts/steamdeck-bridge-client.js` -> `scripts/steamdeck-adapters/bridge_memory_tool.py` -> `scripts/steamdeck-adapters/acnh_memory_reader.py`.
@@ -345,3 +373,4 @@ Not yet confirmed in this repo:
 3. Once local live reads work on Steam Deck, run `bash scripts/steamdeck-run-bridge.sh` and confirm the Deck client connects to `10.0.0.25:32840`.
 4. On Windows, request `/api/bridge/read-game-data` from the app backend and confirm it returns the same live player payload coming from the Deck.
 5. After backend readback is confirmed, refresh the existing UI and confirm the player and inventory panels render that returned live payload without UI code changes.
+6. Keep both repos on `dev` while validating new work; switch both to `master` only after the validated promotion is pushed.
