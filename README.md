@@ -113,6 +113,15 @@ Then run the bridge client on Steam Deck after `.steamdeck-bridge.env` is in pla
 bash scripts/steamdeck-run-bridge.sh
 ```
 
+New bridge launch (simple session start):
+
+```bash
+cd ~/acnh-live-editor
+git checkout dev
+git pull --ff-only origin dev
+bash scripts/steamdeck-run-bridge.sh
+```
+
 ### One-Click Deck Launcher (No Re-Typing In Konsole)
 
 This repo now includes a single run file for Deck testing:
