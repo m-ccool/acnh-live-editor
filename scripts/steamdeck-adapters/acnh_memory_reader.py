@@ -157,6 +157,51 @@ def _is_plausible_text(value: str) -> bool:
     return printable == len(value)
 
 
+def _score_inventory_sample(pid: int, dram_base: int, inventory_offsets: dict):
+    score = 0
+    sampled = 0
+    empties = 0
+    high_count = 0
+    bad_item_id = 0
+
+    for slot in range(1, 11):
+        try:
+            raw = _read_switch_va(pid, dram_base, _slot_switch_va(slot, inventory_offsets), _ITEM_SIZE)
+        except RuntimeError:
+            continue
+
+        sampled += 1
+        item_id = struct.unpack_from("<H", raw, 0)[0]
+        count = struct.unpack_from("<H", raw, 4)[0]
+        uses = struct.unpack_from("<H", raw, 6)[0]
+
+        if item_id == _ITEM_NONE:
+            empties += 1
+            score += 1
+        elif item_id <= 0x8000:
+            score += 2
+        else:
+            bad_item_id += 1
+            score -= 2
+
+        if count <= 999:
+            score += 1
+        elif count >= 10000:
+            high_count += 1
+            score -= 2
+
+        if uses >= 10000:
+            score -= 1
+
+    details = {
+        "sampledSlots": sampled,
+        "emptySlots": empties,
+        "highCountSlots": high_count,
+        "badItemIdSlots": bad_item_id,
+    }
+    return score, details
+
+
 def _score_dram_candidate(pid: int, dram_base: int, offsets: dict):
     score = 0
     details = {}
@@ -180,6 +225,14 @@ def _score_dram_candidate(pid: int, dram_base: int, offsets: dict):
                 score += 1
         except RuntimeError as exc:
             details[field] = f"ERR:{exc}"
+
+    try:
+        inventory_offsets = _get_inventory_offsets()
+        inv_score, inv_details = _score_inventory_sample(pid, dram_base, inventory_offsets)
+        score += inv_score
+        details["inventory"] = inv_details
+    except Exception as exc:
+        details["inventory"] = f"ERR:{exc}"
 
     return score, details
 
@@ -221,7 +274,7 @@ def _find_dram_base(pid: int) -> int:
 
     offsets = _get_offsets()
     candidates = _candidate_dram_bases(pid, offsets)
-    if candidates and candidates[0]["score"] >= 5:
+    if candidates and candidates[0]["score"] >= 12:
         return candidates[0]["base"]
 
     if candidates:
