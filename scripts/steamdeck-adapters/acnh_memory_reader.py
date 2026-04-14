@@ -89,7 +89,6 @@ def _find_ryujinx_pid() -> int:
         return int(override, 0)
 
     import glob
-    import os.path
 
     def _looks_like_ryujinx_process(proc_dir: str, cmdline: str) -> bool:
         cmdline_lc = cmdline.lower()
