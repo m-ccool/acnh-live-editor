@@ -605,14 +605,13 @@ async function refreshBridgeInventory(options = {}) {
 }
 
 async function hydrateBridgeCatalogItems(bridgeSlots) {
-  const missingNames = Array.from(new Set(
+  const lookupNames = Array.from(new Set(
     (Array.isArray(bridgeSlots) ? bridgeSlots : [])
       .map((entry) => entry && entry.itemId ? String(entry.itemId).trim() : '')
       .filter(Boolean)
-      .filter((itemId) => !findItemByLookup(itemId, itemId))
   ));
 
-  if (!missingNames.length) {
+  if (!lookupNames.length) {
     return;
   }
 
@@ -622,7 +621,7 @@ async function hydrateBridgeCatalogItems(bridgeSlots) {
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ names: missingNames })
+      body: JSON.stringify({ names: lookupNames })
     });
 
     if (!response.ok) {
@@ -958,7 +957,12 @@ function findItemByLookup(itemId, itemName) {
     .filter(Boolean);
   const fallbackLookups = [itemId, itemName]
     .map(stripVariationSuffix)
-    .concat([resolveBellBagAlias(itemId), resolveBellBagAlias(itemName)])
+    .concat([
+      resolveBellBagAlias(itemId),
+      resolveBellBagAlias(itemName),
+      resolveSingularAlias(itemId),
+      resolveSingularAlias(itemName)
+    ])
     .map((value) => normalizeItemLookup(value))
     .filter(Boolean);
   const allLookups = Array.from(new Set(baseLookups.concat(fallbackLookups)));
@@ -986,6 +990,36 @@ function resolveBellBagAlias(value) {
   }
 
   return amount >= 99000 ? '99k Bells' : '30,000 Bells';
+}
+
+function resolveSingularAlias(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) {
+    return '';
+  }
+
+  const irregular = {
+    cherries: 'cherry',
+    peaches: 'peach',
+    coconuts: 'coconut',
+    oranges: 'orange',
+    apples: 'apple',
+    pears: 'pear'
+  };
+
+  if (irregular[normalized]) {
+    return irregular[normalized];
+  }
+
+  if (/ies$/.test(normalized)) {
+    return normalized.replace(/ies$/, 'y');
+  }
+
+  if (/s$/.test(normalized) && !/ss$/.test(normalized)) {
+    return normalized.slice(0, -1);
+  }
+
+  return '';
 }
 
 function getKnownCatalogItems() {

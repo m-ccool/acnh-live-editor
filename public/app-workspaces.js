@@ -88,7 +88,10 @@ function renderPlayer() {
 }
 
 function renderSelectedPreview() {
-  const previewItem = getSelectedPreviewItem();
+  const rawPreviewItem = getSelectedPreviewItem();
+  const previewItem = rawPreviewItem
+    ? (findItemByLookup(rawPreviewItem.file_name || rawPreviewItem.name, rawPreviewItem.name) || rawPreviewItem)
+    : null;
 
   if (previewItem) {
     el.selectedPreviewImage.src = getPreferredItemPreviewUrl(previewItem);
@@ -427,7 +430,14 @@ function renderSettingsDebug() {
 
 function renderItemModal() {
   const slot = getSelectedSlot();
-  const item = state.modalPendingItem || slot.item;
+  const baseItem = state.modalPendingItem || slot.item;
+  const item = baseItem
+    ? (findItemByLookup(baseItem.file_name || slot.itemId || baseItem.name, baseItem.name) || baseItem)
+    : null;
+
+  if (!state.modalPendingItem && item && slot.item !== item) {
+    slot.item = item;
+  }
 
   el.modalPocketTitle.textContent = `Pocket ${slot.slot} · ${item ? item.name : 'Empty slot'}`;
   el.modalItemName.textContent = item ? item.name : 'Empty slot';
@@ -893,10 +903,6 @@ function restoreLocalState() {
     }
 
     if (saved.music && typeof saved.music === 'object') {
-      if (typeof saved.music.drawerOpen === 'boolean') {
-        state.music.drawerOpen = saved.music.drawerOpen;
-      }
-
       if (typeof saved.music.selectedTrackId === 'string') {
         state.music.selectedTrackId = saved.music.selectedTrackId;
       }

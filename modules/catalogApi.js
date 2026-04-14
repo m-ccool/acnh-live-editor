@@ -1,4 +1,5 @@
 const fs = require('fs')
+const https = require('https')
 const path = require('path')
 
 const {
@@ -8,16 +9,9 @@ const {
   refreshCatalogInBackground
 } = require('./nookipediaCatalog')
 
+const NOOKIPEDIA_MEDIAWIKI_API_URL = 'https://nookipedia.com/w/api.php'
 const dataPath = path.join(__dirname, '..', 'data', 'items.json')
 const itemsAssetDir = path.join(__dirname, '..', 'public', 'assets', 'items')
-const BRIDGE_FALLBACK_ITEMS_BY_NAME = Object.freeze({
-  'empty can': createBridgeFallbackItem('Empty can', 'Material', 'https://dodo.ac/np/images/8/89/Empty_Can_NH_Icon.png', 'bridge_fallback_empty_can'),
-  'nook miles ticket': createBridgeFallbackItem('Nook Miles Ticket', 'Material', 'https://dodo.ac/np/images/f/f5/Nook_Miles_Ticket_NH_Icon.png', 'bridge_fallback_nook_miles_ticket'),
-  'clump of weeds': createBridgeFallbackItem('Clump of weeds', 'Material', 'https://dodo.ac/np/images/8/82/Clump_of_Weeds_NH_Icon.png', 'bridge_fallback_clump_of_weeds'),
-  'tree branch': createBridgeFallbackItem('Tree branch', 'Material', 'https://dodo.ac/np/images/5/5d/Tree_Branch_NH_Icon.png', 'bridge_fallback_tree_branch'),
-  'cherry': createBridgeFallbackItem('Cherry', 'Food', 'https://dodo.ac/np/images/6/67/Cherry_NH_Icon.png', 'bridge_fallback_cherry'),
-  'vaulting pole': createBridgeFallbackItem('Vaulting pole', 'Tool', 'https://dodo.ac/np/images/2/24/Vaulting_Pole_NH_DIY_Icon.png', 'bridge_fallback_vaulting_pole')
-})
 
 function listStarterItemsWithPreview() {
   const items = readStarterItems()
@@ -78,7 +72,7 @@ function searchCatalogItems(options = {}) {
   }
 }
 
-function lookupCatalogItems(names = []) {
+async function lookupCatalogItems(names = []) {
   const requestedNames = Array.isArray(names)
     ? names.map((name) => String(name || '').trim()).filter(Boolean)
     : []
@@ -90,10 +84,22 @@ function lookupCatalogItems(names = []) {
   const localItems = listStarterItemsWithPreview()
   const cachedItems = getCachedCatalogItems()
   const catalogItems = mergeCatalogItems(cachedItems, localItems)
+  const resolvedItems = []
 
-  return requestedNames
-    .map((name) => findCatalogItemByName(catalogItems, name))
-    .filter(Boolean)
+  for (const requestedName of requestedNames) {
+    const directMatch = findCatalogItemByName(catalogItems, requestedName)
+    if (directMatch) {
+      resolvedItems.push(directMatch)
+      continue
+    }
+
+    const liveWikiMatch = await fetchNookipediaWikiItem(requestedName)
+    if (liveWikiMatch) {
+      resolvedItems.push(liveWikiMatch)
+    }
+  }
+
+  return resolvedItems
 }
 
 function buildCatalogStatusResponse(localItems = readLocalItems(), cachedItems = getCachedCatalogItems()) {
@@ -106,22 +112,20 @@ function buildCatalogStatusResponse(localItems = readLocalItems(), cachedItems =
       ? 'syncing'
       : hasDiskCache
         ? 'cached'
-        : syncState.configured
-          ? 'fallback'
-          : 'offline'
+        : 'offline'
   const labelByState = {
     live: 'Live',
     syncing: 'Syncing',
     cached: 'Cached',
-    fallback: 'Local',
     offline: 'Offline'
   }
   const messageByState = {
     live: 'Nookipedia catalog is cached and ready.',
     syncing: 'Connecting to Nookipedia live catalog.',
     cached: 'Using cached Nookipedia catalog.',
-    fallback: syncState.lastSyncError || 'Using local starter catalog.',
-    offline: 'Nookipedia API key is not configured. Set NOOKIPEDIA_API_KEY in .env and restart the server.'
+    offline: syncState.configured
+      ? (syncState.lastSyncError || 'Catalog unavailable. Run sync and retry.')
+      : 'Nookipedia API key is not configured. Set NOOKIPEDIA_API_KEY in .env and restart the server.'
   }
 
   return {
@@ -234,31 +238,92 @@ function normalizeLookupLabel(value) {
 }
 
 function findCatalogItemByName(items, name) {
-  const exactLookup = normalizeLookupLabel(name)
-  if (!exactLookup) {
+  const lookupAliases = buildLookupAliases(name)
+  if (!lookupAliases.length) {
     return null
   }
 
-  const directMatch = (Array.isArray(items) ? items : []).find((item) => {
+  const catalogItems = Array.isArray(items) ? items : []
+  for (const item of catalogItems) {
     const itemName = normalizeLookupLabel(item && item.name)
     const itemFileName = normalizeLookupLabel(item && item.file_name)
-    return itemName === exactLookup || itemFileName === exactLookup
-  })
+    const itemNameCanonical = toCanonicalLookup(itemName)
+    const itemFileCanonical = toCanonicalLookup(itemFileName)
 
-  if (directMatch) {
-    return directMatch
-  }
-
-  const bellsAlias = resolveBellBagAlias(name)
-  if (bellsAlias) {
-    const bellsLookup = normalizeLookupLabel(bellsAlias)
-    const bellsMatch = (Array.isArray(items) ? items : []).find((item) => normalizeLookupLabel(item && item.name) === bellsLookup)
-    if (bellsMatch) {
-      return bellsMatch
+    if (lookupAliases.some((lookup) => (
+      lookup === itemName ||
+      lookup === itemFileName ||
+      lookup === itemNameCanonical ||
+      lookup === itemFileCanonical
+    ))) {
+      return item
     }
   }
 
-  return getBridgeFallbackItem(name)
+  return null
+}
+
+function buildLookupAliases(value) {
+  const raw = String(value || '').trim()
+  if (!raw) {
+    return []
+  }
+
+  const direct = normalizeLookupLabel(raw)
+  const stripped = normalizeLookupLabel(raw.replace(/\s*\([^)]*\)\s*$/, ''))
+  const canonical = toCanonicalLookup(direct)
+  const singular = toSingularLookup(direct)
+  const bellsAlias = resolveBellBagAlias(raw)
+
+  return Array.from(new Set([
+    direct,
+    stripped,
+    canonical,
+    toCanonicalLookup(stripped),
+    singular,
+    toCanonicalLookup(singular),
+    bellsAlias,
+    toCanonicalLookup(bellsAlias)
+  ].filter(Boolean)))
+}
+
+function toCanonicalLookup(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[_-]+/g, ' ')
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function toSingularLookup(value) {
+  const normalized = normalizeLookupLabel(value)
+  if (!normalized) {
+    return ''
+  }
+
+  const irregular = {
+    cherries: 'cherry',
+    peaches: 'peach',
+    coconuts: 'coconut',
+    oranges: 'orange',
+    apples: 'apple',
+    pears: 'pear'
+  }
+
+  if (irregular[normalized]) {
+    return irregular[normalized]
+  }
+
+  if (/ies$/.test(normalized)) {
+    return normalized.replace(/ies$/, 'y')
+  }
+
+  if (/s$/.test(normalized) && !/ss$/.test(normalized)) {
+    return normalized.slice(0, -1)
+  }
+
+  return normalized
 }
 
 function resolveBellBagAlias(name) {
@@ -275,30 +340,276 @@ function resolveBellBagAlias(name) {
   return amount >= 99000 ? '99k Bells' : '30,000 Bells'
 }
 
-function getBridgeFallbackItem(name) {
-  const key = normalizeLookupLabel(name)
-  return BRIDGE_FALLBACK_ITEMS_BY_NAME[key] || null
+function fetchNookipediaWikiItem(name) {
+  const aliases = buildLookupAliases(name)
+  const preferredLabel = aliases[0] || String(name || '').trim()
+  return fetchNookipediaItemIconById(preferredLabel)
+    .then((iconItem) => {
+      if (iconItem) {
+        return iconItem
+      }
+
+      const wikiTitle = resolveWikiTitle(preferredLabel)
+      if (!wikiTitle) {
+        return null
+      }
+
+      const urlPath = `/wiki/${encodeURIComponent(wikiTitle)}`
+      return requestText(`https://nookipedia.com${urlPath}`)
+        .then((html) => {
+          const imageUrl = extractOgImage(String(html || ''))
+          if (!imageUrl) {
+            return null
+          }
+
+          const displayName = formatDisplayName(name)
+          return {
+            name: displayName,
+            category: 'Nookipedia',
+            icon_url: imageUrl,
+            image_url: imageUrl,
+            preview_url: imageUrl,
+            internal_id: null,
+            file_name: wikiTitle,
+            source_notes: 'live nookipedia wiki',
+            source_files: [],
+            source: {
+              endpoint: '/wiki',
+              path: urlPath
+            }
+          }
+        })
+    })
+    .catch(() => null)
 }
 
-function createBridgeFallbackItem(name, category, url, fileName) {
-  const imageUrl = String(url || '').trim()
-  return {
-    name,
-    category,
-    icon_url: imageUrl || null,
-    image_url: imageUrl || null,
-    preview_url: imageUrl || null,
-    file_name: fileName,
-    source_notes: 'Bridge fallback catalog item',
-    source_files: []
+function fetchNookipediaItemIconById(value) {
+  const candidateIds = buildWikiFileIdCandidates(value)
+  if (!candidateIds.length) {
+    return Promise.resolve(null)
   }
+
+  const fileCandidates = candidateIds.flatMap((id) => [
+    `File:${id}_NH_Icon.png`,
+    `File:${id}_NH_Inv_Icon.png`,
+    `File:${id}_NH_DIY_Icon.png`
+  ])
+
+  return queryMediaWikiFileInfo(fileCandidates)
+    .then((fileInfo) => {
+      if (!fileInfo || !fileInfo.url) {
+        return null
+      }
+
+      const resolvedId = candidateIds.find((id) => String(fileInfo.title || '').includes(id.replace(/_/g, ' '))) || candidateIds[0]
+
+      return {
+        name: formatDisplayName(value),
+        category: 'Nookipedia',
+        icon_url: fileInfo.url,
+        image_url: fileInfo.url,
+        preview_url: fileInfo.url,
+        internal_id: null,
+        file_name: resolvedId,
+        source_notes: 'live nookipedia file metadata',
+        source_files: [],
+        source: {
+          endpoint: '/w/api.php',
+          path: fileInfo.descriptionUrl || ''
+        }
+      }
+    })
 }
 
-function mergeCatalogItems(primaryItems, fallbackItems) {
+function buildWikiFileIdCandidates(value) {
+  const raw = String(value || '').trim()
+  if (!raw) {
+    return []
+  }
+
+  const singular = toSingularLookup(raw)
+  const bases = Array.from(new Set([raw, singular].filter(Boolean)))
+  const ids = []
+
+  for (const base of bases) {
+    const normalized = String(base).trim().replace(/[-\s]+/g, '_')
+    if (!normalized) {
+      continue
+    }
+
+    ids.push(normalized)
+    ids.push(normalized.toLowerCase())
+    ids.push(toWikiTitle(base))
+    ids.push(toWikiTitleWithStopwords(base))
+  }
+
+  return Array.from(new Set(ids.filter(Boolean)))
+}
+
+function toWikiTitleWithStopwords(value) {
+  const canonical = toCanonicalLookup(value)
+  if (!canonical) {
+    return ''
+  }
+
+  const lowerWords = new Set(['of', 'the', 'and', 'a', 'an', 'to', 'in', 'on', 'for', 'with'])
+  return canonical
+    .split(' ')
+    .filter(Boolean)
+    .map((token, index) => {
+      if (index > 0 && lowerWords.has(token)) {
+        return token
+      }
+
+      return token.charAt(0).toUpperCase() + token.slice(1)
+    })
+    .join('_')
+}
+
+function queryMediaWikiFileInfo(fileTitles) {
+  const normalizedTitles = Array.from(new Set(
+    (Array.isArray(fileTitles) ? fileTitles : [])
+      .map((title) => String(title || '').trim())
+      .filter(Boolean)
+  ))
+
+  if (!normalizedTitles.length) {
+    return Promise.resolve(null)
+  }
+
+  const params = new URLSearchParams({
+    action: 'query',
+    format: 'json',
+    prop: 'imageinfo',
+    iiprop: 'url',
+    titles: normalizedTitles.join('|')
+  })
+
+  return requestJson(`${NOOKIPEDIA_MEDIAWIKI_API_URL}?${params.toString()}`)
+    .then((payload) => {
+      const pages = payload && payload.query && payload.query.pages
+      if (!pages || typeof pages !== 'object') {
+        return null
+      }
+
+      for (const page of Object.values(pages)) {
+        const info = Array.isArray(page && page.imageinfo) ? page.imageinfo[0] : null
+        const url = info && typeof info.url === 'string' ? info.url : ''
+        if (!url) {
+          continue
+        }
+
+        return {
+          url,
+          title: String(page.title || ''),
+          descriptionUrl: info.descriptionurl || ''
+        }
+      }
+
+      return null
+    })
+}
+
+function resolveWikiTitle(value) {
+  const canonical = toCanonicalLookup(value)
+  if (!canonical) {
+    return ''
+  }
+
+  return toWikiTitle(toSingularLookup(canonical) || canonical)
+}
+
+function toWikiTitle(value) {
+  const canonical = toCanonicalLookup(value)
+  if (!canonical) {
+    return ''
+  }
+
+  return canonical
+    .split(' ')
+    .filter(Boolean)
+    .map((token) => token.charAt(0).toUpperCase() + token.slice(1))
+    .join('_')
+}
+
+function fromWikiTitle(value) {
+  return String(value || '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (ch) => ch.toUpperCase())
+    .trim()
+}
+
+function formatDisplayName(value) {
+  return String(value || '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (ch) => ch.toUpperCase())
+}
+
+function extractOgImage(html) {
+  const match = String(html || '').match(/property="og:image"\s+content="([^"]+)"/i)
+  return match ? String(match[1]).trim() : ''
+}
+
+function requestJson(url) {
+  return requestText(url).then((text) => JSON.parse(String(text || '{}')))
+}
+
+function requestText(url) {
+  return new Promise((resolve, reject) => {
+    let settled = false
+    const request = https.get(url, {
+      headers: {
+        'User-Agent': 'acnh-live-editor/1.0'
+      }
+    }, (response) => {
+      if (response.statusCode && response.statusCode >= 400) {
+        response.resume()
+        settled = true
+        reject(new Error(`Request failed (${response.statusCode}) for ${url}`))
+        return
+      }
+
+      let body = ''
+      response.setEncoding('utf8')
+      response.on('data', (chunk) => {
+        body += chunk
+      })
+      response.on('end', () => {
+        if (settled) {
+          return
+        }
+        settled = true
+        resolve(body)
+      })
+      response.on('close', () => {
+        if (!settled) {
+          settled = true
+          resolve(body)
+        }
+      })
+    })
+
+    request.on('error', (error) => {
+      if (settled) {
+        return
+      }
+      settled = true
+      reject(error)
+    })
+
+    request.setTimeout(8000, () => {
+      request.destroy(new Error(`Request timed out for ${url}`))
+    })
+  })
+}
+
+function mergeCatalogItems(primaryItems, secondaryItems) {
   const merged = []
   const seen = new Set()
 
-  ;[primaryItems, fallbackItems].forEach((list) => {
+  ;[primaryItems, secondaryItems].forEach((list) => {
     ;(Array.isArray(list) ? list : []).forEach((item) => {
       const key = getCatalogItemLookupKey(item)
       if (!key || seen.has(key)) {

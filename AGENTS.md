@@ -2,18 +2,39 @@
 
 These rules are mandatory for any agent working in this repository.
 
+## Contract Precedence
+
+Apply this order exactly:
+
+1. User request
+2. AGENTS guardrails
+3. README MVP sections
+4. Implementation details
+
+## Mandatory Response Gate
+
+Before any technical answer, include or explicitly check:
+
+1. Scope status
+2. README MVP section touched
+3. Excluded items and why
+
+This response gate is required in every technical answer.
+
+## README Binding
+
+- Every technical response must cite the exact README heading being followed.
+- Drift-check each technical response against:
+	1. `MVP Outline Status`
+	2. `Shortest Path To Live UI Readback`
+- Reject additions that do not advance those sections or the active user request.
+- Reject technical answers that do not cite README headings.
+
 ## Scope
 
-- Active scope is bridge reliability, correct IP usage, Steam Deck connectivity, Ryujinx live-memory reads/writes, and getting that data to the existing Windows UI.
-- Do not expand scope into redesigns, refactors, feature cleanup, music, catalog, or unrelated MVP ideas unless the user explicitly asks.
-- Primary runtime target for user-directed validation is the Windows UI at `http://10.0.0.25:3000`; do not switch to isolated test endpoints unless the user explicitly requests backend-only verification.
-
-## Assumptions
-
-- Do not make unverified assumptions about the user's goals, preferred UX, desired files, environment state, emulator state, or acceptable tradeoffs.
-- Do not replace or simplify the UI shell unless the user explicitly requests UI changes.
-- When a fact is not confirmed by the user, the repo, or direct tool output, call it unconfirmed.
-- When a missing fact would materially affect code edits, ask one concise question instead of guessing.
+- Active scope: bridge reliability, correct IP usage, Steam Deck connectivity, Ryujinx live-memory reads/writes, and data flow to the existing Windows UI.
+- Do not expand scope into redesigns, refactors, cleanup, music, catalog, or unrelated MVP ideas unless explicitly requested.
+- Primary validation target is the Windows UI at `http://10.0.0.25:3000`; do not switch to isolated endpoints unless explicitly requested for backend-only verification.
 
 ## Confirmed Repo Facts
 
@@ -21,32 +42,65 @@ These rules are mandatory for any agent working in this repository.
 - Steam Deck bridge target host: `10.0.0.25`
 - Steam Deck bridge target port: `32840`
 
-## Work Style
+## Verification Discipline
+
+- Do not make unverified assumptions about user goals, UX changes, environment state, emulator state, or acceptable tradeoffs.
+- Do not replace or simplify the UI shell unless explicitly requested.
+- When a fact is not confirmed by user, repo, or direct tool output, call it unconfirmed.
+- When a missing fact materially affects edits, ask one concise question instead of guessing.
+- Do not use conditional phrasing for facts already established in context; state established facts directly.
+
+## Work Integrity
 
 - Preserve existing UI unless explicitly told otherwise.
 - Prefer the smallest targeted bridge fix over broader cleanup.
 - Verify facts with repo reads or command output before changing behavior.
-- Keep responses and code changes tightly scoped to the current user request.
-- Do not change files, code paths, response formats, or tooling outside the exact requested change.
+- Keep changes tightly scoped to the exact request.
 - No opportunistic edits: if it was not requested, do not modify it.
-- Do not add or modify agent rules unless the user explicitly requests that exact change.
-- Do not go outside active scope unless the user explicitly expands scope.
-- When providing commands or scripts, always use plain copy-paste code blocks.
-- Keep code blocks clean and runnable with no inline commentary inside the block.
-- When providing runnable commands, always provide explicit step-by-step run instructions.
-- Always provide the full command text with no placeholders omitted.
-- If a command requires a specific directory, always include an explicit `cd` to that directory before the command.
-- Use this command response schema for runnable commands:
-	1. Step N title line
-	2. One fenced code block containing only runnable commands
-	3. First line in the block must be `cd` to the required directory when directory context matters
-	4. No inline commentary inside code blocks
-- For every technical response, run a drift check against README MVP sections before answering:
-	1. `MVP Outline Status`
-	2. `Shortest Path To Live UI Readback`
-	3. Reject additions that are not required to advance those sections or the active user request
-- Compliance gate: if a response would violate these formatting rules, stop and ask one concise clarification question instead of proceeding.
-- Any automated backend verification data must run on isolated non-primary ports.
-- Automated backend verification data must not appear in the user UI or debug panels.
-- Automated backend verification data exists for development only and must not be treated as live bridge data.
-- User UI and debug panels must never show test data under any circumstance.
+- Do not change files, paths, response formats, or tooling outside the exact requested change.
+- Do not add or modify agent rules unless explicitly requested.
+
+## Command Response Schema
+
+- Always provide explicit step-by-step run instructions.
+- One step title + one fenced code block per step.
+- Commands must be plain copy-paste runnable.
+- First line must be `cd` when directory context matters.
+- No inline commentary inside code blocks.
+- Always provide full command text with no placeholders omitted.
+
+## Fail-Closed Live Data Policy
+
+- No synthetic, temporary, substitute, or fake data in UI/debug/runtime responses.
+- If real data is unavailable, return unavailable/error; never substitute.
+- Automated backend verification data must run only on isolated non-primary ports.
+- Automated backend verification data must never appear in UI or debug panels.
+- Automated backend verification data is development-only and never live bridge truth.
+- Reject any output that uses synthetic/temp/test data as UI/debug truth.
+
+## Automatic Request Contract (Complex Requests)
+
+For complex requests, apply this contract automatically without requiring user attachment:
+
+1. Objective (one exact outcome)
+2. Scope (in-scope + explicit exclusions)
+3. README binding (`MVP Outline Status`, `Shortest Path To Live UI Readback`)
+4. Data policy (fail-closed, no substitution)
+5. Change constraints (allowed/forbidden files)
+6. Acceptance checks (explicit checks + expected outcomes)
+7. Stop condition (ask one concise question when a missing fact materially affects edits)
+
+## Governance Commit Template
+
+For governance/rule changes, use this commit structure:
+
+- Subject: `Consolidate agent governance into AGENTS contract`
+- Body bullets:
+	- single enforcement source in `AGENTS.md`
+	- precedence, response gate, README binding, fail-closed policy
+	- removed duplicate policy surfaces
+	- README runbook/schema alignment
+
+## Compliance Gate
+
+- If an answer would violate scope, formatting, data policy, or README binding, stop and ask one concise clarification question instead of proceeding.

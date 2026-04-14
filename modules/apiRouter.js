@@ -15,7 +15,6 @@ const {
   searchCatalogItems
 } = require('./catalogApi')
 const {
-  getFallbackMusicLibrary,
   getMusicLibrary
 } = require('./musicLibrary')
 
@@ -130,10 +129,10 @@ function createApiRouter(options = {}) {
     }
   })
 
-  router.post('/api/items/lookup', express.json(), (req, res) => {
+  router.post('/api/items/lookup', express.json(), async (req, res) => {
     try {
       const names = Array.isArray(req.body && req.body.names) ? req.body.names : []
-      res.json({ items: lookupCatalogItems(names) })
+      res.json({ items: await lookupCatalogItems(names) })
     } catch (error) {
       console.error(error)
       res.status(500).json({ error: 'Failed to lookup catalog items' })
@@ -144,8 +143,8 @@ function createApiRouter(options = {}) {
     try {
       res.json(await getMusicLibrary())
     } catch (error) {
-      console.warn(`Music library fallback: ${error.message}`)
-      res.json(getFallbackMusicLibrary(error.message))
+      console.error(error)
+      res.status(503).json({ error: 'Music library unavailable' })
     }
   })
 

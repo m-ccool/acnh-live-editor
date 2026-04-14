@@ -238,6 +238,36 @@ Scope guard for Steam Deck MVP:
 - [modules/bridgeService.js](C:/Users/mccoo/OneDrive/Developer/acnh-live-editor/modules/bridgeService.js): bridge socket server and request lifecycle
 - [modules/nookipediaCatalog.js](C:/Users/mccoo/OneDrive/Developer/acnh-live-editor/modules/nookipediaCatalog.js): catalog sync, caching, and diagnostics
 
+## Repo Runbook
+
+### Objective
+
+- Keep MVP focused on reliable live bridge reads/writes between Steam Deck Ryujinx memory and the existing Windows UI.
+
+### MVP Now
+
+- Active bridge chain: `scripts/steamdeck-run-bridge.sh` -> `scripts/steamdeck-bridge-client.js` -> `scripts/steamdeck-adapters/bridge_memory_tool.py` -> `scripts/steamdeck-adapters/acnh_memory_reader.py`.
+- Runtime target: Windows UI at `http://10.0.0.25:3000` and Steam Deck bridge target `10.0.0.25:32840`.
+
+### Completed
+
+- Steam Deck launcher + bridge run scripts are wired.
+- Bridge status/read endpoints are active in the app backend.
+- UI panels render bridge/game-data payloads.
+
+### Upcoming
+
+- Complete unresolved MVP checklist and return TODO items below.
+
+### Blocked
+
+- Direct live RAM read/write confirmation into active ACNH memory on Steam Deck is not yet confirmed end-to-end.
+
+### Response Schema
+
+- Technical responses should include: `Scope status`, `README section touched`, and `Excluded items + why`.
+- Run commands using explicit step titles and copy-paste code blocks.
+
 ## MVP Roadmap
 
 ### Codex-Optimized Execution Order
@@ -278,13 +308,7 @@ Confirmed in this repo:
 - The Steam Deck bridge target is `10.0.0.25:32840`.
 - The active live bridge chain is `scripts/steamdeck-run-bridge.sh` -> `scripts/steamdeck-bridge-client.js` -> `scripts/steamdeck-adapters/bridge_memory_tool.py` -> `scripts/steamdeck-adapters/acnh_memory_reader.py`.
 - Backend verification data is isolated from the primary UI and bridge path.
-
-Backend test data rules:
-
-- Test data does not show in the UI or debug panels.
-- Test data is for automated development purposes only.
-- Test data must use isolated non-primary ports.
-- Test data must not reuse the primary Windows UI address `10.0.0.25:3000` or the primary bridge target `10.0.0.25:32840`.
+- Enforcement and fail-closed data policy are defined in `AGENTS.md`.
 
 Not yet confirmed in this repo:
 

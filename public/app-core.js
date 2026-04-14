@@ -46,7 +46,7 @@ const DEFAULT_MUSIC_LIBRARY = Object.freeze({
   ]
 });
 const DEFAULT_MUSIC_STATE = Object.freeze({
-  drawerOpen: true,
+  drawerOpen: false,
   selectedTrackId: DEFAULT_MUSIC_LIBRARY.defaultSunriseTrackId,
   defaultNightTrackId: DEFAULT_MUSIC_LIBRARY.defaultNightTrackId,
   defaultSunriseTrackId: DEFAULT_MUSIC_LIBRARY.defaultSunriseTrackId,
@@ -874,7 +874,12 @@ function deriveHexFromItem(item) {
 function normalizeItemLookup(value) {
   return String(value || '')
     .trim()
-    .toLowerCase();
+    .toLowerCase()
+    .replace(/\s*\([^)]*\)\s*$/, '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function getPlayerDataHash() {
@@ -984,10 +989,6 @@ function renderBridge() {
       chipText = 'ACNH Data: Offline';
       chipTitle = 'Bridge not connected';
       chipClass = 'is-warn';
-    } else if (state.bridge.gameDataSource === 'live-memory') {
-      chipText = 'ACNH Data: Live';
-      chipTitle = 'Reading live memory data';
-      chipClass = 'is-ok';
     } else if (
       state.bridge.gameDataSource === 'unavailable' ||
       state.bridge.gameDataSource === 'none' ||
@@ -1002,6 +1003,10 @@ function renderBridge() {
       chipText = 'ACNH Data: Error';
       chipTitle = state.bridge.lastError || 'Data read error';
       chipClass = 'is-bad';
+    } else if (state.bridge.gameDataSource) {
+      chipText = 'ACNH Data: Live';
+      chipTitle = `Reading ${state.bridge.gameDataSource}`;
+      chipClass = 'is-ok';
     }
 
     el.acnhDataStatusChip.textContent = chipText;
