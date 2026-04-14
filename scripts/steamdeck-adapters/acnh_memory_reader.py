@@ -89,15 +89,40 @@ def _find_ryujinx_pid() -> int:
         return int(override, 0)
 
     import glob
+    import os.path
+
+    def _looks_like_ryujinx_process(proc_dir: str, cmdline: str) -> bool:
+        cmdline_lc = cmdline.lower()
+
+        # Prefer checking the real executable path when available.
+        exe_path = ""
+        try:
+            exe_path = os.readlink(proc_dir + "/exe")
+        except Exception:
+            exe_path = ""
+
+        exe_name = os.path.basename(exe_path).lower()
+        if exe_name in {"ryujinx", "ryujinx.headless"}:
+            return True
+
+        # Token-based fallback for launcher styles where exe is not directly Ryujinx.
+        tokens = [tok for tok in cmdline_lc.split() if tok]
+        if any(tok.endswith("/ryujinx") or tok.endswith("/ryujinx.headless") for tok in tokens):
+            return True
+        if any(tok in {"ryujinx", "ryujinx.headless"} for tok in tokens):
+            return True
+
+        # Keep explicit known path fallback for existing Steam Deck setup.
+        if "/applications/publish/ryujinx" in cmdline_lc:
+            return True
+
+        # Avoid false positives from shell/client scripts that mention 'ryujinx'.
+        return False
+
     for proc_dir in glob.glob("/proc/[0-9]*"):
         try:
             cmdline = open(proc_dir + "/cmdline", "rb").read().decode("utf-8", "ignore").replace("\x00", " ")
-            # Match the actual Ryujinx binary, not launchers or config browsers.
-            if "/Applications/publish/Ryujinx" in cmdline or (
-                "ryujinx" in cmdline.lower() and
-                "dolphin" not in cmdline.lower() and
-                ".config/Ryujinx" not in cmdline
-            ):
+            if _looks_like_ryujinx_process(proc_dir, cmdline):
                 return int(proc_dir.split("/")[-1])
         except Exception:
             pass
