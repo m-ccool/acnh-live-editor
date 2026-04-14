@@ -30,6 +30,12 @@ This response gate is required in every technical answer.
 - Reject additions that do not advance those sections or the active user request.
 - Reject technical answers that do not cite README headings.
 
+## README Edit Permission
+
+- README edits are not auto-approved.
+- Do not edit `README.md` unless the user explicitly requests a README change in the active conversation.
+- If a README change is needed for MVP safety/run accuracy and was not explicitly requested, stop and ask one concise approval question before editing.
+
 ## Scope
 
 - Active scope: bridge reliability, correct IP usage, Steam Deck connectivity, Ryujinx live-memory reads/writes, and data flow to the existing Windows UI.

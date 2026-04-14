@@ -58,12 +58,16 @@ The app starts on `http://localhost:3000` by default.
 Use this command set to stop any existing local server first, then start a fresh dev server:
 
 ```powershell
-$port = 3000
-$pids = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique
-if ($pids) { $pids | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue } }
-cd ~\acnh-live-editor
+$ports = 3000, 32840
+foreach ($port in $ports) {
+  $pids = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique
+  if ($pids) { $pids | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue } }
+}
+cd C:\Users\mccoo\OneDrive\Developer\acnh-live-editor
 npm run dev
 ```
+
+The floating debug button in the existing Windows UI now runs this same local restart flow from the page, then waits for the app to come back before reloading.
 
 ## Environment Variables
 
@@ -128,7 +132,17 @@ nano .steamdeck-bridge.env
 bash scripts/install-steamdeck-launcher.sh
 ```
 
-After that, just double-click the `ACNH Live Bridge` icon on Desktop to run the bridge client.
+Daily restart block on Steam Deck (clear existing client, refresh launcher, launch):
+
+```bash
+cd ~/acnh-live-editor
+pkill -f "node .*scripts/steamdeck-bridge-client.js" || true
+pkill -f "bash .*scripts/steamdeck-run-bridge.sh" || true
+bash scripts/install-steamdeck-launcher.sh
+bash scripts/steamdeck-run-bridge.sh
+```
+
+After that, you can also double-click the `ACNH Live Bridge` icon on Desktop.
 
 What you should see on launch:
 
@@ -137,11 +151,20 @@ What you should see on launch:
 - The panel status transitions from `CONNECTING` to `CONNECTED` when the bridge socket is live.
 - If the PC bridge is unavailable, the Deck client stays open and retries automatically.
 
+### Hazard Checks (Required For MVP Run Validation)
+
+Run these checks before treating a run as valid:
+
+- Visual check: in the Deck bridge panel, status must reach `CONNECTED` and remain stable (not loop `CLOSED`/`ERROR`).
+- Backend check: on Windows UI (`http://10.0.0.25:3000`), `/api/bridge/status` must report the Deck device and bridge connection.
+- Live data check: `/api/bridge/read-game-data` must return a real `player` payload from live memory.
+- Fail-closed check: if any check fails, treat bridge data as unavailable/error and do not accept fallback/test data as live truth.
+
 If it keeps retrying and does not connect:
 
 1. On PC, start the app server (`npm run dev`) and confirm bridge port `32840` is open.
 2. On Steam Deck, verify `.steamdeck-bridge.env` contains `BRIDGE_TARGET_HOST=10.0.0.25` and `BRIDGE_TARGET_PORT=32840`.
-3. On Steam Deck, rerun `bash scripts/install-steamdeck-launcher.sh` after updates.
+3. On Steam Deck, run the daily restart block above.
 4. Relaunch `ACNH Live Bridge` and watch the panel detail line for connection errors.
 
 Notes:
@@ -265,8 +288,8 @@ Scope guard for Steam Deck MVP:
 
 ### Response Schema
 
-- Technical responses should include: `Scope status`, `README section touched`, and `Excluded items + why`.
-- Run commands using explicit step titles and copy-paste code blocks.
+- Enforcement is centralized in `AGENTS.md`.
+- Follow `AGENTS.md` for the required response gate and command response schema.
 
 ## MVP Roadmap
 

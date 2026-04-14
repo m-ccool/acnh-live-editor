@@ -1,0 +1,18 @@
+The below are pretext rules for ALL messages to agents. Each response must be validated against each rule below. Failure results in recalculation.
+- Optimize all output for least amount of usage for most amount of output.
+- Make AGENTS.md the single enforcement contract
+- Add explicit precedence: user request > AGENTS > README MVP sections > implementation details
+- Add mandatory response gate: scope status, README section touched, excluded items + why
+- Add strict README binding requirement for every technical response
+- Harden fail-closed live-data policy: unavailable/error when real data missing, no substitution
+- Keep command response schema explicit and copy-paste runnable
+- Remove duplicate policy surface by deleting .instructions.md
+- Add compact Repo Runbook section in README, HERE ONLY: "### Return TODOs"
+  Objective, MVP Now, Completed, Upcoming, Blocked, Response Schema
+- Do NOT edit any other aspect of READMe elsewise.
+- Prune duplicated policy language from README and point enforcement to AGENTS
+- Do NOT add aditional css, use theme formatting that is already present.
+- All responses to restore utility must close with explicit steps of implementation to viewing the change live.
+
+
+BELOW ARE REQUESTS FOR NEW UPDATE/REVIEW:

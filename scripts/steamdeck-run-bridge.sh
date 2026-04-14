@@ -135,6 +135,18 @@ validate_target() {
     exit 1
   fi
 
+  if [[ "${BRIDGE_TARGET_HOST}" =~ ^https?:// ]]; then
+    echo "[acnh-bridge] BRIDGE_TARGET_HOST must be an IP/host only (no http:// or https://)"
+    echo "[acnh-bridge] Set BRIDGE_TARGET_HOST=10.0.0.25 in ${ENV_FILE}"
+    exit 1
+  fi
+
+  if [[ "${BRIDGE_TARGET_HOST}" == *:* ]]; then
+    echo "[acnh-bridge] BRIDGE_TARGET_HOST must not include a port"
+    echo "[acnh-bridge] Set BRIDGE_TARGET_HOST=10.0.0.25 and BRIDGE_TARGET_PORT=32840 in ${ENV_FILE}"
+    exit 1
+  fi
+
   case "${BRIDGE_TARGET_HOST}" in
     localhost|127.0.0.1)
       echo "[acnh-bridge] BRIDGE_TARGET_HOST=${BRIDGE_TARGET_HOST} points to Steam Deck itself, not your Windows host"
@@ -142,6 +154,30 @@ validate_target() {
       exit 1
       ;;
   esac
+
+  if [[ "${BRIDGE_TARGET_HOST}" != "10.0.0.25" ]]; then
+    echo "[acnh-bridge] BRIDGE_TARGET_HOST must be 10.0.0.25 for this MVP setup"
+    echo "[acnh-bridge] Current value: ${BRIDGE_TARGET_HOST}"
+    exit 1
+  fi
+
+  if (( BRIDGE_TARGET_PORT != 32840 )); then
+    echo "[acnh-bridge] BRIDGE_TARGET_PORT must be 32840 for this MVP setup"
+    echo "[acnh-bridge] Current value: ${BRIDGE_TARGET_PORT}"
+    exit 1
+  fi
+}
+
+probe_bridge_listener() {
+  if command -v timeout >/dev/null 2>&1; then
+    if timeout 2 bash -lc "cat < /dev/null > /dev/tcp/${BRIDGE_TARGET_HOST}/${BRIDGE_TARGET_PORT}" 2>/dev/null; then
+      return 0
+    fi
+  elif bash -lc "cat < /dev/null > /dev/tcp/${BRIDGE_TARGET_HOST}/${BRIDGE_TARGET_PORT}" 2>/dev/null; then
+    return 0
+  fi
+
+  fail "Unable to reach Windows bridge listener at ${BRIDGE_TARGET_HOST}:${BRIDGE_TARGET_PORT}. Start the Windows app server first, then rerun this launcher."
 }
 
 clear_existing_bridge_client() {
@@ -237,5 +273,7 @@ echo "[acnh-bridge] Node: ${NODE_BIN}"
 echo "[acnh-bridge] Python: ${PYTHON3_BIN}"
 echo "[acnh-bridge] Log: ${LOG_FILE}"
 echo "[acnh-bridge] Hazard checks passed: target + dependencies + entrypoint"
+
+probe_bridge_listener
 
 exec "${NODE_BIN}" "${BRIDGE_CLIENT_ENTRY}"
