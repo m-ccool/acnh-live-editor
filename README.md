@@ -2,6 +2,21 @@
 
 ACNH Live Editor is an offline-first web app for experimenting with Animal Crossing: New Horizons inventory editing, bridge connectivity, and item catalog lookup in a local development workflow.
 
+###work area
+
+cd ~/acnh-live-editor
+git pull --ff-only origin master
+chmod +x scripts/steamdeck-run-bridge.sh scripts/install-steamdeck-launcher.sh
+bash scripts/install-steamdeck-launcher.sh
+
+cd ~/acnh-live-editor
+git pull --ff-only origin master
+chmod +x scripts/steamdeck-run-bridge.sh scripts/install-steamdeck-launcher.sh
+bash scripts/install-steamdeck-launcher.sh
+
+cd ~/acnh-live-editor
+bash scripts/steamdeck-run-bridge.sh
+
 ## Overview
 
 The project currently combines:
