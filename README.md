@@ -224,13 +224,27 @@ Moving forward:
 - Promote tested changes to `master` only after they are confirmed working.
 - Keep Steam Deck and Windows repos on the same branch during a test cycle to avoid mismatch.
 
-Recommended branch flow:
+#### Pre-Test Session Start (run every session before bridge testing)
+
+**Windows (PowerShell):**
+
+```powershell
+cd C:\Users\mccoo\OneDrive\Developer\acnh-live-editor
+git checkout dev
+git pull --ff-only origin dev
+git rev-parse HEAD
+```
+
+**Steam Deck (Konsole):**
 
 ```bash
 cd ~/acnh-live-editor
 git checkout dev
 git pull --ff-only origin dev
+git rev-parse HEAD
 ```
+
+Both commands must print the same commit hash. If they differ, sync the lagging machine before testing.
 
 After `dev` validation passes and you are ready to publish stable bridge behavior:
 
