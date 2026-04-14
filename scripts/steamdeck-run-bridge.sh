@@ -6,6 +6,7 @@ REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 ENV_FILE="${REPO_DIR}/.steamdeck-bridge.env"
 BRIDGE_CLIENT_ENTRY="scripts/steamdeck-bridge-client.js"
 LOG_FILE="${HOME}/.acnh-live-bridge.log"
+DEFAULT_WINDOWS_BRIDGE_HOST="10.0.0.25"
 
 pause_if_interactive() {
   if [[ -t 0 && -t 1 ]]; then
@@ -155,17 +156,28 @@ validate_target() {
       ;;
   esac
 
-  if [[ "${BRIDGE_TARGET_HOST}" != "10.0.0.25" ]]; then
-    echo "[acnh-bridge] BRIDGE_TARGET_HOST must be 10.0.0.25 for this MVP setup"
-    echo "[acnh-bridge] Current value: ${BRIDGE_TARGET_HOST}"
-    exit 1
+}
+
+normalize_target_host() {
+  local raw_host="${BRIDGE_TARGET_HOST:-}"
+  local trimmed_host="${raw_host#${raw_host%%[![:space:]]*}}"
+  trimmed_host="${trimmed_host%${trimmed_host##*[![:space:]]}}"
+
+  if [[ -z "${trimmed_host}" ]]; then
+    BRIDGE_TARGET_HOST="${DEFAULT_WINDOWS_BRIDGE_HOST}"
+    echo "[acnh-bridge] BRIDGE_TARGET_HOST not set, using default Windows host ${BRIDGE_TARGET_HOST}"
+    return
   fi
 
-  if (( BRIDGE_TARGET_PORT != 32840 )); then
-    echo "[acnh-bridge] BRIDGE_TARGET_PORT must be 32840 for this MVP setup"
-    echo "[acnh-bridge] Current value: ${BRIDGE_TARGET_PORT}"
-    exit 1
-  fi
+  case "${trimmed_host}" in
+    YOUR_PC_LAN_IP|YOUR_WINDOWS_PC_IP|YOUR_PC_IP|REPLACE_ME|CHANGEME|"<YOUR_PC_LAN_IP>"|"<YOUR_WINDOWS_PC_IP>")
+      BRIDGE_TARGET_HOST="${DEFAULT_WINDOWS_BRIDGE_HOST}"
+      echo "[acnh-bridge] BRIDGE_TARGET_HOST placeholder detected (${trimmed_host}); using ${BRIDGE_TARGET_HOST}"
+      return
+      ;;
+  esac
+
+  BRIDGE_TARGET_HOST="${trimmed_host}"
 }
 
 probe_bridge_listener() {
@@ -207,16 +219,7 @@ touch "${LOG_FILE}" 2>/dev/null || true
 exec > >(tee -a "${LOG_FILE}") 2>&1
 trap 'handle_unexpected_error "${LINENO}" "${BASH_COMMAND}" "$?"' ERR
 
-if [[ -z "${BRIDGE_TARGET_HOST:-}" ]]; then
-  DEFAULT_GATEWAY="$(ip route 2>/dev/null | awk '/default/ {print $3; exit}')"
-  if [[ -n "${DEFAULT_GATEWAY}" ]]; then
-    BRIDGE_TARGET_HOST="${DEFAULT_GATEWAY}"
-    echo "[acnh-bridge] BRIDGE_TARGET_HOST not set, using gateway ${BRIDGE_TARGET_HOST}"
-  else
-    echo "[acnh-bridge] BRIDGE_TARGET_HOST is required. Set it in ${ENV_FILE}."
-    exit 1
-  fi
-fi
+normalize_target_host
 
 : "${BRIDGE_TARGET_PORT:=32840}"
 : "${BRIDGE_DEVICE_NAME:=steamdeck-bridge-client}"

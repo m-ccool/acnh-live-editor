@@ -44,6 +44,19 @@ function createApiRouter(options = {}) {
     })
   })
 
+  router.get('/api/bridge/status', (req, res) => {
+    const bridgeStatus = bridgeService.getStatus()
+    const listenerIp = getPreferredLocalIp(req)
+    res.json({
+      ...bridgeStatus,
+      ip: listenerIp || bridgeStatus.ip,
+      listenerIp,
+      clientIp: bridgeStatus.ip || null,
+      bridgeHost: bridgeStatus.bridgeHost || BRIDGE_HOST,
+      bridgePort: bridgeStatus.bridgePort || BRIDGE_PORT
+    })
+  })
+
   router.get('/api/bridge/read-status', async (req, res) => {
     try {
       res.json(await bridgeService.readStatus())
