@@ -67,18 +67,20 @@ _ENCRYPTION_CONSTANT = 0x80E32B11
 _SHIFT_BASE = 3
 _PLAYER_FROM_SLOT1_LAYOUT_DELTAS = [
     {
-        "name": -0x2BA40,
-        "town": -0x2BA5C,
-        "wallet": 0xB8,
-        "bank": 0x24A34,
-        "miles": -0x25590,
+        # Canonical ACNH 2.0.7 live-memory layout relative to slot1.
+        "name": 0xA7D20,
+        "town": 0xA7F20,
+        "wallet": 0xA7E30,
+        "bank": 0xA7E34,
+        "miles": 0xA7E38,
     },
     {
-        "name": -0x2BA40,
-        "town": -0x2BA5C,
-        "wallet": 0xB8,
-        "bank": 0x2D5D4,
-        "miles": -0x25590,
+        # Save-style name/town packing against the same struct neighborhood.
+        "name": 0xA7D40,
+        "town": 0xA7D24,
+        "wallet": 0xA7E30,
+        "bank": 0xA7E34,
+        "miles": 0xA7E38,
     },
 ]
 
@@ -329,7 +331,7 @@ def _calibrate_player_snapshot(pid: int, dram_base: int, offsets: dict, name_byt
         inventory_offsets = _get_inventory_offsets()
         for layout_index in range(len(_PLAYER_FROM_SLOT1_LAYOUT_DELTAS)):
             base_offsets = _offsets_from_inventory_anchor(inventory_offsets, layout_index)
-            for delta in range(-0x40, 0x42, 2):
+            for delta in range(-0x2000, 0x2002, 2):
                 candidate_offsets = _offsets_with_struct_delta(base_offsets, delta)
                 try:
                     candidate = _read_player_snapshot(pid, dram_base, candidate_offsets, name_bytes, town_bytes)
