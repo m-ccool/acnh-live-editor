@@ -773,25 +773,33 @@ def _is_garbage_text(text: str) -> bool:
 def _find_player_struct_offset(pid: int, dram_base: int) -> dict:
     """Search for correct player struct offsets by pattern matching 'the island' in UTF-16LE."""
     pattern = "the island".encode("utf-16le")
-    search_size = 0x500000
+    
+    # Search around the default player struct region
+    search_base = 0xAFBC6000
+    search_range = 0x10000
     
     try:
-        chunk = _read_switch_va(pid, dram_base, dram_base, min(search_size * 2, 0x1000000))
-        idx = chunk.find(pattern)
-        if idx >= 0:
-            town_va = dram_base + idx
-            name_va = town_va - 0x200
-            wallet_va = town_va - 0xF0
-            bank_va = wallet_va + 4
-            miles_va = bank_va + 4
-            
-            return {
-                "name":   name_va,
-                "town":   town_va,
-                "wallet": wallet_va,
-                "bank":   bank_va,
-                "miles":  miles_va,
-            }
+        for offset in range(-search_range, search_range, 16):
+            search_va = search_base + offset
+            try:
+                chunk = _read_switch_va(pid, dram_base, search_va, 0x1000)
+                idx = chunk.find(pattern)
+                if idx >= 0:
+                    town_va = search_va + idx
+                    name_va = town_va - 0x200
+                    wallet_va = town_va - 0xF0
+                    bank_va = wallet_va + 4
+                    miles_va = bank_va + 4
+                    
+                    return {
+                        "name":   name_va,
+                        "town":   town_va,
+                        "wallet": wallet_va,
+                        "bank":   bank_va,
+                        "miles":  miles_va,
+                    }
+            except Exception:
+                continue
     except Exception:
         pass
     
