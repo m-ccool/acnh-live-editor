@@ -69,6 +69,7 @@ This response gate is required in every technical answer.
 ## Command Response Schema
 
 - Always provide explicit step-by-step run instructions.
+- If using acronyms, always describe it in perenthesis
 - One step title + one fenced code block per step.
 - Commands must be plain copy-paste runnable.
 - First line must be `cd` when directory context matters.

@@ -6,8 +6,7 @@ The below are pretext rules for ALL messages to agents. Each response must be va
 - Add strict README binding requirement for every technical response
 - Harden fail-closed live-data policy: unavailable/error when real data missing, no substitution
 - Keep command response schema explicit and copy-paste runnable
-- Remove duplicate policy surface by deleting .instructions.md
-- Add compact Repo Runbook section in README, HERE ONLY: "### Return TODOs"
+- Add compact Repo Runbook section in README, HERE ONLY: "### Return TODOs":
   Objective, MVP Now, Completed, Upcoming, Blocked, Response Schema
 - Do NOT edit any other aspect of READMe elsewise.
 - Prune duplicated policy language from README and point enforcement to AGENTS
