@@ -67,20 +67,20 @@ _ENCRYPTION_CONSTANT = 0x80E32B11
 _SHIFT_BASE = 3
 _PLAYER_FROM_SLOT1_LAYOUT_DELTAS = [
     {
-        # Canonical ACNH 2.0.7 live-memory layout relative to slot1.
-        "name": 0xA7D20,
-        "town": 0xA7F20,
-        "wallet": 0xA7E30,
-        "bank": 0xA7E34,
-        "miles": 0xA7E38,
+        # Layout 20 from ryujinx-save.js, anchored from working slot 1 (pockets2).
+        "name": -0x2BA40,
+        "town": -0x2BA5C,
+        "wallet": 0xB8,
+        "bank": 0x24A34,
+        "miles": -0x25590,
     },
     {
-        # Save-style name/town packing against the same struct neighborhood.
-        "name": 0xA7D40,
-        "town": 0xA7D24,
-        "wallet": 0xA7E30,
-        "bank": 0xA7E34,
-        "miles": 0xA7E38,
+        # Layout 30 from ryujinx-save.js, anchored from working slot 1 (pockets2).
+        "name": -0x2BA40,
+        "town": -0x2BA5C,
+        "wallet": 0xB8,
+        "bank": 0x2D5D4,
+        "miles": -0x25590,
     },
 ]
 
@@ -757,75 +757,19 @@ def _write_slot_procmem(pid: int, dram_base: int, slot_payload: dict):
     return _decode_slot(refreshed, slot_payload["slot"])
 
 
-# ---------------------------------------------------------------------------
-# Command handlers — proc_mem mode
-# ---------------------------------------------------------------------------
-
-def _is_garbage_text(text: str) -> bool:
-    """Check if text is garbage Unicode (unprintable)."""
-    text = str(text or "").strip()
-    if not text:
-        return True
-    printable = sum(1 for ch in text if ch.isprintable() and ord(ch) < 0x3000)
-    return printable == 0
-
-
-def _find_player_struct_offset(pid: int, dram_base: int) -> dict:
-    """Search for correct player struct offsets by pattern matching 'the island' in UTF-16LE."""
-    pattern = "the island".encode("utf-16le")
-    
-    # Search around the default player struct region
-    search_base = 0xAFBC6000
-    search_range = 0x10000
-    
-    try:
-        for offset in range(-search_range, search_range, 16):
-            search_va = search_base + offset
-            try:
-                chunk = _read_switch_va(pid, dram_base, search_va, 0x1000)
-                idx = chunk.find(pattern)
-                if idx >= 0:
-                    town_va = search_va + idx
-                    name_va = town_va - 0x200
-                    wallet_va = town_va - 0xF0
-                    bank_va = wallet_va + 4
-                    miles_va = bank_va + 4
-                    
-                    return {
-                        "name":   name_va,
-                        "town":   town_va,
-                        "wallet": wallet_va,
-                        "bank":   bank_va,
-                        "miles":  miles_va,
-                    }
-            except Exception:
-                continue
-    except Exception:
-        pass
-    
-    return None
-
-
 def read_game_data_procmem():
     _check_ptrace_scope()
     pid = _find_ryujinx_pid()
     dram_base = _find_dram_base(pid)
     offs = _get_offsets()
-
-    name  = _decode_utf16le(_read_switch_va(pid, dram_base, offs["name"],   16))
-    town  = _decode_utf16le(_read_switch_va(pid, dram_base, offs["town"],   16))
-    
-    # If player data is garbage, try to auto-calibrate
-    if _is_garbage_text(name) or _is_garbage_text(town):
-        calibrated = _find_player_struct_offset(pid, dram_base)
-        if calibrated:
-            offs = calibrated
-            name  = _decode_utf16le(_read_switch_va(pid, dram_base, offs["name"],   16))
-            town  = _decode_utf16le(_read_switch_va(pid, dram_base, offs["town"],   16))
-    
-    wallet = _read_uint32(_read_switch_va(pid, dram_base, offs["wallet"],    4))
-    bank   = _read_uint32(_read_switch_va(pid, dram_base, offs["bank"],      4))
-    miles  = _read_uint32(_read_switch_va(pid, dram_base, offs["miles"],     4))
+    name_bytes = max(2, int(os.environ.get("ACNH_PLAYER_NAME_BYTES", str(_DEFAULT_PLAYER_TEXT_BYTES))))
+    town_bytes = max(2, int(os.environ.get("ACNH_PLAYER_TOWN_BYTES", str(_DEFAULT_PLAYER_TEXT_BYTES))))
+    snapshot = _calibrate_player_snapshot(pid, dram_base, offs, name_bytes, town_bytes)
+    name = snapshot["name"]
+    town = snapshot["town"]
+    wallet = snapshot["wallet"]
+    bank = snapshot["bank"]
+    miles = snapshot["miles"]
 
     payload = {
         "player": {
@@ -926,6 +870,23 @@ def cmd_scan():
 
     best = candidates[0]
     print(f"[scan] Best candidate base: {hex(best['base'])} (score {best['score']})", file=sys.stderr)
+
+    try:
+        name_bytes = max(2, int(os.environ.get("ACNH_PLAYER_NAME_BYTES", str(_DEFAULT_PLAYER_TEXT_BYTES))))
+        town_bytes = max(2, int(os.environ.get("ACNH_PLAYER_TOWN_BYTES", str(_DEFAULT_PLAYER_TEXT_BYTES))))
+        snapshot = _calibrate_player_snapshot(pid, best["base"], offs, name_bytes, town_bytes)
+        print(
+            f"[scan] Calibrated player snapshot: "
+            f"name={snapshot['name']!r} town={snapshot['town']!r} "
+            f"wallet={snapshot['wallet']} bank={snapshot['bank']} miles={snapshot['miles']} "
+            f"encryptedHits={snapshot.get('encryptedHits', 0)} "
+            f"offsets={{name:{hex(snapshot['offsets']['name'])}, town:{hex(snapshot['offsets']['town'])}, "
+            f"wallet:{hex(snapshot['offsets']['wallet'])}, bank:{hex(snapshot['offsets']['bank'])}, miles:{hex(snapshot['offsets']['miles'])}}}",
+            file=sys.stderr,
+        )
+    except Exception as exc:
+        print(f"[scan] Calibrated player snapshot failed: {exc}", file=sys.stderr)
+
     return 0
 
 
