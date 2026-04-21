@@ -261,7 +261,12 @@ def _score_player_snapshot(snapshot: dict) -> int:
         score += 8
     if _is_clean_player_text(snapshot["name"]) and _is_clean_player_text(snapshot["town"]):
         score += 6
-    score += snapshot.get("encryptedHits", 0) * 3
+    encrypted_hits = int(snapshot.get("encryptedHits", 0))
+    if encrypted_hits == 0:
+        # Wallet/bank/miles should be checksum-valid encrypted fields in live data.
+        score -= 20
+    else:
+        score += encrypted_hits * 8
 
     wallet = snapshot["wallet"]
     bank = snapshot["bank"]
@@ -284,6 +289,16 @@ def _offsets_from_inventory_anchor(inventory_offsets: dict, delta_adjust: int = 
         "wallet": slot1 + deltas["wallet"],
         "bank": slot1 + deltas["bank"],
         "miles": slot1 + deltas["miles"],
+    }
+
+
+def _offsets_with_struct_delta(offsets: dict, delta: int) -> dict:
+    return {
+        "name": offsets["name"] + delta,
+        "town": offsets["town"] + delta,
+        "wallet": offsets["wallet"] + delta,
+        "bank": offsets["bank"] + delta,
+        "miles": offsets["miles"] + delta,
     }
 
 
@@ -313,15 +328,17 @@ def _calibrate_player_snapshot(pid: int, dram_base: int, offsets: dict, name_byt
     try:
         inventory_offsets = _get_inventory_offsets()
         for layout_index in range(len(_PLAYER_FROM_SLOT1_LAYOUT_DELTAS)):
-            candidate_offsets = _offsets_from_inventory_anchor(inventory_offsets, layout_index)
-            try:
-                candidate = _read_player_snapshot(pid, dram_base, candidate_offsets, name_bytes, town_bytes)
-            except Exception:
-                continue
-            score = _score_player_snapshot(candidate)
-            if score > best_score:
-                best = candidate
-                best_score = score
+            base_offsets = _offsets_from_inventory_anchor(inventory_offsets, layout_index)
+            for delta in range(-0x40, 0x42, 2):
+                candidate_offsets = _offsets_with_struct_delta(base_offsets, delta)
+                try:
+                    candidate = _read_player_snapshot(pid, dram_base, candidate_offsets, name_bytes, town_bytes)
+                except Exception:
+                    continue
+                score = _score_player_snapshot(candidate)
+                if score > best_score:
+                    best = candidate
+                    best_score = score
     except Exception:
         pass
 
