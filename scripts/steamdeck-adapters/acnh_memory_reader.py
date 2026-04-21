@@ -787,48 +787,45 @@ def read_game_data_procmem():
     _check_ptrace_scope()
     pid = _find_ryujinx_pid()
     dram_base = _find_dram_base(pid)
+    
+    # Read player data from save file (live-memory calibration is unreliable).
+    save_data = _read_game_data_from_save()
+    if save_data and isinstance(save_data, dict) and save_data.get("player"):
+        player = save_data["player"]
+        slots = _read_all_slots_procmem(pid, dram_base)
+        payload = {
+            "player": {
+                "name": player.get("name", ""),
+                "town": player.get("town", ""),
+                "wallet": int(player.get("wallet", 0)),
+                "bank": int(player.get("bank", 0)),
+                "miles": int(player.get("miles", 0)),
+                "avatar": os.environ.get("ACNH_PLAYER_AVATAR", "/assets/items/Bob_NH.png"),
+            },
+            "slots": slots,
+            "source": "hybrid",
+            "playerSource": "save-file",
+            "inventorySource": "live-memory",
+            "backend": "procmem+save",
+            "lastGameSaveAt": save_data.get("lastGameSaveAt", datetime.now(timezone.utc).isoformat()),
+            "lastGameDataFilePath": save_data.get("lastGameDataFilePath"),
+        }
+        print(json.dumps(payload))
+        return
+    
+    # Fallback: if save-file read fails, try live-memory calibration.
     offs = _get_offsets()
     name_bytes = max(2, int(os.environ.get("ACNH_PLAYER_NAME_BYTES", str(_DEFAULT_PLAYER_TEXT_BYTES))))
     town_bytes = max(2, int(os.environ.get("ACNH_PLAYER_TOWN_BYTES", str(_DEFAULT_PLAYER_TEXT_BYTES))))
     snapshot = _calibrate_player_snapshot(pid, dram_base, offs, name_bytes, town_bytes)
-    name = snapshot["name"]
-    town = snapshot["town"]
-    wallet = snapshot["wallet"]
-    bank = snapshot["bank"]
-    miles = snapshot["miles"]
-
-    # If live-memory player data looks like garbage, fall back to save file.
-    if not _is_clean_player_text(name) or not _is_clean_player_text(town):
-        save_data = _read_game_data_from_save()
-        if save_data and isinstance(save_data, dict) and save_data.get("player"):
-            player = save_data["player"]
-            slots = _read_all_slots_procmem(pid, dram_base)
-            payload = {
-                "player": {
-                    "name": player.get("name", ""),
-                    "town": player.get("town", ""),
-                    "wallet": int(player.get("wallet", 0)),
-                    "bank": int(player.get("bank", 0)),
-                    "miles": int(player.get("miles", 0)),
-                    "avatar": os.environ.get("ACNH_PLAYER_AVATAR", "/assets/items/Bob_NH.png"),
-                },
-                "slots": slots,
-                "source": "hybrid-fallback",
-                "liveMemorySource": "save-file",
-                "backend": "procmem+save",
-                "lastGameSaveAt": save_data.get("lastGameSaveAt", datetime.now(timezone.utc).isoformat()),
-                "lastGameDataFilePath": save_data.get("lastGameDataFilePath"),
-            }
-            print(json.dumps(payload))
-            return
-
+    
     payload = {
         "player": {
-            "name":   name,
-            "town":   town,
-            "wallet": wallet,
-            "bank":   bank,
-            "miles":  miles,
+            "name":   snapshot["name"],
+            "town":   snapshot["town"],
+            "wallet": snapshot["wallet"],
+            "bank":   snapshot["bank"],
+            "miles":  snapshot["miles"],
             "avatar": os.environ.get("ACNH_PLAYER_AVATAR", "/assets/items/Bob_NH.png"),
         },
         "slots": _read_all_slots_procmem(pid, dram_base),
