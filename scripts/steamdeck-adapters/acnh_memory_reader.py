@@ -65,6 +65,13 @@ BOTBASE_FALLBACK_PORTS = [6000, 6001]
 _DEFAULT_PLAYER_TEXT_BYTES = 20
 _ENCRYPTION_CONSTANT = 0x80E32B11
 _SHIFT_BASE = 3
+_DEFAULT_EXPECTED_PLAYER = {
+    "name": "b",
+    "town": "the island",
+    "wallet": 10146,
+    "bank": 999922002,
+    "miles": 9999999,
+}
 _PLAYER_FROM_SLOT1_LAYOUT_DELTAS = [
     {
         # Layout 20 from ryujinx-save.js, anchored from working slot 1 (pockets2).
@@ -347,6 +354,107 @@ def _calibrate_player_snapshot(pid: int, dram_base: int, offsets: dict, name_byt
     # If baseline is already clean, avoid extra scan work.
     if _is_clean_player_text(baseline["name"]) and _is_clean_player_text(baseline["town"]):
         return baseline
+
+    return best
+
+
+def _get_expected_player() -> dict:
+    def pick_text(env_key: str, default: str) -> str:
+        return str(os.environ.get(env_key, default)).strip()
+
+    def pick_int(env_key: str, default: int) -> int:
+        raw = os.environ.get(env_key, "").strip()
+        if not raw:
+            return default
+        return int(raw, 0)
+
+    return {
+        "name": pick_text("ACNH_EXPECTED_PLAYER_NAME", _DEFAULT_EXPECTED_PLAYER["name"]),
+        "town": pick_text("ACNH_EXPECTED_PLAYER_TOWN", _DEFAULT_EXPECTED_PLAYER["town"]),
+        "wallet": pick_int("ACNH_EXPECTED_PLAYER_WALLET", _DEFAULT_EXPECTED_PLAYER["wallet"]),
+        "bank": pick_int("ACNH_EXPECTED_PLAYER_BANK", _DEFAULT_EXPECTED_PLAYER["bank"]),
+        "miles": pick_int("ACNH_EXPECTED_PLAYER_MILES", _DEFAULT_EXPECTED_PLAYER["miles"]),
+    }
+
+
+def _iter_pattern_matches(pid: int, dram_base: int, start_va: int, end_va: int, pattern: bytes, chunk_size: int = 0x40000):
+    overlap = max(0, len(pattern) - 1)
+    cursor = start_va
+    tail = b""
+    while cursor < end_va:
+        size = min(chunk_size, end_va - cursor)
+        chunk = _read_switch_va(pid, dram_base, cursor, size)
+        haystack = tail + chunk
+        search_from = 0
+        while True:
+            idx = haystack.find(pattern, search_from)
+            if idx < 0:
+                break
+            yield (cursor - len(tail)) + idx
+            search_from = idx + 1
+        if overlap:
+            tail = haystack[-overlap:]
+        else:
+            tail = b""
+        cursor += size
+
+
+def _score_snapshot_against_expected(snapshot: dict, expected: dict) -> int:
+    score = _score_player_snapshot(snapshot)
+    if snapshot["town"].strip().lower() == expected["town"].strip().lower():
+        score += 100
+    if snapshot["name"].strip() == expected["name"].strip():
+        score += 50
+    if snapshot["wallet"] == expected["wallet"]:
+        score += 40
+    if snapshot["bank"] == expected["bank"]:
+        score += 40
+    if snapshot["miles"] == expected["miles"]:
+        score += 40
+    return score
+
+
+def _find_expected_player_snapshot(pid: int, dram_base: int, name_bytes: int, town_bytes: int):
+    expected = _get_expected_player()
+    inventory_offsets = _get_inventory_offsets()
+    slot1 = inventory_offsets["slot1"]
+    search_start = max(0, slot1 - 0x400000)
+    search_end = slot1 + 0x400000
+    town_pattern = expected["town"].encode("utf-16le")
+
+    best = None
+    best_score = -10**9
+    seen_towns = set()
+
+    candidate_relative_layouts = [
+        {"name_delta": 0x1C, "wallet_delta": 0x2BB14, "bank_delta": 0x50490, "miles_delta": 0x64CC},
+        {"name_delta": 0x1C, "wallet_delta": 0x2BB14, "bank_delta": 0x59030, "miles_delta": 0x64CC},
+        {"name_delta": -0x200, "wallet_delta": -0xF0, "bank_delta": -0xEC, "miles_delta": -0xE8},
+    ]
+
+    try:
+        for town_va in _iter_pattern_matches(pid, dram_base, search_start, search_end, town_pattern):
+            if town_va in seen_towns:
+                continue
+            seen_towns.add(town_va)
+            for layout in candidate_relative_layouts:
+                offsets = {
+                    "town": town_va,
+                    "name": town_va + layout["name_delta"],
+                    "wallet": town_va + layout["wallet_delta"],
+                    "bank": town_va + layout["bank_delta"],
+                    "miles": town_va + layout["miles_delta"],
+                }
+                try:
+                    snapshot = _read_player_snapshot(pid, dram_base, offsets, name_bytes, town_bytes)
+                except Exception:
+                    continue
+                score = _score_snapshot_against_expected(snapshot, expected)
+                if score > best_score:
+                    best = snapshot
+                    best_score = score
+    except Exception:
+        return None
 
     return best
 
@@ -765,6 +873,13 @@ def read_game_data_procmem():
     name_bytes = max(2, int(os.environ.get("ACNH_PLAYER_NAME_BYTES", str(_DEFAULT_PLAYER_TEXT_BYTES))))
     town_bytes = max(2, int(os.environ.get("ACNH_PLAYER_TOWN_BYTES", str(_DEFAULT_PLAYER_TEXT_BYTES))))
     snapshot = _calibrate_player_snapshot(pid, dram_base, offs, name_bytes, town_bytes)
+    expected = _get_expected_player()
+    if _score_snapshot_against_expected(snapshot, expected) < 120:
+        expected_snapshot = _find_expected_player_snapshot(pid, dram_base, name_bytes, town_bytes)
+        if expected_snapshot is not None:
+            expected_score = _score_snapshot_against_expected(expected_snapshot, expected)
+            if expected_score > _score_snapshot_against_expected(snapshot, expected):
+                snapshot = expected_snapshot
     name = snapshot["name"]
     town = snapshot["town"]
     wallet = snapshot["wallet"]
@@ -875,6 +990,13 @@ def cmd_scan():
         name_bytes = max(2, int(os.environ.get("ACNH_PLAYER_NAME_BYTES", str(_DEFAULT_PLAYER_TEXT_BYTES))))
         town_bytes = max(2, int(os.environ.get("ACNH_PLAYER_TOWN_BYTES", str(_DEFAULT_PLAYER_TEXT_BYTES))))
         snapshot = _calibrate_player_snapshot(pid, best["base"], offs, name_bytes, town_bytes)
+        expected = _get_expected_player()
+        expected_snapshot = _find_expected_player_snapshot(pid, best["base"], name_bytes, town_bytes)
+        if expected_snapshot is not None:
+            expected_score = _score_snapshot_against_expected(expected_snapshot, expected)
+            current_score = _score_snapshot_against_expected(snapshot, expected)
+            if expected_score > current_score:
+                snapshot = expected_snapshot
         print(
             f"[scan] Calibrated player snapshot: "
             f"name={snapshot['name']!r} town={snapshot['town']!r} "
