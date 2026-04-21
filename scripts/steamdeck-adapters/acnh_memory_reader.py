@@ -24,7 +24,6 @@ Key env vars (proc_mem mode):
 import json
 import os
 import struct
-import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -762,70 +761,25 @@ def _write_slot_procmem(pid: int, dram_base: int, slot_payload: dict):
 # Command handlers — proc_mem mode
 # ---------------------------------------------------------------------------
 
-def _read_game_data_from_save():
-    """Fallback: read game data from Ryujinx save file using Node.js parser."""
-    try:
-        script_dir = Path(__file__).resolve().parent.parent
-        read_game_data_js = script_dir / "read-game-data.js"
-        if not read_game_data_js.exists():
-            return None
-        
-        result = subprocess.run(
-            ["node", str(read_game_data_js)],
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            return json.loads(result.stdout)
-    except Exception:
-        pass
-    return None
-
-
 def read_game_data_procmem():
     _check_ptrace_scope()
     pid = _find_ryujinx_pid()
     dram_base = _find_dram_base(pid)
-    
-    # Read player data from save file (live-memory calibration is unreliable).
-    save_data = _read_game_data_from_save()
-    if save_data and isinstance(save_data, dict) and save_data.get("player"):
-        player = save_data["player"]
-        slots = _read_all_slots_procmem(pid, dram_base)
-        payload = {
-            "player": {
-                "name": player.get("name", ""),
-                "town": player.get("town", ""),
-                "wallet": int(player.get("wallet", 0)),
-                "bank": int(player.get("bank", 0)),
-                "miles": int(player.get("miles", 0)),
-                "avatar": os.environ.get("ACNH_PLAYER_AVATAR", "/assets/items/Bob_NH.png"),
-            },
-            "slots": slots,
-            "source": "hybrid",
-            "playerSource": "save-file",
-            "inventorySource": "live-memory",
-            "backend": "procmem+save",
-            "lastGameSaveAt": save_data.get("lastGameSaveAt", datetime.now(timezone.utc).isoformat()),
-            "lastGameDataFilePath": save_data.get("lastGameDataFilePath"),
-        }
-        print(json.dumps(payload))
-        return
-    
-    # Fallback: if save-file read fails, try live-memory calibration.
     offs = _get_offsets()
-    name_bytes = max(2, int(os.environ.get("ACNH_PLAYER_NAME_BYTES", str(_DEFAULT_PLAYER_TEXT_BYTES))))
-    town_bytes = max(2, int(os.environ.get("ACNH_PLAYER_TOWN_BYTES", str(_DEFAULT_PLAYER_TEXT_BYTES))))
-    snapshot = _calibrate_player_snapshot(pid, dram_base, offs, name_bytes, town_bytes)
-    
+
+    name  = _decode_utf16le(_read_switch_va(pid, dram_base, offs["name"],   16))
+    town  = _decode_utf16le(_read_switch_va(pid, dram_base, offs["town"],   16))
+    wallet = _read_uint32(_read_switch_va(pid, dram_base, offs["wallet"],    4))
+    bank   = _read_uint32(_read_switch_va(pid, dram_base, offs["bank"],      4))
+    miles  = _read_uint32(_read_switch_va(pid, dram_base, offs["miles"],     4))
+
     payload = {
         "player": {
-            "name":   snapshot["name"],
-            "town":   snapshot["town"],
-            "wallet": snapshot["wallet"],
-            "bank":   snapshot["bank"],
-            "miles":  snapshot["miles"],
+            "name":   name,
+            "town":   town,
+            "wallet": wallet,
+            "bank":   bank,
+            "miles":  miles,
             "avatar": os.environ.get("ACNH_PLAYER_AVATAR", "/assets/items/Bob_NH.png"),
         },
         "slots": _read_all_slots_procmem(pid, dram_base),
