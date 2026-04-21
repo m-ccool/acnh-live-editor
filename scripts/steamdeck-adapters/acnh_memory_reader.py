@@ -761,6 +761,43 @@ def _write_slot_procmem(pid: int, dram_base: int, slot_payload: dict):
 # Command handlers — proc_mem mode
 # ---------------------------------------------------------------------------
 
+def _is_garbage_text(text: str) -> bool:
+    """Check if text is garbage Unicode (unprintable)."""
+    text = str(text or "").strip()
+    if not text:
+        return True
+    printable = sum(1 for ch in text if ch.isprintable() and ord(ch) < 0x3000)
+    return printable == 0
+
+
+def _find_player_struct_offset(pid: int, dram_base: int) -> dict:
+    """Search for correct player struct offsets by pattern matching 'the island' in UTF-16LE."""
+    pattern = "the island".encode("utf-16le")
+    search_size = 0x500000
+    
+    try:
+        chunk = _read_switch_va(pid, dram_base, dram_base, min(search_size * 2, 0x1000000))
+        idx = chunk.find(pattern)
+        if idx >= 0:
+            town_va = dram_base + idx
+            name_va = town_va - 0x200
+            wallet_va = town_va - 0xF0
+            bank_va = wallet_va + 4
+            miles_va = bank_va + 4
+            
+            return {
+                "name":   name_va,
+                "town":   town_va,
+                "wallet": wallet_va,
+                "bank":   bank_va,
+                "miles":  miles_va,
+            }
+    except Exception:
+        pass
+    
+    return None
+
+
 def read_game_data_procmem():
     _check_ptrace_scope()
     pid = _find_ryujinx_pid()
@@ -769,6 +806,15 @@ def read_game_data_procmem():
 
     name  = _decode_utf16le(_read_switch_va(pid, dram_base, offs["name"],   16))
     town  = _decode_utf16le(_read_switch_va(pid, dram_base, offs["town"],   16))
+    
+    # If player data is garbage, try to auto-calibrate
+    if _is_garbage_text(name) or _is_garbage_text(town):
+        calibrated = _find_player_struct_offset(pid, dram_base)
+        if calibrated:
+            offs = calibrated
+            name  = _decode_utf16le(_read_switch_va(pid, dram_base, offs["name"],   16))
+            town  = _decode_utf16le(_read_switch_va(pid, dram_base, offs["town"],   16))
+    
     wallet = _read_uint32(_read_switch_va(pid, dram_base, offs["wallet"],    4))
     bank   = _read_uint32(_read_switch_va(pid, dram_base, offs["bank"],      4))
     miles  = _read_uint32(_read_switch_va(pid, dram_base, offs["miles"],     4))
