@@ -265,15 +265,6 @@
 
             <div class="selected-item-actions">
               <button
-                id="open-selected-search-button"
-                class="toolbar-icon-btn square"
-                type="button"
-                aria-label="Search selected item"
-              >
-                <span class="search-glyph">⌕</span>
-              </button>
-
-              <button
                 id="copy-selected-button"
                 class="toolbar-icon-btn square"
                 type="button"
@@ -357,19 +348,13 @@
 
       <div class="player-actions-bar">
         <button
-          id="pause-bridge-button"
+          id="open-selected-search-button"
           class="toolbar-icon-btn action-btn"
           type="button"
-          aria-label="Pause bridge read"
-          aria-pressed="false"
+          aria-label="Search selected item"
         >
-          <img
-            src="/assets/icons/line-md--pause.svg"
-            alt=""
-            class="icon-img icon-white"
-            onerror="this.style.display='none';this.parentNode.textContent='⏸';"
-          />
-          <span>Pause</span>
+          <span class="search-glyph">⌕</span>
+          <span>Search</span>
         </button>
       </div>
 
@@ -481,16 +466,6 @@
             </div>
           </div>
         </section>
-
-        <section
-          id="tab-panel-villagers"
-          class="tab-panel"
-          role="tabpanel"
-          aria-labelledby="tab-villagers"
-          hidden
-        >
-          <div class="tab-layout">
-            <div class="tab-panel-copy">
               <h3>Villagers Workbench</h3>
               <p>The villager-specific editor is still queued, but the session shell now tracks the live player profile and what is already wired.</p>
             </div>

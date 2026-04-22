@@ -304,6 +304,7 @@ function renderInventory() {
       renderSelectedPreview();
       renderClipboardState();
       renderItemModal();
+      openItemModalForSelectedSlot();
     },
     async onPointerUp(index, event) {
       if (event.pointerType !== 'touch') {
@@ -522,11 +523,12 @@ function renderItemModalResults() {
 }
 
 function assignItemToSelectedSlot(item) {
-  rememberCatalogItems([item]);
-  state.modalPendingItem = item;
-  state.modalSearchQuery = item.name;
+  const resolvedItem = findItemByLookup(item && item.file_name, item && item.name) || item;
+  rememberCatalogItems([resolvedItem]);
+  state.modalPendingItem = resolvedItem;
+  state.modalSearchQuery = resolvedItem.name;
   if (el.modalSearchInput) {
-    el.modalSearchInput.value = item.name;
+    el.modalSearchInput.value = resolvedItem.name;
   }
   state.modalSearchOpen = false;
   renderItemModal();
@@ -581,12 +583,15 @@ function openItemModalForSelectedSlot() {
 async function applyItemEdits(options = {}) {
   clearItemModalAutoApplyTimer();
   const slot = getSelectedSlot();
-  const item = state.modalPendingItem;
+  const item = state.modalPendingItem
+    ? (findItemByLookup(state.modalPendingItem.file_name || state.modalPendingItem.name, state.modalPendingItem.name) || state.modalPendingItem)
+    : null;
   const closeModalAfterWrite = options.closeModalAfterWrite !== false;
   const payload = {
     slot: slot.slot,
     itemId: item ? (item.file_name || item.name) : null,
     internalId: item && typeof item.internal_id === 'number' ? item.internal_id : null,
+    itemName: item ? item.name : null,
     count: normalizeWholeNumber(el.modalInputCount.value, slot.count),
     uses: normalizeWholeNumber(el.modalInputUses.value, slot.uses),
     flag0: normalizeWholeNumber(el.modalInputFlag0.value, slot.flag0),

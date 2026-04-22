@@ -711,9 +711,19 @@ function buildBridgeWritePayload(slot) {
   if (!Number.isInteger(slotNumber) || slotNumber < 1) {
     return null;
   }
+  
+  const resolvedItem = findItemByLookup(
+    slot && slot.itemId,
+    slot && slot.itemName ? slot.itemName : (slot && slot.item && slot.item.name)
+  );
+  const resolvedInternalId = resolvedItem && typeof resolvedItem.internal_id === 'number'
+    ? resolvedItem.internal_id
+    : null;
 
   let itemId = null;
-  if (typeof (slot && slot.internalId) === 'number' && Number.isInteger(slot.internalId) && slot.internalId >= 0) {
+  if (typeof resolvedInternalId === 'number' && Number.isInteger(resolvedInternalId) && resolvedInternalId >= 0) {
+    itemId = `0x${resolvedInternalId.toString(16).toUpperCase()}`;
+  } else if (typeof (slot && slot.internalId) === 'number' && Number.isInteger(slot.internalId) && slot.internalId >= 0) {
     itemId = `0x${slot.internalId.toString(16).toUpperCase()}`;
   } else if (slot && slot.itemId) {
     itemId = String(slot.itemId);
