@@ -988,6 +988,9 @@ function isClipboardPayload(value) {
 }
 
 function findItemByLookup(itemId, itemName) {
+  const numericLookups = [itemId, itemName]
+    .map(parseItemInternalIdLookup)
+    .filter((value) => Number.isInteger(value) && value >= 0);
   const baseLookups = [itemId, itemName]
     .map((value) => normalizeItemLookup(value))
     .filter(Boolean);
@@ -1006,8 +1009,32 @@ function findItemByLookup(itemId, itemName) {
   return getKnownCatalogItems().find((item) => {
     const itemFileName = normalizeItemLookup(item.file_name);
     const itemNameLookup = normalizeItemLookup(item.name);
-    return allLookups.some((lookup) => lookup === itemFileName || lookup === itemNameLookup);
+    const itemInternalId = typeof item.internal_id === 'number' && Number.isInteger(item.internal_id)
+      ? item.internal_id
+      : null;
+
+    return numericLookups.some((lookup) => lookup === itemInternalId) ||
+      allLookups.some((lookup) => lookup === itemFileName || lookup === itemNameLookup);
   }) || null;
+}
+
+function parseItemInternalIdLookup(value) {
+  const raw = String(value || '').trim();
+  if (!raw) {
+    return null;
+  }
+
+  if (/^0x[0-9a-f]+$/i.test(raw)) {
+    const parsed = Number.parseInt(raw.slice(2), 16);
+    return Number.isInteger(parsed) ? parsed : null;
+  }
+
+  if (/^\d+$/.test(raw)) {
+    const parsed = Number.parseInt(raw, 10);
+    return Number.isInteger(parsed) ? parsed : null;
+  }
+
+  return null;
 }
 
 function stripVariationSuffix(value) {
