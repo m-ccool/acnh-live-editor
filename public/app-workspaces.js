@@ -573,11 +573,12 @@ function openItemModalForSelectedSlot() {
   state.modalPendingItem = getSelectedSlot().item || null;
   state.modalSearchQuery = '';
   state.modalSearchFilter = 'all';
-  state.modalSearchOpen = false;
+  state.modalSearchOpen = true;
   state.catalog.modalResults = [];
   el.modalSearchInput.value = '';
   renderItemModal();
   openModal(el.itemModal);
+  queueModalSearch(true);
   focusItemSearch();
 }
 
