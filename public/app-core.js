@@ -476,8 +476,9 @@ function bindEvents() {
   el.playerModalSave.addEventListener('click', applyPlayerEdits);
   bindInlinePlayerFieldEvents();
 
-  el.pauseBridgeButton.addEventListener('click', toggleBridgePoll);
-  el.writeBridgeButton.addEventListener('click', writePlayerChanges);
+  if (el.pauseBridgeButton) {
+    el.pauseBridgeButton.addEventListener('click', toggleBridgePoll);
+  }
 
   el.openSelectedSearchButton.addEventListener('click', () => openItemModalForSelectedSlot());
   el.selectedItemArtbox.addEventListener('click', () => openItemModalForSelectedSlot());
@@ -520,11 +521,19 @@ function bindEvents() {
 
   [el.modalInputCount, el.modalInputUses, el.modalInputFlag0, el.modalInputFlag1].forEach((input) => {
     input.addEventListener('input', renderItemModalPayload);
+    input.addEventListener('input', () => scheduleItemModalAutoApply());
+    input.addEventListener('change', () => scheduleItemModalAutoApply(true));
+    input.addEventListener('blur', () => scheduleItemModalAutoApply(true));
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        scheduleItemModalAutoApply(true);
+      }
+    });
   });
 
   el.modalSearchFocusButton.addEventListener('click', focusItemSearch);
   el.clearItemButton.addEventListener('click', clearSelectedSlot);
-  el.itemModalApply.addEventListener('click', applyItemEdits);
 
   if (el.inventoryCard) {
     el.inventoryCard.addEventListener('dblclick', (event) => {

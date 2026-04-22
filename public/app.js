@@ -712,9 +712,16 @@ function buildBridgeWritePayload(slot) {
     return null;
   }
 
+  let itemId = null;
+  if (typeof (slot && slot.internalId) === 'number' && Number.isInteger(slot.internalId) && slot.internalId >= 0) {
+    itemId = `0x${slot.internalId.toString(16).toUpperCase()}`;
+  } else if (slot && slot.itemId) {
+    itemId = String(slot.itemId);
+  }
+
   return {
     slot: slotNumber,
-    itemId: slot && slot.itemId ? String(slot.itemId) : null,
+    itemId,
     count: normalizeWholeNumber(slot && slot.count, 0),
     uses: normalizeWholeNumber(slot && slot.uses, 0),
     flag0: normalizeWholeNumber(slot && slot.flag0, 0),

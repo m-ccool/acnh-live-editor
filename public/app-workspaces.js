@@ -1,5 +1,7 @@
 'use strict';
 
+let itemModalAutoApplyTimeoutId = 0;
+
 function pauseBridgePoll() {
   if (state.bridge.pollPaused) return;
   
@@ -122,6 +124,27 @@ function renderClipboardState() {
       ? '/assets/icons/line-md--clipboard-remove.svg'
       : '/assets/icons/line-md--clipboard.svg';
   }
+}
+
+function clearItemModalAutoApplyTimer() {
+  if (itemModalAutoApplyTimeoutId) {
+    window.clearTimeout(itemModalAutoApplyTimeoutId);
+    itemModalAutoApplyTimeoutId = 0;
+  }
+}
+
+function scheduleItemModalAutoApply(immediate = false) {
+  if (!el.itemModal || el.itemModal.classList.contains('hidden')) {
+    return;
+  }
+
+  clearItemModalAutoApplyTimer();
+
+  const delay = immediate ? 0 : 320;
+  itemModalAutoApplyTimeoutId = window.setTimeout(() => {
+    itemModalAutoApplyTimeoutId = 0;
+    applyItemEdits({ closeModalAfterWrite: false });
+  }, delay);
 }
 
 function clearOverwriteGuard() {
@@ -490,9 +513,11 @@ function assignItemToSelectedSlot(item) {
   }
   state.modalSearchOpen = false;
   renderItemModal();
+  scheduleItemModalAutoApply(true);
 }
 
 async function clearSelectedSlot() {
+  clearItemModalAutoApplyTimer();
   const slot = getSelectedSlot();
   state.modalPendingItem = null;
 
@@ -524,6 +549,7 @@ async function clearSelectedSlot() {
 }
 
 function openItemModalForSelectedSlot() {
+  clearItemModalAutoApplyTimer();
   state.modalPendingItem = getSelectedSlot().item || null;
   state.modalSearchQuery = '';
   state.modalSearchFilter = 'all';
@@ -535,12 +561,15 @@ function openItemModalForSelectedSlot() {
   focusItemSearch();
 }
 
-async function applyItemEdits() {
+async function applyItemEdits(options = {}) {
+  clearItemModalAutoApplyTimer();
   const slot = getSelectedSlot();
   const item = state.modalPendingItem;
+  const closeModalAfterWrite = options.closeModalAfterWrite !== false;
   const payload = {
     slot: slot.slot,
     itemId: item ? (item.file_name || item.name) : null,
+    internalId: item && typeof item.internal_id === 'number' ? item.internal_id : null,
     count: normalizeWholeNumber(el.modalInputCount.value, slot.count),
     uses: normalizeWholeNumber(el.modalInputUses.value, slot.uses),
     flag0: normalizeWholeNumber(el.modalInputFlag0.value, slot.flag0),
@@ -564,7 +593,9 @@ async function applyItemEdits() {
 
   state.modalPendingItem = null;
   clearOverwriteGuard();
-  closeModal(el.itemModal);
+  if (closeModalAfterWrite) {
+    closeModal(el.itemModal);
+  }
   renderBridge();
   renderInventory();
   renderSelectedPreview();
