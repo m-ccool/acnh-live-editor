@@ -494,15 +494,26 @@ function assignItemToSelectedSlot(item) {
 
 async function clearSelectedSlot() {
   const slot = getSelectedSlot();
-  const cleared = emptySlot(slot.slot);
-
-  Object.assign(slot, cleared);
   state.modalPendingItem = null;
 
   const actionText = `Cleared slot ${slot.slot}`;
   state.bridge.lastAction = actionText;
-  await writeSlotToBridge(slot, actionText);
+  const wrote = await writeSlotToBridge({
+    slot: slot.slot,
+    itemId: null,
+    count: 0,
+    uses: 0,
+    flag0: 0,
+    flag1: 0
+  }, actionText);
+  if (!wrote) {
+    renderBridge();
+    renderItemModal();
+    return;
+  }
+
   clearOverwriteGuard();
+  closeModal(el.itemModal);
   renderBridge();
   renderInventory();
   renderSelectedPreview();
@@ -527,31 +538,33 @@ function openItemModalForSelectedSlot() {
 async function applyItemEdits() {
   const slot = getSelectedSlot();
   const item = state.modalPendingItem;
-
-  if (item) {
-    rememberCatalogItems([item]);
-    slot.item = item;
-    slot.itemId = item.file_name || item.name;
-    slot.internalId = item.internal_id || null;
-    slot.hex = deriveHexFromItem(item);
-  } else {
-    slot.item = null;
-    slot.itemId = null;
-    slot.internalId = null;
-    slot.hex = '00000000';
-  }
-
-  slot.count = normalizeWholeNumber(el.modalInputCount.value, slot.count);
-  slot.uses = normalizeWholeNumber(el.modalInputUses.value, slot.uses);
-  slot.flag0 = normalizeWholeNumber(el.modalInputFlag0.value, slot.flag0);
-  slot.flag1 = normalizeWholeNumber(el.modalInputFlag1.value, slot.flag1);
+  const payload = {
+    slot: slot.slot,
+    itemId: item ? (item.file_name || item.name) : null,
+    count: normalizeWholeNumber(el.modalInputCount.value, slot.count),
+    uses: normalizeWholeNumber(el.modalInputUses.value, slot.uses),
+    flag0: normalizeWholeNumber(el.modalInputFlag0.value, slot.flag0),
+    flag1: normalizeWholeNumber(el.modalInputFlag1.value, slot.flag1)
+  };
 
   const actionText = item
     ? `Updated slot ${slot.slot} to "${item.name}"`
     : `Cleared slot ${slot.slot}`;
   state.bridge.lastAction = actionText;
-  await writeSlotToBridge(slot, actionText);
+  const wrote = await writeSlotToBridge(payload, actionText);
+  if (!wrote) {
+    renderBridge();
+    renderItemModal();
+    return;
+  }
+
+  if (item) {
+    rememberCatalogItems([item]);
+  }
+
+  state.modalPendingItem = null;
   clearOverwriteGuard();
+  closeModal(el.itemModal);
   renderBridge();
   renderInventory();
   renderSelectedPreview();

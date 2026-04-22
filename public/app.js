@@ -706,8 +706,25 @@ function createBridgePlaceholderItem(itemId) {
   };
 }
 
+function buildBridgeWritePayload(slot) {
+  const slotNumber = Number(slot && slot.slot);
+  if (!Number.isInteger(slotNumber) || slotNumber < 1) {
+    return null;
+  }
+
+  return {
+    slot: slotNumber,
+    itemId: slot && slot.itemId ? String(slot.itemId) : null,
+    count: normalizeWholeNumber(slot && slot.count, 0),
+    uses: normalizeWholeNumber(slot && slot.uses, 0),
+    flag0: normalizeWholeNumber(slot && slot.flag0, 0),
+    flag1: normalizeWholeNumber(slot && slot.flag1, 0)
+  };
+}
+
 async function writeSlotToBridge(slot, actionText) {
-  if (!state.bridge.connected || !slot) {
+  const payload = buildBridgeWritePayload(slot);
+  if (!state.bridge.connected || !payload) {
     return false;
   }
 
@@ -717,14 +734,7 @@ async function writeSlotToBridge(slot, actionText) {
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        slot: slot.slot,
-        itemId: slot.itemId,
-        count: normalizeWholeNumber(slot.count, 0),
-        uses: normalizeWholeNumber(slot.uses, 0),
-        flag0: normalizeWholeNumber(slot.flag0, 0),
-        flag1: normalizeWholeNumber(slot.flag1, 0)
-      })
+      body: JSON.stringify(payload)
     });
 
     const body = await response.json().catch(() => ({}));
@@ -739,14 +749,14 @@ async function writeSlotToBridge(slot, actionText) {
     }
 
     await refreshBridgeInventory({
-      reason: actionText || `Synced slot ${slot.slot} from bridge`,
+      reason: actionText || `Synced slot ${payload.slot} from bridge`,
       force: true
     });
 
     return true;
   } catch (error) {
     state.bridge.lastError = error.message;
-    state.bridge.lastAction = `Bridge write failed on slot ${slot.slot}: ${error.message}`;
+    state.bridge.lastAction = `Bridge write failed on slot ${payload.slot}: ${error.message}`;
     return false;
   }
 }
