@@ -220,6 +220,11 @@ def _rotate_right(value: int, shift: int) -> int:
     return ((value >> shift) | ((value << (32 - shift)) & 0xFFFFFFFF)) & 0xFFFFFFFF
 
 
+def _rotate_left(value: int, shift: int) -> int:
+    shift = shift % 32
+    return ((value << shift) | (value >> (32 - shift))) & 0xFFFFFFFF
+
+
 def _calculate_encrypted_checksum(value: int) -> int:
     byte_sum = (value + (value >> 16) + (value >> 24) + (value >> 8)) & 0xFFFFFFFF
     return (byte_sum - 0x2D) & 0xFF
@@ -243,6 +248,22 @@ def _read_player_number_field(pid: int, dram_base: int, switch_va: int):
         return encrypted, True
     plain = _read_uint32(_read_switch_va(pid, dram_base, switch_va, 4))
     return plain, False
+
+
+def _write_player_number_field(pid: int, dram_base: int, switch_va: int, value: int):
+    raw = _read_switch_va(pid, dram_base, switch_va, 8)
+    encrypted = struct.unpack_from("<I", raw, 0)[0]
+    adjust = struct.unpack_from("<H", raw, 4)[0]
+    shift = raw[6]
+    checksum = raw[7]
+
+    if checksum != _calculate_encrypted_checksum(encrypted):
+        raise RuntimeError(f"Player field at {hex(switch_va)} is not checksum-valid encrypted data")
+
+    adjusted = (int(value) + adjust - _ENCRYPTION_CONSTANT) & 0xFFFFFFFF
+    next_encrypted = _rotate_left(adjusted, shift + _SHIFT_BASE)
+    payload = struct.pack("<IHB", next_encrypted, adjust, shift) + bytes([_calculate_encrypted_checksum(next_encrypted)])
+    _write_switch_va(pid, dram_base, switch_va, payload)
 
 
 def _read_player_snapshot(pid: int, dram_base: int, offsets: dict, name_bytes: int, town_bytes: int) -> dict:
@@ -939,6 +960,49 @@ def write_inventory_slot_procmem(request):
     }))
 
 
+def write_game_data_procmem(request):
+    _check_ptrace_scope()
+    pid = _find_ryujinx_pid()
+    dram_base = _find_dram_base(pid)
+    payload = request.get("payload") if isinstance(request.get("payload"), dict) else request
+    player_payload = payload.get("player") if isinstance(payload.get("player"), dict) else payload
+    if not isinstance(player_payload, dict):
+        raise RuntimeError("payload.player must be an object")
+
+    offs = _get_offsets()
+    name_bytes = max(2, int(os.environ.get("ACNH_PLAYER_NAME_BYTES", str(_DEFAULT_PLAYER_TEXT_BYTES))))
+    town_bytes = max(2, int(os.environ.get("ACNH_PLAYER_TOWN_BYTES", str(_DEFAULT_PLAYER_TEXT_BYTES))))
+    snapshot = _calibrate_player_snapshot(pid, dram_base, offs, name_bytes, town_bytes)
+    offsets = snapshot["offsets"]
+
+    wallet = max(0, min(999999999, int(player_payload.get("wallet", snapshot["wallet"]))))
+    bank = max(0, min(999999999, int(player_payload.get("bank", snapshot["bank"]))))
+    miles = max(0, min(999999999, int(player_payload.get("miles", snapshot["miles"]))))
+
+    _write_player_number_field(pid, dram_base, offsets["wallet"], wallet)
+    _write_player_number_field(pid, dram_base, offsets["bank"], bank)
+    _write_player_number_field(pid, dram_base, offsets["miles"], miles)
+
+    refreshed = _calibrate_player_snapshot(pid, dram_base, offsets, name_bytes, town_bytes)
+    print(json.dumps({
+        "player": {
+            "name": refreshed["name"],
+            "town": refreshed["town"],
+            "wallet": refreshed["wallet"],
+            "bank": refreshed["bank"],
+            "miles": refreshed["miles"],
+            "avatar": os.environ.get("ACNH_PLAYER_AVATAR", "/assets/items/Bob_NH.png"),
+        },
+        "slots": _read_all_slots_procmem(pid, dram_base),
+        "source": "live-memory",
+        "backend": "procmem",
+        "ryujinxPid": pid,
+        "dramBase": hex(dram_base),
+        "lastGameSaveAt": datetime.now(timezone.utc).isoformat(),
+        "lastGameDataFilePath": None,
+    }))
+
+
 def cmd_scan():
     """Diagnostic: print DRAM region map and sample values at default offsets."""
     try:
@@ -1160,6 +1224,10 @@ def main():
             request = json.loads(sys.stdin.read().strip() or "{}")
             write_inventory_slot_procmem(request)
             return 0
+        if command == "write_game_data":
+            request = json.loads(sys.stdin.read().strip() or "{}")
+            write_game_data_procmem(request)
+            return 0
         raise RuntimeError(f"Unsupported command: {command}")
     else:
         sock = _try_botbase_connection()
@@ -1175,6 +1243,8 @@ def main():
                 payload = request.get("payload") if isinstance(request.get("payload"), dict) else request
                 print(json.dumps({"slot": payload, "source": "live-memory", "backend": "botbase"}))
                 return 0
+            if command == "write_game_data":
+                raise RuntimeError("write_game_data is not supported in botbase mode")
             raise RuntimeError(f"Unsupported command: {command}")
         finally:
             try:

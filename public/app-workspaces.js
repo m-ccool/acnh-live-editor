@@ -42,39 +42,56 @@ function renderBridgePollButton() {
   el.pauseBridgeButton.title = isPaused ? 'Resume bridge read' : 'Pause bridge read';
 }
 
-async function writePlayerChanges() {
+async function writePlayerChanges(nextPlayer = state.player, actionText = 'Player values synced to game') {
   if (!state.bridge.connected) {
-    alert('Bridge is not connected. Cannot write changes.');
-    return;
+    state.bridge.lastAction = 'Bridge disconnected: player values were not written';
+    renderBridge();
+    return false;
   }
-
-  el.writeBridgeButton.disabled = true;
-  el.writeBridgeButton.classList.add('is-loading');
 
   try {
     const response = await fetch('/api/bridge/write-player', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        player: state.player
+        player: nextPlayer
       })
     });
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || `Write failed with status ${response.status}`);
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok || result.ok === false) {
+      throw new Error(result.error || `Write failed with status ${response.status}`);
     }
 
-    const result = await response.json();
-    state.bridge.lastAction = 'Player changes written to game';
+    const payload = result && result.payload && typeof result.payload === 'object' ? result.payload : result;
+    const player = payload && payload.player && typeof payload.player === 'object'
+      ? payload.player
+      : nextPlayer;
+
+    state.player = {
+      ...state.player,
+      name: sanitizeText(player.name, state.player.name),
+      town: sanitizeText(player.town, state.player.town),
+      wallet: normalizeWholeNumber(player.wallet, state.player.wallet),
+      bank: normalizeWholeNumber(player.bank, state.player.bank),
+      miles: normalizeWholeNumber(player.miles, state.player.miles),
+      avatar: sanitizeText(player.avatar, state.player.avatar)
+    };
+
+    state.bridge.lastAction = actionText;
+    renderPlayer();
+    hydratePlayerForm();
     renderBridge();
     renderDerivedPanels();
+    persistLocalState();
+    return true;
   } catch (error) {
-    console.error(error);
-    alert(`Failed to write player changes: ${error.message}`);
-  } finally {
-    el.writeBridgeButton.disabled = false;
-    el.writeBridgeButton.classList.remove('is-loading');
+    state.bridge.lastError = error.message;
+    state.bridge.lastAction = `Player write failed: ${error.message}`;
+    renderBridge();
+    await refreshBridgeGameData();
+    return false;
   }
 }
 
@@ -783,14 +800,14 @@ function openEditPlayerModal() {
   openModal(el.playerModal);
 }
 
-function applyPlayerEdits() {
-  commitPlayerState({
+async function applyPlayerEdits() {
+  await commitPlayerState({
     name: sanitizeText(el.playerInputName.value, state.player.name),
     town: sanitizeText(el.playerInputTown.value, state.player.town),
     wallet: normalizeLooseNumber(el.playerInputWallet.value, state.player.wallet),
     bank: normalizeLooseNumber(el.playerInputBank.value, state.player.bank),
     miles: normalizeLooseNumber(el.playerInputMiles.value, state.player.miles)
-  }, 'Player values updated locally');
+  }, 'Player values synced to game');
 
   closeModal(el.playerModal);
 }
@@ -833,17 +850,17 @@ function bindInlinePlayerFieldEvents() {
   });
 }
 
-function applyInlinePlayerEdits() {
-  commitPlayerState({
+async function applyInlinePlayerEdits() {
+  await commitPlayerState({
     name: sanitizeText(el.playerName.value, state.player.name),
     town: sanitizeText(el.townName.value, state.player.town),
     wallet: normalizeLooseNumber(el.walletValue.value, state.player.wallet),
     bank: normalizeLooseNumber(el.bankValue.value, state.player.bank),
     miles: normalizeLooseNumber(el.milesValue.value, state.player.miles)
-  }, 'Player values updated inline');
+  }, 'Player values synced to game');
 }
 
-function commitPlayerState(nextPlayer, actionText) {
+async function commitPlayerState(nextPlayer, actionText) {
   const changed =
     nextPlayer.name !== state.player.name ||
     nextPlayer.town !== state.player.town ||
@@ -851,22 +868,26 @@ function commitPlayerState(nextPlayer, actionText) {
     nextPlayer.bank !== state.player.bank ||
     nextPlayer.miles !== state.player.miles;
 
-  state.player = {
-    ...state.player,
-    ...nextPlayer
-  };
-
-  renderPlayer();
-  hydratePlayerForm();
-
   if (!changed) {
     return;
   }
 
-  state.bridge.lastAction = actionText;
-  renderBridge();
+  const numericChanged =
+    nextPlayer.wallet !== state.player.wallet ||
+    nextPlayer.bank !== state.player.bank ||
+    nextPlayer.miles !== state.player.miles;
+
+  if (!numericChanged) {
+    state.bridge.lastAction = 'Live player writes currently support wallet, bank, and miles only';
+    renderBridge();
+    renderPlayer();
+    hydratePlayerForm();
+    return;
+  }
+
+  await writePlayerChanges(nextPlayer, actionText);
+
   renderDerivedPanels();
-  persistLocalState();
 }
 
 function persistLocalState() {

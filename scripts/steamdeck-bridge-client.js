@@ -14,6 +14,7 @@ const customStatusCommand = String(process.env.RYUJINX_STATUS_CMD || '').trim()
 const customReadInventoryCommand = String(process.env.RYUJINX_READ_INVENTORY_CMD || '').trim()
 const customWriteInventoryCommand = String(process.env.RYUJINX_WRITE_INVENTORY_CMD || '').trim()
 const customReadGameDataCommand = String(process.env.RYUJINX_READ_GAME_DATA_CMD || '').trim()
+const customWriteGameDataCommand = String(process.env.RYUJINX_WRITE_GAME_DATA_CMD || '').trim()
 const startedAt = new Date().toISOString()
 
 const supportedCommands = buildSupportedCommands()
@@ -171,6 +172,10 @@ function buildSupportedCommands() {
     commands.push('read_game_data')
   }
 
+  if (customWriteGameDataCommand) {
+    commands.push('write_game_data')
+  }
+
   return commands
 }
 
@@ -222,6 +227,11 @@ function handleMessage(message) {
 
   if (command === 'read_game_data') {
     handleReadGameData(requestId, command)
+    return
+  }
+
+  if (command === 'write_game_data') {
+    handleWriteGameData(requestId, command, message && message.payload)
     return
   }
 
@@ -344,6 +354,40 @@ async function handleReadGameData(requestId, command) {
     sendResponse(requestId, command, {
       player: output.player || null,
       slots: Array.isArray(output.slots) ? output.slots : [],
+      source: output.source ? String(output.source) : 'live-memory',
+      backend: output.backend ? String(output.backend) : null,
+      adapter: resolveGameDataAdapter(),
+      lastGameSaveAt: output.lastGameSaveAt ? String(output.lastGameSaveAt) : null,
+      lastGameDataFilePath: output.lastGameDataFilePath ? String(output.lastGameDataFilePath) : null
+    })
+  } catch (error) {
+    sendError(requestId, command, error.message)
+  }
+}
+
+async function handleWriteGameData(requestId, command, payload) {
+  if (!customWriteGameDataCommand) {
+    sendError(requestId, command, 'RYUJINX_WRITE_GAME_DATA_CMD is not configured')
+    return
+  }
+
+  try {
+    const output = await runJsonCommand(
+      customWriteGameDataCommand,
+      {
+        command: 'write_game_data',
+        payload: payload || {}
+      },
+      'RYUJINX_WRITE_GAME_DATA_CMD'
+    )
+
+    if (!output || typeof output !== 'object') {
+      throw new Error('RYUJINX_WRITE_GAME_DATA_CMD must output a JSON object')
+    }
+
+    sendResponse(requestId, command, {
+      player: output.player && typeof output.player === 'object' ? output.player : null,
+      slots: Array.isArray(output.slots) ? output.slots : null,
       source: output.source ? String(output.source) : 'live-memory',
       backend: output.backend ? String(output.backend) : null,
       adapter: resolveGameDataAdapter(),
@@ -636,5 +680,5 @@ function log(message) {
 function printHelp() {
   process.stdout.write('Steam Deck bridge client for ACNH Live Editor MVP\n')
   process.stdout.write('Required env: BRIDGE_TARGET_HOST\n')
-  process.stdout.write('Optional env: BRIDGE_TARGET_PORT, BRIDGE_DEVICE_NAME, BRIDGE_HEARTBEAT_MS, BRIDGE_RECONNECT_DELAY_MS, BRIDGE_COMMAND_TIMEOUT_MS, RYUJINX_PROCESS_MATCH, RYUJINX_STRICT_PROCESS_CHECK, RYUJINX_STATUS_CMD, RYUJINX_READ_INVENTORY_CMD, RYUJINX_WRITE_INVENTORY_CMD, RYUJINX_READ_GAME_DATA_CMD\n')
+  process.stdout.write('Optional env: BRIDGE_TARGET_PORT, BRIDGE_DEVICE_NAME, BRIDGE_HEARTBEAT_MS, BRIDGE_RECONNECT_DELAY_MS, BRIDGE_COMMAND_TIMEOUT_MS, RYUJINX_PROCESS_MATCH, RYUJINX_STRICT_PROCESS_CHECK, RYUJINX_STATUS_CMD, RYUJINX_READ_INVENTORY_CMD, RYUJINX_WRITE_INVENTORY_CMD, RYUJINX_READ_GAME_DATA_CMD, RYUJINX_WRITE_GAME_DATA_CMD\n')
 }

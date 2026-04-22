@@ -5,7 +5,7 @@ const BRIDGE_PORT = Number(process.env.BRIDGE_PORT || 32840)
 const HEARTBEAT_STALE_MS = 15000
 const BRIDGE_REQUEST_TIMEOUT_MS = Number(process.env.BRIDGE_REQUEST_TIMEOUT_MS || 5000)
 const BRIDGE_STATUS_REFRESH_MS = Math.max(1000, Number(process.env.BRIDGE_STATUS_REFRESH_MS || 3000))
-const SUPPORTED_COMMANDS = Object.freeze(['read_status', 'read_inventory', 'write_inventory_slot', 'read_game_data'])
+const SUPPORTED_COMMANDS = Object.freeze(['read_status', 'read_inventory', 'write_inventory_slot', 'read_game_data', 'write_game_data'])
 
 const pendingRequests = new Map()
 let requestCounter = 0
@@ -331,22 +331,8 @@ function writeInventorySlot(payload) {
 }
 
 function writePlayerData(playerData) {
-  // PlayerData includes name, town, wallet, bank, miles
-  // Send as write_game_data command; if not supported, server will respond with appropriate error
   return sendCommand('write_game_data', { player: playerData }, {
     timeoutMs: 8000
-  }).catch((error) => {
-    // If write_game_data is not supported, return a response indicating the limitation
-    const message = String(error && error.message || '')
-    if (/not implemented|unsupported|unknown command/i.test(message)) {
-      return {
-        requestId: `write-player-unsupported-${Date.now()}`,
-        command: 'write_game_data',
-        ok: false,
-        error: 'Player data writing is not yet supported by the bridge adapter. Only inventory slot writes are available.'
-      }
-    }
-    throw error
   })
 }
 

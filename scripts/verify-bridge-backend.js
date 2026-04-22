@@ -78,6 +78,21 @@ async function main() {
   assert.equal(updatedSlot.itemId, 'Apple', 'Expected slot 2 writeback')
   assert.equal(updatedSlot.count, 12, 'Expected slot 2 count writeback')
 
+  const playerWriteResult = await writeJson('/api/bridge/write-player', {
+    player: {
+      wallet: 777000,
+      bank: 888000,
+      miles: 999000
+    }
+  })
+
+  assert.equal(playerWriteResult.ok, true, 'Expected write-player response')
+
+  const gameDataAfterPlayerWrite = await readJson('/api/bridge/read-game-data')
+  assert.equal(gameDataAfterPlayerWrite.payload.player.wallet, 777000, 'Expected wallet writeback')
+  assert.equal(gameDataAfterPlayerWrite.payload.player.bank, 888000, 'Expected bank writeback')
+  assert.equal(gameDataAfterPlayerWrite.payload.player.miles, 999000, 'Expected miles writeback')
+
   process.stdout.write('backend bridge verification passed\n')
   await cleanup()
 }
@@ -264,7 +279,39 @@ function handleBridgeRequest(message) {
     return
   }
 
+  if (command === 'write_game_data') {
+    const playerPayload = normalizePlayer(message.payload && message.payload.player)
+    if (!playerPayload) {
+      sendBridgeError(requestId, command, 'player payload is required')
+      return
+    }
+
+    playerState.wallet = playerPayload.wallet
+    playerState.bank = playerPayload.bank
+    playerState.miles = playerPayload.miles
+
+    sendBridgeResponse(requestId, command, {
+      player: { ...playerState },
+      slots: inventoryState.slice(),
+      source: 'backend-test-only',
+      backend: 'isolated-verification'
+    })
+    return
+  }
+
   sendBridgeError(requestId, command, `${command} is not implemented`)
+}
+
+function normalizePlayer(value) {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+
+  return {
+    wallet: Number(value.wallet || 0),
+    bank: Number(value.bank || 0),
+    miles: Number(value.miles || 0)
+  }
 }
 
 function sendBridgeResponse(requestId, command, payload) {

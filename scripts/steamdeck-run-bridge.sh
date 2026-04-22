@@ -232,6 +232,7 @@ normalize_target_host
 : "${RYUJINX_READ_INVENTORY_CMD:=python3 scripts/steamdeck-adapters/bridge_memory_tool.py read_inventory}"
 : "${RYUJINX_WRITE_INVENTORY_CMD:=python3 scripts/steamdeck-adapters/bridge_memory_tool.py write_inventory_slot}"
 : "${RYUJINX_READ_GAME_DATA_CMD:=python3 scripts/steamdeck-adapters/bridge_memory_tool.py read_game_data}"
+: "${RYUJINX_WRITE_GAME_DATA_CMD:=python3 scripts/steamdeck-adapters/bridge_memory_tool.py write_game_data}"
 
 validate_target
 
@@ -257,6 +258,7 @@ export ACNH_READER_MODE
 export RYUJINX_READ_INVENTORY_CMD
 export RYUJINX_WRITE_INVENTORY_CMD
 export RYUJINX_READ_GAME_DATA_CMD
+export RYUJINX_WRITE_GAME_DATA_CMD
 
 cd "${REPO_DIR}"
 

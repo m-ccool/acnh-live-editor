@@ -11,6 +11,7 @@ COMMAND_ENV_BY_ACTION = {
     "read_inventory": "RYUJINX_LIVE_READ_INVENTORY_CMD",
     "write_inventory_slot": "RYUJINX_LIVE_WRITE_INVENTORY_CMD",
     "read_game_data": "RYUJINX_LIVE_READ_GAME_DATA_CMD",
+    "write_game_data": "RYUJINX_LIVE_WRITE_GAME_DATA_CMD",
 }
 
 
@@ -204,6 +205,40 @@ def cmd_read_game_data():
     }))
 
 
+def cmd_write_game_data():
+    command = resolve_live_command("write_game_data")
+    if not command:
+        raise ValueError("No live game-data writer is configured")
+
+    request = read_stdin_object()
+    payload = request.get("payload") if isinstance(request.get("payload"), dict) else request
+    player_payload = normalize_player(payload.get("player") if isinstance(payload.get("player"), dict) else payload)
+    if not player_payload:
+        raise ValueError("payload.player must be an object")
+
+    output = run_json_command(
+        command,
+        {"command": "write_game_data", "payload": {"player": player_payload}},
+        "RYUJINX_LIVE_WRITE_GAME_DATA_CMD",
+    )
+
+    if not isinstance(output, dict):
+        raise ValueError("RYUJINX_LIVE_WRITE_GAME_DATA_CMD must output a JSON object")
+
+    player = normalize_player(output.get("player"))
+    if not player:
+        raise ValueError("RYUJINX_LIVE_WRITE_GAME_DATA_CMD must include a player object")
+
+    print(json.dumps({
+        "player": player,
+        "slots": normalize_slots(output),
+        "source": normalize_text(output.get("source")) or "live-memory",
+        "backend": normalize_text(output.get("backend")) or None,
+        "lastGameSaveAt": normalize_text(output.get("lastGameSaveAt")) or None,
+        "lastGameDataFilePath": normalize_text(output.get("lastGameDataFilePath")) or None,
+    }))
+
+
 def print_help():
     sys.stdout.write(
         "Usage: bridge_memory_tool.py <command>\n"
@@ -211,6 +246,7 @@ def print_help():
         "  read_inventory\n"
         "  write_inventory_slot\n"
         "  read_game_data\n"
+        "  write_game_data\n"
         "\n"
         "Behavior:\n"
         "  Delegates directly to the live ACNH reader.\n"
@@ -233,6 +269,9 @@ def main():
         return 0
     if command == "read_game_data":
         cmd_read_game_data()
+        return 0
+    if command == "write_game_data":
+        cmd_write_game_data()
         return 0
 
     raise ValueError(f"unsupported command: {command}")
