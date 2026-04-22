@@ -1,6 +1,7 @@
 'use strict';
 
 let itemModalAutoApplyTimeoutId = 0;
+const MODAL_CLOSE_TRANSITION_MS = 280;
 
 function pauseBridgePoll() {
   if (state.bridge.pollPaused) return;
@@ -1028,19 +1029,36 @@ function restoreLocalState() {
 function openModal(modal) {
   if (!modal) return;
   modal.classList.remove('hidden');
+  modal.classList.remove('is-closing');
+  void modal.offsetWidth;
+  modal.classList.add('is-visible');
+  modal.classList.remove('hidden');
   modal.setAttribute('aria-hidden', 'false');
   syncModalState();
 }
 
 function closeModal(modal) {
   if (!modal) return;
-  modal.classList.add('hidden');
+  if (modal.classList.contains('hidden')) return;
+
+  modal.classList.remove('is-visible');
+  modal.classList.add('is-closing');
   modal.setAttribute('aria-hidden', 'true');
 
   if (modal === el.itemModal) {
     state.modalSearchOpen = false;
     state.modalPendingItem = null;
   }
+
+  window.setTimeout(() => {
+    if (!modal.classList.contains('is-closing')) {
+      return;
+    }
+
+    modal.classList.remove('is-closing');
+    modal.classList.add('hidden');
+    syncModalState();
+  }, MODAL_CLOSE_TRANSITION_MS);
 
   syncModalState();
 }

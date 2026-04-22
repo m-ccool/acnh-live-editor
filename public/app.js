@@ -719,14 +719,23 @@ function buildBridgeWritePayload(slot) {
   const resolvedInternalId = resolvedItem && typeof resolvedItem.internal_id === 'number'
     ? resolvedItem.internal_id
     : null;
+  const plainItemName = slot && slot.itemName
+    ? String(slot.itemName).trim()
+    : (slot && slot.item && slot.item.name ? String(slot.item.name).trim() : '');
+  const rawItemId = slot && slot.itemId ? String(slot.itemId).trim() : '';
+  const looksLikeHexId = /^0x[0-9a-f]+$/i.test(rawItemId);
 
   let itemId = null;
   if (typeof resolvedInternalId === 'number' && Number.isInteger(resolvedInternalId) && resolvedInternalId >= 0) {
     itemId = `0x${resolvedInternalId.toString(16).toUpperCase()}`;
   } else if (typeof (slot && slot.internalId) === 'number' && Number.isInteger(slot.internalId) && slot.internalId >= 0) {
     itemId = `0x${slot.internalId.toString(16).toUpperCase()}`;
-  } else if (slot && slot.itemId) {
-    itemId = String(slot.itemId);
+  } else if (plainItemName) {
+    itemId = plainItemName;
+  } else if (looksLikeHexId) {
+    itemId = rawItemId;
+  } else if (rawItemId) {
+    itemId = rawItemId;
   }
 
   return {
@@ -760,9 +769,9 @@ async function writeSlotToBridge(slot, actionText) {
       throw new Error(message);
     }
 
-    const payload = body && body.payload && typeof body.payload === 'object' ? body.payload : body;
-    if (payload && payload.adapter) {
-      state.bridge.inventoryAdapter = String(payload.adapter);
+    const responsePayload = body && body.payload && typeof body.payload === 'object' ? body.payload : body;
+    if (responsePayload && responsePayload.adapter) {
+      state.bridge.inventoryAdapter = String(responsePayload.adapter);
     }
 
     await refreshBridgeInventory({

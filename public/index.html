@@ -323,6 +323,21 @@
 
         <div class="player-avatar-wrap">
           <button
+            id="player-mailbox-button"
+            class="avatar-mailbox-btn"
+            type="button"
+            aria-label="Mailbox status"
+            title="Mailbox feature coming later"
+          >
+            <img
+              src="/assets/icons/line-md--email.svg"
+              alt=""
+              class="icon-img icon-white"
+              onerror="this.style.display='none';this.parentNode.textContent='✉';"
+            />
+            <span class="avatar-mailbox-dot" aria-hidden="true"></span>
+          </button>
+          <button
             id="player-avatar-button"
             class="avatar-box avatar-button"
             type="button"
