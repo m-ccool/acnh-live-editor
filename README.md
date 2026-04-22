@@ -392,10 +392,12 @@ Not yet confirmed in this repo:
 
 ## Shortest Path To Live UI Readback
 
-1. Commit and push the current local bridge changes before updating Steam Deck. If you use GitHub Desktop, confirm the commit exists and `Push origin` has completed before pulling on Deck.
-2. On Steam Deck, run `python3 scripts/steamdeck-adapters/bridge_memory_tool.py read_game_data` and confirm it returns JSON with a real `player` object from live memory.
-3. If that command does not return live data, calibrate the reader in `.steamdeck-bridge.env` with the confirmed Ryujinx process and memory offsets needed by `acnh_memory_reader.py`.
-4. Once local live reads work on Steam Deck, run `bash scripts/steamdeck-run-bridge.sh` and confirm the Deck client connects to `10.0.0.25:32840`.
-5. On Windows, request `/api/bridge/read-game-data` from the app backend and confirm it returns the same live player payload coming from the Deck.
-6. After backend readback is confirmed, refresh the existing UI and confirm the player and inventory panels render that returned live payload without UI code changes.
-7. Keep both repos on `dev` while validating new work; switch both to `master` only after the validated promotion is pushed.
+1. Do not create or push a new branch unless the user explicitly asks for a branch-based workflow or pull request path.
+2. Commit and push the current local bridge changes on `dev` before updating Steam Deck. If you use GitHub Desktop, confirm the commit exists and `Push origin` has completed before pulling on Deck.
+3. On Steam Deck, run `python3 scripts/steamdeck-adapters/bridge_memory_tool.py read_game_data` and confirm it returns JSON with a real `player` object from live memory.
+4. If that command does not return live data, calibrate the reader in `.steamdeck-bridge.env` with the confirmed Ryujinx process and memory offsets needed by `acnh_memory_reader.py`.
+5. Once local live reads work on Steam Deck, run `bash scripts/steamdeck-run-bridge.sh` and confirm the Deck client connects to `10.0.0.25:32840`.
+6. On Windows, request `/api/bridge/read-game-data` from the app backend and confirm it returns the same live player payload coming from the Deck.
+7. After backend readback is confirmed, refresh the existing UI and confirm the player and inventory panels render that returned live payload without UI code changes.
+8. Keep both repos on `dev` while validating new work. Before any `master` commit or promotion, ensure local `dev` is up to date with `origin/dev`.
+9. Switch both repos to `master` only after the validated promotion is explicitly requested and pushed.
