@@ -62,6 +62,35 @@ _ITEM_INDEX = None
 
 BOTBASE_FALLBACK_PORTS = [6000, 6001]
 
+_DEFAULT_PLAYER_TEXT_BYTES = 20
+_ENCRYPTION_CONSTANT = 0x80E32B11
+_SHIFT_BASE = 3
+_DEFAULT_EXPECTED_PLAYER = {
+    "name": "b",
+    "town": "the island",
+    "wallet": 10146,
+    "bank": 999922002,
+    "miles": 9999999,
+}
+_PLAYER_FROM_SLOT1_LAYOUT_DELTAS = [
+    {
+        # Layout 20 from ryujinx-save.js, anchored from working slot 1 (pockets2).
+        "name": -0x2BA40,
+        "town": -0x2BA5C,
+        "wallet": 0xB8,
+        "bank": 0x24A34,
+        "miles": -0x25590,
+    },
+    {
+        # Layout 30 from ryujinx-save.js, anchored from working slot 1 (pockets2).
+        "name": -0x2BA40,
+        "town": -0x2BA5C,
+        "wallet": 0xB8,
+        "bank": 0x2D5D4,
+        "miles": -0x25590,
+    },
+]
+
 
 # ---------------------------------------------------------------------------
 # Proc-mem helpers
@@ -160,11 +189,274 @@ def _parse_maps(pid: int):
     return regions
 
 
+def _clean_player_text(text: str) -> str:
+    cleaned = text.split("\x00")[0].strip()
+    cleaned = "".join(ch for ch in cleaned if ch.isprintable() and ch not in {"\ufffd", "\uffff", "\ufeff"})
+    return cleaned.strip()
+
+
 def _decode_utf16le_safe(data: bytes) -> str:
     try:
-        return data.decode("utf-16le", errors="ignore").split("\x00")[0].strip()
+        return _clean_player_text(data.decode("utf-16le", errors="ignore"))
     except Exception:
         return ""
+
+
+def _read_player_text_field(pid: int, dram_base: int, switch_va: int, requested_size: int) -> str:
+    read_size = max(2, requested_size)
+    raw = _read_switch_va(pid, dram_base, switch_va, read_size)
+    return _decode_utf16le_safe(raw)
+
+
+def _is_clean_player_text(value: str) -> bool:
+    value = str(value or "").strip()
+    if not value:
+        return False
+    return _is_plausible_text(value)
+
+
+def _rotate_right(value: int, shift: int) -> int:
+    shift = shift % 32
+    return ((value >> shift) | ((value << (32 - shift)) & 0xFFFFFFFF)) & 0xFFFFFFFF
+
+
+def _calculate_encrypted_checksum(value: int) -> int:
+    byte_sum = (value + (value >> 16) + (value >> 24) + (value >> 8)) & 0xFFFFFFFF
+    return (byte_sum - 0x2D) & 0xFF
+
+
+def _try_read_encrypted_int(pid: int, dram_base: int, switch_va: int):
+    raw = _read_switch_va(pid, dram_base, switch_va, 8)
+    encrypted = struct.unpack_from("<I", raw, 0)[0]
+    adjust = struct.unpack_from("<H", raw, 4)[0]
+    shift = raw[6]
+    checksum = raw[7]
+    if checksum != _calculate_encrypted_checksum(encrypted):
+        return None
+    rotated = _rotate_right(encrypted, shift + _SHIFT_BASE)
+    return (rotated + _ENCRYPTION_CONSTANT - adjust) & 0xFFFFFFFF
+
+
+def _read_player_number_field(pid: int, dram_base: int, switch_va: int):
+    encrypted = _try_read_encrypted_int(pid, dram_base, switch_va)
+    if encrypted is not None:
+        return encrypted, True
+    plain = _read_uint32(_read_switch_va(pid, dram_base, switch_va, 4))
+    return plain, False
+
+
+def _read_player_snapshot(pid: int, dram_base: int, offsets: dict, name_bytes: int, town_bytes: int) -> dict:
+    name = _read_player_text_field(pid, dram_base, offsets["name"], name_bytes)
+    town = _read_player_text_field(pid, dram_base, offsets["town"], town_bytes)
+    wallet, wallet_encrypted = _read_player_number_field(pid, dram_base, offsets["wallet"])
+    bank, bank_encrypted = _read_player_number_field(pid, dram_base, offsets["bank"])
+    miles, miles_encrypted = _read_player_number_field(pid, dram_base, offsets["miles"])
+    return {
+        "offsets": dict(offsets),
+        "name": name,
+        "town": town,
+        "wallet": wallet,
+        "bank": bank,
+        "miles": miles,
+        "encryptedHits": int(wallet_encrypted) + int(bank_encrypted) + int(miles_encrypted),
+    }
+
+
+def _score_player_snapshot(snapshot: dict) -> int:
+    score = 0
+    if _is_clean_player_text(snapshot["name"]):
+        score += 8
+    if _is_clean_player_text(snapshot["town"]):
+        score += 8
+    if _is_clean_player_text(snapshot["name"]) and _is_clean_player_text(snapshot["town"]):
+        score += 6
+    encrypted_hits = int(snapshot.get("encryptedHits", 0))
+    if encrypted_hits == 0:
+        # Wallet/bank/miles should be checksum-valid encrypted fields in live data.
+        score -= 20
+    else:
+        score += encrypted_hits * 8
+
+    wallet = snapshot["wallet"]
+    bank = snapshot["bank"]
+    miles = snapshot["miles"]
+    if 0 <= wallet <= 999999999:
+        score += 2
+    if 0 <= bank <= 999999999:
+        score += 2
+    if 0 <= miles <= 999999999:
+        score += 2
+    return score
+
+
+def _offsets_from_inventory_anchor(inventory_offsets: dict, delta_adjust: int = 0) -> dict:
+    slot1 = inventory_offsets["slot1"]
+    deltas = _PLAYER_FROM_SLOT1_LAYOUT_DELTAS[delta_adjust]
+    return {
+        "name": slot1 + deltas["name"],
+        "town": slot1 + deltas["town"],
+        "wallet": slot1 + deltas["wallet"],
+        "bank": slot1 + deltas["bank"],
+        "miles": slot1 + deltas["miles"],
+    }
+
+
+def _offsets_with_struct_delta(offsets: dict, delta: int) -> dict:
+    return {
+        "name": offsets["name"] + delta,
+        "town": offsets["town"] + delta,
+        "wallet": offsets["wallet"] + delta,
+        "bank": offsets["bank"] + delta,
+        "miles": offsets["miles"] + delta,
+    }
+
+
+def _calibrate_player_snapshot(pid: int, dram_base: int, offsets: dict, name_bytes: int, town_bytes: int):
+    baseline = _read_player_snapshot(pid, dram_base, offsets, name_bytes, town_bytes)
+    best = baseline
+    best_score = _score_player_snapshot(baseline)
+
+    # Also try save-layout-style name/town positions against the same struct base.
+    save_style_offsets = {
+        "name": offsets["name"] + 0x20,
+        "town": offsets["name"] + 0x04,
+        "wallet": offsets["wallet"],
+        "bank": offsets["bank"],
+        "miles": offsets["miles"],
+    }
+    try:
+        save_style = _read_player_snapshot(pid, dram_base, save_style_offsets, name_bytes, town_bytes)
+        save_style_score = _score_player_snapshot(save_style)
+        if save_style_score > best_score:
+            best = save_style
+            best_score = save_style_score
+    except Exception:
+        pass
+
+    # Inventory is already reading correctly, so anchor player fields to slot1.
+    try:
+        inventory_offsets = _get_inventory_offsets()
+        for layout_index in range(len(_PLAYER_FROM_SLOT1_LAYOUT_DELTAS)):
+            base_offsets = _offsets_from_inventory_anchor(inventory_offsets, layout_index)
+            for delta in range(-0x2000, 0x2002, 2):
+                candidate_offsets = _offsets_with_struct_delta(base_offsets, delta)
+                try:
+                    candidate = _read_player_snapshot(pid, dram_base, candidate_offsets, name_bytes, town_bytes)
+                except Exception:
+                    continue
+                score = _score_player_snapshot(candidate)
+                if score > best_score:
+                    best = candidate
+                    best_score = score
+    except Exception:
+        pass
+
+    # If baseline is already clean, avoid extra scan work.
+    if _is_clean_player_text(baseline["name"]) and _is_clean_player_text(baseline["town"]):
+        return baseline
+
+    return best
+
+
+def _get_expected_player() -> dict:
+    def pick_text(env_key: str, default: str) -> str:
+        return str(os.environ.get(env_key, default)).strip()
+
+    def pick_int(env_key: str, default: int) -> int:
+        raw = os.environ.get(env_key, "").strip()
+        if not raw:
+            return default
+        return int(raw, 0)
+
+    return {
+        "name": pick_text("ACNH_EXPECTED_PLAYER_NAME", _DEFAULT_EXPECTED_PLAYER["name"]),
+        "town": pick_text("ACNH_EXPECTED_PLAYER_TOWN", _DEFAULT_EXPECTED_PLAYER["town"]),
+        "wallet": pick_int("ACNH_EXPECTED_PLAYER_WALLET", _DEFAULT_EXPECTED_PLAYER["wallet"]),
+        "bank": pick_int("ACNH_EXPECTED_PLAYER_BANK", _DEFAULT_EXPECTED_PLAYER["bank"]),
+        "miles": pick_int("ACNH_EXPECTED_PLAYER_MILES", _DEFAULT_EXPECTED_PLAYER["miles"]),
+    }
+
+
+def _iter_pattern_matches(pid: int, dram_base: int, start_va: int, end_va: int, pattern: bytes, chunk_size: int = 0x40000):
+    overlap = max(0, len(pattern) - 1)
+    cursor = start_va
+    tail = b""
+    while cursor < end_va:
+        size = min(chunk_size, end_va - cursor)
+        chunk = _read_switch_va(pid, dram_base, cursor, size)
+        haystack = tail + chunk
+        search_from = 0
+        while True:
+            idx = haystack.find(pattern, search_from)
+            if idx < 0:
+                break
+            yield (cursor - len(tail)) + idx
+            search_from = idx + 1
+        if overlap:
+            tail = haystack[-overlap:]
+        else:
+            tail = b""
+        cursor += size
+
+
+def _score_snapshot_against_expected(snapshot: dict, expected: dict) -> int:
+    score = _score_player_snapshot(snapshot)
+    if snapshot["town"].strip().lower() == expected["town"].strip().lower():
+        score += 100
+    if snapshot["name"].strip() == expected["name"].strip():
+        score += 50
+    if snapshot["wallet"] == expected["wallet"]:
+        score += 40
+    if snapshot["bank"] == expected["bank"]:
+        score += 40
+    if snapshot["miles"] == expected["miles"]:
+        score += 40
+    return score
+
+
+def _find_expected_player_snapshot(pid: int, dram_base: int, name_bytes: int, town_bytes: int):
+    expected = _get_expected_player()
+    inventory_offsets = _get_inventory_offsets()
+    slot1 = inventory_offsets["slot1"]
+    search_start = max(0, slot1 - 0x400000)
+    search_end = slot1 + 0x400000
+    town_pattern = expected["town"].encode("utf-16le")
+
+    best = None
+    best_score = -10**9
+    seen_towns = set()
+
+    candidate_relative_layouts = [
+        {"name_delta": 0x1C, "wallet_delta": 0x2BB14, "bank_delta": 0x50490, "miles_delta": 0x64CC},
+        {"name_delta": 0x1C, "wallet_delta": 0x2BB14, "bank_delta": 0x59030, "miles_delta": 0x64CC},
+        {"name_delta": -0x200, "wallet_delta": -0xF0, "bank_delta": -0xEC, "miles_delta": -0xE8},
+    ]
+
+    try:
+        for town_va in _iter_pattern_matches(pid, dram_base, search_start, search_end, town_pattern):
+            if town_va in seen_towns:
+                continue
+            seen_towns.add(town_va)
+            for layout in candidate_relative_layouts:
+                offsets = {
+                    "town": town_va,
+                    "name": town_va + layout["name_delta"],
+                    "wallet": town_va + layout["wallet_delta"],
+                    "bank": town_va + layout["bank_delta"],
+                    "miles": town_va + layout["miles_delta"],
+                }
+                try:
+                    snapshot = _read_player_snapshot(pid, dram_base, offsets, name_bytes, town_bytes)
+                except Exception:
+                    continue
+                score = _score_snapshot_against_expected(snapshot, expected)
+                if score > best_score:
+                    best = snapshot
+                    best_score = score
+    except Exception:
+        return None
+
+    return best
 
 
 def _is_plausible_text(value: str) -> bool:
@@ -232,8 +524,7 @@ def _score_dram_candidate(pid: int, dram_base: int, offsets: dict):
 
     for field in ("name", "town"):
         try:
-            raw = _read_switch_va(pid, dram_base, offsets[field], 16)
-            text = _decode_utf16le_safe(raw)
+            text = _read_player_text_field(pid, dram_base, offsets[field], _DEFAULT_PLAYER_TEXT_BYTES)
             details[field] = text
             if _is_plausible_text(text):
                 score += 3
@@ -365,8 +656,7 @@ def _write_switch_va(pid: int, dram_base: int, switch_va: int, data: bytes):
 
 
 def _decode_utf16le(data: bytes) -> str:
-    text = data.decode("utf-16le", errors="ignore")
-    return text.split("\x00")[0].strip()
+    return _decode_utf16le_safe(data)
 
 
 def _read_uint32(data: bytes) -> int:
@@ -575,21 +865,26 @@ def _write_slot_procmem(pid: int, dram_base: int, slot_payload: dict):
     return _decode_slot(refreshed, slot_payload["slot"])
 
 
-# ---------------------------------------------------------------------------
-# Command handlers — proc_mem mode
-# ---------------------------------------------------------------------------
-
 def read_game_data_procmem():
     _check_ptrace_scope()
     pid = _find_ryujinx_pid()
     dram_base = _find_dram_base(pid)
     offs = _get_offsets()
-
-    name  = _decode_utf16le(_read_switch_va(pid, dram_base, offs["name"],   16))
-    town  = _decode_utf16le(_read_switch_va(pid, dram_base, offs["town"],   16))
-    wallet = _read_uint32(_read_switch_va(pid, dram_base, offs["wallet"],    4))
-    bank   = _read_uint32(_read_switch_va(pid, dram_base, offs["bank"],      4))
-    miles  = _read_uint32(_read_switch_va(pid, dram_base, offs["miles"],     4))
+    name_bytes = max(2, int(os.environ.get("ACNH_PLAYER_NAME_BYTES", str(_DEFAULT_PLAYER_TEXT_BYTES))))
+    town_bytes = max(2, int(os.environ.get("ACNH_PLAYER_TOWN_BYTES", str(_DEFAULT_PLAYER_TEXT_BYTES))))
+    snapshot = _calibrate_player_snapshot(pid, dram_base, offs, name_bytes, town_bytes)
+    expected = _get_expected_player()
+    if _score_snapshot_against_expected(snapshot, expected) < 120:
+        expected_snapshot = _find_expected_player_snapshot(pid, dram_base, name_bytes, town_bytes)
+        if expected_snapshot is not None:
+            expected_score = _score_snapshot_against_expected(expected_snapshot, expected)
+            if expected_score > _score_snapshot_against_expected(snapshot, expected):
+                snapshot = expected_snapshot
+    name = snapshot["name"]
+    town = snapshot["town"]
+    wallet = snapshot["wallet"]
+    bank = snapshot["bank"]
+    miles = snapshot["miles"]
 
     payload = {
         "player": {
@@ -690,6 +985,30 @@ def cmd_scan():
 
     best = candidates[0]
     print(f"[scan] Best candidate base: {hex(best['base'])} (score {best['score']})", file=sys.stderr)
+
+    try:
+        name_bytes = max(2, int(os.environ.get("ACNH_PLAYER_NAME_BYTES", str(_DEFAULT_PLAYER_TEXT_BYTES))))
+        town_bytes = max(2, int(os.environ.get("ACNH_PLAYER_TOWN_BYTES", str(_DEFAULT_PLAYER_TEXT_BYTES))))
+        snapshot = _calibrate_player_snapshot(pid, best["base"], offs, name_bytes, town_bytes)
+        expected = _get_expected_player()
+        expected_snapshot = _find_expected_player_snapshot(pid, best["base"], name_bytes, town_bytes)
+        if expected_snapshot is not None:
+            expected_score = _score_snapshot_against_expected(expected_snapshot, expected)
+            current_score = _score_snapshot_against_expected(snapshot, expected)
+            if expected_score > current_score:
+                snapshot = expected_snapshot
+        print(
+            f"[scan] Calibrated player snapshot: "
+            f"name={snapshot['name']!r} town={snapshot['town']!r} "
+            f"wallet={snapshot['wallet']} bank={snapshot['bank']} miles={snapshot['miles']} "
+            f"encryptedHits={snapshot.get('encryptedHits', 0)} "
+            f"offsets={{name:{hex(snapshot['offsets']['name'])}, town:{hex(snapshot['offsets']['town'])}, "
+            f"wallet:{hex(snapshot['offsets']['wallet'])}, bank:{hex(snapshot['offsets']['bank'])}, miles:{hex(snapshot['offsets']['miles'])}}}",
+            file=sys.stderr,
+        )
+    except Exception as exc:
+        print(f"[scan] Calibrated player snapshot failed: {exc}", file=sys.stderr)
+
     return 0
 
 

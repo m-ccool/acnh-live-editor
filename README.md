@@ -334,7 +334,8 @@ Scope guard for Steam Deck MVP:
 
 ### Blocked
 
-- Direct live RAM read/write confirmation into active ACNH memory on Steam Deck is not yet confirmed end-to-end.
+- Live RAM readback into the existing Windows UI is confirmed for inventory and player data on Steam Deck Ryujinx.
+- Direct live inventory write confirmation from the Windows UI into active ACNH memory still needs final validation.
 
 ### Response Schema
 
@@ -381,19 +382,20 @@ Confirmed in this repo:
 - The Windows UI bridge address is `http://10.0.0.25:3000`.
 - The Steam Deck bridge target is `10.0.0.25:32840`.
 - The active live bridge chain is `scripts/steamdeck-run-bridge.sh` -> `scripts/steamdeck-bridge-client.js` -> `scripts/steamdeck-adapters/bridge_memory_tool.py` -> `scripts/steamdeck-adapters/acnh_memory_reader.py`.
+- Direct live RAM readback from the Ryujinx process into the Windows UI is confirmed for player data and inventory data.
 - Backend verification data is isolated from the primary UI and bridge path.
 - Enforcement and fail-closed data policy are defined in `AGENTS.md`.
 
 Not yet confirmed in this repo:
 
-- A direct live RAM read from the actual Ryujinx process on the Steam Deck.
 - A direct live inventory write from the Windows UI through the bridge into actual ACNH memory on the Steam Deck.
 
 ## Shortest Path To Live UI Readback
 
-1. On Steam Deck, run `python3 scripts/steamdeck-adapters/bridge_memory_tool.py read_game_data` and confirm it returns JSON with a real `player` object from live memory.
-2. If that command does not return live data, calibrate the reader in `.steamdeck-bridge.env` with the confirmed Ryujinx process and memory offsets needed by `acnh_memory_reader.py`.
-3. Once local live reads work on Steam Deck, run `bash scripts/steamdeck-run-bridge.sh` and confirm the Deck client connects to `10.0.0.25:32840`.
-4. On Windows, request `/api/bridge/read-game-data` from the app backend and confirm it returns the same live player payload coming from the Deck.
-5. After backend readback is confirmed, refresh the existing UI and confirm the player and inventory panels render that returned live payload without UI code changes.
-6. Keep both repos on `dev` while validating new work; switch both to `master` only after the validated promotion is pushed.
+1. Commit and push the current local bridge changes before updating Steam Deck. If you use GitHub Desktop, confirm the commit exists and `Push origin` has completed before pulling on Deck.
+2. On Steam Deck, run `python3 scripts/steamdeck-adapters/bridge_memory_tool.py read_game_data` and confirm it returns JSON with a real `player` object from live memory.
+3. If that command does not return live data, calibrate the reader in `.steamdeck-bridge.env` with the confirmed Ryujinx process and memory offsets needed by `acnh_memory_reader.py`.
+4. Once local live reads work on Steam Deck, run `bash scripts/steamdeck-run-bridge.sh` and confirm the Deck client connects to `10.0.0.25:32840`.
+5. On Windows, request `/api/bridge/read-game-data` from the app backend and confirm it returns the same live player payload coming from the Deck.
+6. After backend readback is confirmed, refresh the existing UI and confirm the player and inventory panels render that returned live payload without UI code changes.
+7. Keep both repos on `dev` while validating new work; switch both to `master` only after the validated promotion is pushed.

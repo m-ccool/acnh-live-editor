@@ -65,10 +65,12 @@ This response gate is required in every technical answer.
 - No opportunistic edits: if it was not requested, do not modify it.
 - Do not change files, paths, response formats, or tooling outside the exact requested change.
 - Do not add or modify agent rules unless explicitly requested.
+- Before telling the user to update Steam Deck or another machine from git, ensure the required local code changes are actually committed and pushed. If the user works through GitHub Desktop, explicitly note that GitHub Desktop must show the commit/push completed before the remote machine pulls.
 
 ## Command Response Schema
 
 - Always provide explicit step-by-step run instructions.
+- If using acronyms, always describe it in perenthesis
 - One step title + one fenced code block per step.
 - Commands must be plain copy-paste runnable.
 - First line must be `cd` when directory context matters.
