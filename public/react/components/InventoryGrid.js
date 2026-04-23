@@ -6,6 +6,8 @@
   function InventoryGrid(props) {
     const slots = Array.isArray(props.slots) ? props.slots : [];
     const selectedSlotIndex = Number(props.selectedSlotIndex || 0);
+    const clipboardSourceSlotIndex = Number(props.clipboardSourceSlotIndex ?? -1);
+    const pendingSlot = Number(props.pendingSlot || 0);
     const overwriteGuard = props.overwriteGuard || null;
     const activeFilter = String(props.activeFilter || 'all');
     const normalizeCategory = typeof props.normalizeCategory === 'function'
@@ -23,8 +25,16 @@
           classNames.push('is-selected');
         }
 
+        if (index === clipboardSourceSlotIndex) {
+          classNames.push('is-clipboard-source');
+        }
+
         if (overwriteGuard && overwriteGuard.slotIndex === index) {
           classNames.push(`is-paste-armed-${overwriteGuard.step}`);
+        }
+
+        if (slot.slot === pendingSlot) {
+          classNames.push('is-pending-write');
         }
 
         if (
@@ -63,6 +73,16 @@
           }
         }
 
+        if (slot.slot === pendingSlot) {
+          children.push(
+            h(
+              'span',
+              { className: 'inventory-slot-pending-indicator', key: `slot-pending-${slot.slot}`, 'aria-hidden': 'true' },
+              h('span', { className: 'inventory-slot-pending-ring' })
+            )
+          );
+        }
+
         return h(
           'button',
           {
@@ -77,8 +97,30 @@
             onDoubleClick() {
               props.onDoubleClick(index);
             },
+            onPointerDown(event) {
+              props.onPointerDown(index, event);
+            },
+            onPointerMove(event) {
+              props.onPointerMove(index, event);
+            },
             onPointerUp(event) {
               props.onPointerUp(index, event);
+            },
+            onPointerCancel(event) {
+              props.onPointerCancel(index, event);
+            },
+            draggable: !!slot.item,
+            onDragStart(event) {
+              props.onDragStart(index, event);
+            },
+            onDragOver(event) {
+              props.onDragOver(index, event);
+            },
+            onDrop(event) {
+              props.onDrop(index, event);
+            },
+            onDragEnd(event) {
+              props.onDragEnd(index, event);
             }
           },
           ...children

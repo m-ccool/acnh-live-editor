@@ -759,6 +759,9 @@ async function writeSlotToBridge(slot, actionText) {
     return false;
   }
 
+  state.pendingInventorySlot = Number(payload.slot) || null;
+  renderInventory();
+
   try {
     const response = await fetch('/api/bridge/write-inventory-slot', {
       method: 'POST',
@@ -789,6 +792,9 @@ async function writeSlotToBridge(slot, actionText) {
     state.bridge.lastError = error.message;
     state.bridge.lastAction = `Bridge write failed on slot ${payload.slot}: ${error.message}`;
     return false;
+  } finally {
+    state.pendingInventorySlot = null;
+    renderInventory();
   }
 }
 
@@ -915,51 +921,83 @@ function buildClipboardPayload(slot) {
   };
 }
 
-async function applyCopiedPayloadToSlot(index, payload, overwroteExistingItem) {
-  const slot = state.inventory[index];
+function buildEmptyClipboardPayload(slotNumber) {
+  return buildClipboardPayload(emptySlot(slotNumber));
+}
+
+function applyPayloadToSlot(slot, payload, options = {}) {
+  const overwroteExistingItem = options.overwroteExistingItem === true;
+  const actionText = typeof options.actionText === 'string' && options.actionText
+    ? options.actionText
+    : null;
 
   if (!payload.itemId) {
     Object.assign(slot, emptySlot(slot.slot));
-    state.bridge.lastAction = `Pasted empty slot into slot ${slot.slot}`;
-  } else {
-    const item = findItemByLookup(payload.itemId, payload.selectedItem);
-
-    if (!item) {
-      if (isCatalogItemSnapshot(payload.itemSnapshot)) {
-        rememberCatalogItems([payload.itemSnapshot]);
-        slot.item = payload.itemSnapshot;
-        slot.itemId = payload.itemSnapshot.file_name || payload.itemSnapshot.name;
-        slot.internalId = payload.itemSnapshot.internal_id || null;
-        slot.hex = payload.hex || deriveHexFromItem(payload.itemSnapshot);
-        slot.count = normalizeWholeNumber(payload.count, 0);
-        slot.uses = normalizeWholeNumber(payload.uses, 0);
-        slot.flag0 = normalizeWholeNumber(payload.flag0, 0);
-        slot.flag1 = normalizeWholeNumber(payload.flag1, 0);
-        state.bridge.lastAction = overwroteExistingItem
-          ? `Overwrote slot ${slot.slot} with "${payload.itemSnapshot.name}"`
-          : `Pasted "${payload.itemSnapshot.name}" into slot ${slot.slot}`;
-      } else {
-        state.bridge.lastAction = `Paste failed: missing catalog item "${payload.itemId}"`;
-        renderBridge();
-        return;
-      }
-    } else {
-      rememberCatalogItems([item]);
-      slot.item = item;
-      slot.itemId = item.file_name || item.name;
-      slot.internalId = item.internal_id || null;
-      slot.hex = payload.hex || deriveHexFromItem(item);
-      slot.count = normalizeWholeNumber(payload.count, 0);
-      slot.uses = normalizeWholeNumber(payload.uses, 0);
-      slot.flag0 = normalizeWholeNumber(payload.flag0, 0);
-      slot.flag1 = normalizeWholeNumber(payload.flag1, 0);
-      state.bridge.lastAction = overwroteExistingItem
-        ? `Overwrote slot ${slot.slot} with "${item.name}"`
-        : `Pasted "${item.name}" into slot ${slot.slot}`;
-    }
+    state.bridge.lastAction = actionText || `Pasted empty slot into slot ${slot.slot}`;
+    return true;
   }
 
-  await writeSlotToBridge(slot, state.bridge.lastAction);
+  const item = findItemByLookup(payload.itemId, payload.selectedItem);
+
+  if (!item) {
+    if (!isCatalogItemSnapshot(payload.itemSnapshot)) {
+      state.bridge.lastAction = `Paste failed: missing catalog item "${payload.itemId}"`;
+      return false;
+    }
+
+    rememberCatalogItems([payload.itemSnapshot]);
+    slot.item = payload.itemSnapshot;
+    slot.itemId = payload.itemSnapshot.file_name || payload.itemSnapshot.name;
+    slot.internalId = payload.itemSnapshot.internal_id || null;
+    slot.hex = payload.hex || deriveHexFromItem(payload.itemSnapshot);
+    slot.count = normalizeWholeNumber(payload.count, 0);
+    slot.uses = normalizeWholeNumber(payload.uses, 0);
+    slot.flag0 = normalizeWholeNumber(payload.flag0, 0);
+    slot.flag1 = normalizeWholeNumber(payload.flag1, 0);
+    state.bridge.lastAction = actionText || (overwroteExistingItem
+      ? `Overwrote slot ${slot.slot} with "${payload.itemSnapshot.name}"`
+      : `Pasted "${payload.itemSnapshot.name}" into slot ${slot.slot}`);
+    return true;
+  }
+
+  rememberCatalogItems([item]);
+  slot.item = item;
+  slot.itemId = item.file_name || item.name;
+  slot.internalId = item.internal_id || null;
+  slot.hex = payload.hex || deriveHexFromItem(item);
+  slot.count = normalizeWholeNumber(payload.count, 0);
+  slot.uses = normalizeWholeNumber(payload.uses, 0);
+  slot.flag0 = normalizeWholeNumber(payload.flag0, 0);
+  slot.flag1 = normalizeWholeNumber(payload.flag1, 0);
+  state.bridge.lastAction = actionText || (overwroteExistingItem
+    ? `Overwrote slot ${slot.slot} with "${item.name}"`
+    : `Pasted "${item.name}" into slot ${slot.slot}`);
+  return true;
+}
+
+async function applyCopiedPayloadToSlot(index, payload, overwroteExistingItem, options = {}) {
+  const slot = state.inventory[index];
+  const applied = applyPayloadToSlot(slot, payload, {
+    overwroteExistingItem,
+    actionText: options.actionText
+  });
+
+  if (!applied) {
+    renderBridge();
+    return false;
+  }
+
+  const wrote = await writeSlotToBridge(slot, state.bridge.lastAction);
+  if (!wrote) {
+    renderBridge();
+    return false;
+  }
+
+  if (options.clearClipboardAfterWrite) {
+    state.copiedSlotPayload = null;
+    state.copiedSlotSourceIndex = null;
+    clearOverwriteGuard();
+  }
 
   renderBridge();
   renderInventory();
@@ -968,6 +1006,65 @@ async function applyCopiedPayloadToSlot(index, payload, overwroteExistingItem) {
   renderDerivedPanels();
   renderItemModal();
   persistLocalState();
+  return true;
+}
+
+async function moveOrSwapHeldSlot(sourceIndex, targetIndex) {
+  if (!Number.isInteger(sourceIndex) || !Number.isInteger(targetIndex) || sourceIndex === targetIndex) {
+    return false;
+  }
+
+  const sourceSlot = state.inventory[sourceIndex];
+  const targetSlot = state.inventory[targetIndex];
+  if (!sourceSlot || !sourceSlot.item) {
+    return false;
+  }
+
+  const sourcePayload = buildClipboardPayload(sourceSlot);
+  const targetPayload = targetSlot && targetSlot.item
+    ? buildClipboardPayload(targetSlot)
+    : buildEmptyClipboardPayload(sourceSlot.slot);
+  const actionText = targetSlot && targetSlot.item
+    ? `Swapped slot ${sourceSlot.slot} with slot ${targetSlot.slot}`
+    : `Moved "${sourcePayload.selectedItem || 'item'}" to slot ${targetSlot.slot}`;
+
+  if (!applyPayloadToSlot(targetSlot, sourcePayload, {
+    overwroteExistingItem: !!(targetSlot && targetSlot.item),
+    actionText
+  })) {
+    renderBridge();
+    return false;
+  }
+
+  if (!applyPayloadToSlot(sourceSlot, targetPayload, { actionText })) {
+    renderBridge();
+    return false;
+  }
+
+  const wroteTarget = await writeSlotToBridge(targetSlot, actionText);
+  if (!wroteTarget) {
+    await refreshBridgeInventory({ reason: actionText, force: true });
+    return false;
+  }
+
+  const wroteSource = await writeSlotToBridge(sourceSlot, actionText);
+  if (!wroteSource) {
+    await refreshBridgeInventory({ reason: actionText, force: true });
+    return false;
+  }
+
+  state.copiedSlotPayload = null;
+  state.copiedSlotSourceIndex = null;
+  clearOverwriteGuard();
+  state.bridge.lastAction = actionText;
+  renderBridge();
+  renderInventory();
+  renderSelectedPreview();
+  renderClipboardState();
+  renderDerivedPanels();
+  renderItemModal();
+  persistLocalState();
+  return true;
 }
 
 async function resolveCopiedSlotPayload() {

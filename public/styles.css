@@ -2435,14 +2435,24 @@ body[data-theme='night'] .quick-cheat-btn::after {
   background: rgba(255,255,255,0.04);
 }
 
+.inventory-slot.is-clipboard-source {
+  border-color: rgba(142, 244, 183, 0.62);
+  background: rgba(142, 244, 183, 0.14);
+  box-shadow:
+    inset 0 0 0 1px rgba(142, 244, 183, 0.2),
+    0 0 0 1px rgba(142, 244, 183, 0.14);
+}
+
 .inventory-slot.is-paste-armed-1 {
-  border-color: rgba(255, 95, 115, 0.35);
-  background: rgba(255, 95, 115, 0.06);
+  border-color: rgba(255, 95, 115, 0.52);
+  background: rgba(255, 95, 115, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(255, 95, 115, 0.14);
 }
 
 .inventory-slot.is-paste-armed-2 {
-  border-color: rgba(255, 95, 115, 0.5);
-  background: rgba(255, 95, 115, 0.1);
+  border-color: rgba(255, 95, 115, 0.68);
+  background: rgba(255, 95, 115, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(255, 95, 115, 0.22);
 }
 
 .inventory-slot.is-paste-armed-3 {
@@ -2451,10 +2461,45 @@ body[data-theme='night'] .quick-cheat-btn::after {
   box-shadow: inset 0 0 0 1px rgba(255, 95, 115, 0.2);
 }
 
+.inventory-slot.is-pending-write {
+  border-color: rgba(123, 212, 255, 0.58);
+  background: rgba(123, 212, 255, 0.08);
+}
+
 .inventory-slot img {
   width: 72%;
   height: 72%;
   object-fit: contain;
+}
+
+.inventory-slot-pending-indicator {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle, rgba(12, 18, 34, 0.04) 0%, rgba(12, 18, 34, 0.34) 100%);
+  pointer-events: none;
+}
+
+.inventory-slot-pending-ring {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 3px solid rgba(255,255,255,0.16);
+  border-top-color: rgba(123, 212, 255, 0.95);
+  border-right-color: rgba(123, 212, 255, 0.72);
+  box-shadow: 0 0 18px rgba(123, 212, 255, 0.22);
+  animation: inventory-slot-spinner 0.9s linear infinite;
+}
+
+@keyframes inventory-slot-spinner {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .slot-index {

@@ -2,6 +2,16 @@
 
 let itemModalAutoApplyTimeoutId = 0;
 const MODAL_CLOSE_TRANSITION_MS = 280;
+const INVENTORY_TOUCH_HOLD_MS = 320;
+const INVENTORY_TOUCH_HOLD_MOVE_PX = 12;
+let inventoryTouchHoldTimeoutId = 0;
+const inventoryTouchHold = {
+  index: -1,
+  pointerId: null,
+  startX: 0,
+  startY: 0,
+  activated: false
+};
 
 function pauseBridgePoll() {
   if (state.bridge.pollPaused) return;
@@ -144,6 +154,93 @@ function renderClipboardState() {
   }
 }
 
+function clearInventoryTouchHoldState() {
+  if (inventoryTouchHoldTimeoutId) {
+    window.clearTimeout(inventoryTouchHoldTimeoutId);
+    inventoryTouchHoldTimeoutId = 0;
+  }
+
+  inventoryTouchHold.index = -1;
+  inventoryTouchHold.pointerId = null;
+  inventoryTouchHold.startX = 0;
+  inventoryTouchHold.startY = 0;
+  inventoryTouchHold.activated = false;
+}
+
+function armHeldSlot(index, options = {}) {
+  const slot = state.inventory[index];
+  if (!slot || !slot.item) {
+    return false;
+  }
+
+  state.copiedSlotPayload = buildClipboardPayload(slot);
+  state.copiedSlotSourceIndex = index;
+  clearOverwriteGuard();
+  state.bridge.lastAction = options.actionText || `Holding slot ${slot.slot}: ${slot.item.name}`;
+  renderBridge();
+  renderInventory();
+  renderSelectedPreview();
+  renderClipboardState();
+  renderDerivedPanels();
+  renderItemModal();
+  return true;
+}
+
+async function handleHeldSlotTarget(index) {
+  const payload = await resolveCopiedSlotPayload();
+  if (!payload) {
+    return false;
+  }
+
+  state.copiedSlotPayload = payload;
+  const sourceIndex = Number.isInteger(state.copiedSlotSourceIndex) ? state.copiedSlotSourceIndex : null;
+
+  if (sourceIndex === index) {
+    clearCopiedSlotPayload();
+    return true;
+  }
+
+  const slot = state.inventory[index];
+  if (!slot) {
+    return false;
+  }
+
+  if (!slot.item) {
+    clearOverwriteGuard();
+    if (sourceIndex !== null) {
+      return moveOrSwapHeldSlot(sourceIndex, index);
+    }
+
+    return applyCopiedPayloadToSlot(index, payload, false);
+  }
+
+  const nextStep = getNextOverwriteStep(index);
+  state.overwriteGuard = {
+    slotIndex: index,
+    step: nextStep
+  };
+
+  if (nextStep >= 2) {
+    clearOverwriteGuard();
+    if (sourceIndex !== null) {
+      return moveOrSwapHeldSlot(sourceIndex, index);
+    }
+
+    return applyCopiedPayloadToSlot(index, payload, true);
+  }
+
+  state.bridge.lastAction = sourceIndex !== null
+    ? `Tap slot ${slot.slot} again to swap with held slot`
+    : `Tap slot ${slot.slot} again to overwrite with clipboard`;
+  renderBridge();
+  renderInventory();
+  renderSelectedPreview();
+  renderClipboardState();
+  renderDerivedPanels();
+  renderItemModal();
+  return true;
+}
+
 function clearItemModalAutoApplyTimer() {
   if (itemModalAutoApplyTimeoutId) {
     window.clearTimeout(itemModalAutoApplyTimeoutId);
@@ -174,7 +271,7 @@ function getNextOverwriteStep(index) {
     return 1;
   }
 
-  return Math.min(state.overwriteGuard.step + 1, 3);
+  return Math.min(state.overwriteGuard.step + 1, 2);
 }
 
 function renderShortcutButtons() {
@@ -286,10 +383,12 @@ function renderInventory() {
   window.ACNHReactUI.renderInventoryGrid(el.inventoryGrid, {
     slots: state.inventory,
     selectedSlotIndex: state.selectedSlotIndex,
+    clipboardSourceSlotIndex: state.copiedSlotSourceIndex,
     overwriteGuard: state.overwriteGuard,
+    pendingSlot: state.pendingInventorySlot,
     activeFilter: state.activeFilter,
     normalizeCategory,
-    onSelectSlot(index) {
+    async onSelectSlot(index) {
       if (state.overwriteGuard && state.overwriteGuard.slotIndex !== index) {
         clearOverwriteGuard();
       }
@@ -300,6 +399,14 @@ function renderInventory() {
       if (el.modalSearchInput) {
         el.modalSearchInput.value = '';
       }
+
+       if (state.copiedSlotPayload) {
+         const handled = await handleHeldSlotTarget(index);
+         if (handled) {
+           return;
+         }
+       }
+
       renderBridge();
       renderInventory();
       renderSelectedPreview();
@@ -307,8 +414,46 @@ function renderInventory() {
       renderItemModal();
       openItemModalForSelectedSlot();
     },
+    onPointerDown(index, event) {
+      if (event.pointerType !== 'touch') {
+        return;
+      }
+
+      const slot = state.inventory[index];
+      if (!slot || !slot.item) {
+        clearInventoryTouchHoldState();
+        return;
+      }
+
+      clearInventoryTouchHoldState();
+      inventoryTouchHold.index = index;
+      inventoryTouchHold.pointerId = event.pointerId;
+      inventoryTouchHold.startX = Number(event.clientX || 0);
+      inventoryTouchHold.startY = Number(event.clientY || 0);
+      inventoryTouchHoldTimeoutId = window.setTimeout(() => {
+        inventoryTouchHoldTimeoutId = 0;
+        inventoryTouchHold.activated = armHeldSlot(index);
+      }, INVENTORY_TOUCH_HOLD_MS);
+    },
+    onPointerMove(index, event) {
+      if (event.pointerType !== 'touch' || inventoryTouchHold.pointerId !== event.pointerId) {
+        return;
+      }
+
+      const dx = Math.abs(Number(event.clientX || 0) - inventoryTouchHold.startX);
+      const dy = Math.abs(Number(event.clientY || 0) - inventoryTouchHold.startY);
+      if (dx > INVENTORY_TOUCH_HOLD_MOVE_PX || dy > INVENTORY_TOUCH_HOLD_MOVE_PX) {
+        clearInventoryTouchHoldState();
+      }
+    },
     async onPointerUp(index, event) {
       if (event.pointerType !== 'touch') {
+        return;
+      }
+
+      const holdWasActive = inventoryTouchHold.activated;
+      clearInventoryTouchHoldState();
+      if (holdWasActive) {
         return;
       }
 
@@ -329,6 +474,46 @@ function renderInventory() {
       state.hasUserSelectedSlot = true;
       state.selectedSlotIndex = index;
       await handleInventorySlotDoubleClick(index);
+    },
+    onPointerCancel() {
+      clearInventoryTouchHoldState();
+    },
+    onDragStart(index, event) {
+      const slot = state.inventory[index];
+      if (!slot || !slot.item) {
+        event.preventDefault();
+        return;
+      }
+
+      armHeldSlot(index, { actionText: `Dragging slot ${slot.slot}: ${slot.item.name}` });
+      if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', String(slot.slot));
+      }
+    },
+    onDragOver(index, event) {
+      if (!Number.isInteger(state.copiedSlotSourceIndex)) {
+        return;
+      }
+
+      event.preventDefault();
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = 'move';
+      }
+    },
+    async onDrop(index, event) {
+      event.preventDefault();
+      if (!Number.isInteger(state.copiedSlotSourceIndex) || state.copiedSlotSourceIndex === index) {
+        return;
+      }
+
+      state.hasUserSelectedSlot = true;
+      state.selectedSlotIndex = index;
+      clearOverwriteGuard();
+      await moveOrSwapHeldSlot(state.copiedSlotSourceIndex, index);
+    },
+    onDragEnd() {
+      clearInventoryTouchHoldState();
     }
   });
 }
@@ -348,43 +533,13 @@ function resetInventoryFilter() {
 }
 
 async function handleInventorySlotDoubleClick(index) {
-  const payload = await resolveCopiedSlotPayload();
-
-  if (!payload) {
+  if (!state.copiedSlotPayload) {
     clearOverwriteGuard();
     openItemModalForSelectedSlot();
     return;
   }
 
-  state.copiedSlotPayload = payload;
-
-  const slot = state.inventory[index];
-
-  if (!slot.item) {
-    clearOverwriteGuard();
-    await applyCopiedPayloadToSlot(index, payload, false);
-    return;
-  }
-
-  const nextStep = getNextOverwriteStep(index);
-  state.overwriteGuard = {
-    slotIndex: index,
-    step: nextStep
-  };
-
-  if (nextStep >= 3) {
-    clearOverwriteGuard();
-    await applyCopiedPayloadToSlot(index, payload, true);
-    return;
-  }
-
-  state.bridge.lastAction = `Overwrite slot ${slot.slot}: ${nextStep}/3`;
-  renderBridge();
-  renderInventory();
-  renderSelectedPreview();
-  renderClipboardState();
-  renderDerivedPanels();
-  renderItemModal();
+  await handleHeldSlotTarget(index);
 }
 
 function renderTabs() {
@@ -673,6 +828,7 @@ function copySelectedSlotPayload() {
   const slot = getSelectedSlot();
   const payload = buildClipboardPayload(slot);
   state.copiedSlotPayload = payload;
+  state.copiedSlotSourceIndex = null;
 
   const text = JSON.stringify(payload, null, 2);
 
@@ -689,6 +845,7 @@ function copySelectedSlotPayload() {
 
 function clearCopiedSlotPayload() {
   state.copiedSlotPayload = null;
+  state.copiedSlotSourceIndex = null;
   clearOverwriteGuard();
 
   if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -712,8 +869,7 @@ async function pasteCopiedSlotPayload() {
   }
 
   state.copiedSlotPayload = payload;
-  clearOverwriteGuard();
-  await applyCopiedPayloadToSlot(state.selectedSlotIndex, payload, !!getSelectedSlot().item);
+  await handleHeldSlotTarget(state.selectedSlotIndex);
 }
 
 function getSelectedSlot() {

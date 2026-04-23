@@ -59,6 +59,9 @@ _DEFAULT_INVENTORY_OFFSETS = {
 }
 
 _ITEM_INDEX = None
+_POCKET_SLOT_COUNT = 20
+_POCKET_PAGE_SIZE = _ITEM_SIZE * _POCKET_SLOT_COUNT
+_POCKET_MIRROR_SEARCH_RADIUS = 0x400000
 
 BOTBASE_FALLBACK_PORTS = [6000, 6001]
 
@@ -727,6 +730,27 @@ def _slot_switch_va(slot: int, offsets: dict) -> int:
     return offsets["slot21"] + ((slot - 21) * _ITEM_SIZE)
 
 
+def _pocket_page_switch_va(slot: int, offsets: dict) -> int:
+    if slot < 1 or slot > 40:
+        raise ValueError(f"slot out of range: {slot}")
+    return offsets["slot1"] if slot <= 20 else offsets["slot21"]
+
+
+def _iter_duplicate_page_matches(pid: int, dram_base: int, page_start_va: int, page_data: bytes):
+    if not page_data:
+        return
+
+    search_start = max(0, page_start_va - _POCKET_MIRROR_SEARCH_RADIUS)
+    search_end = page_start_va + _POCKET_MIRROR_SEARCH_RADIUS
+    seen = set()
+
+    for match_va in _iter_pattern_matches(pid, dram_base, search_start, search_end, page_data):
+        if match_va == page_start_va or match_va in seen:
+            continue
+        seen.add(match_va)
+        yield match_va
+
+
 def _empty_slot(slot: int) -> dict:
     return {
         "slot": slot,
@@ -883,9 +907,26 @@ def _read_all_slots_procmem(pid: int, dram_base: int):
 def _write_slot_procmem(pid: int, dram_base: int, slot_payload: dict):
     offsets = _get_inventory_offsets()
     raw = _encode_slot(slot_payload)
-    _write_switch_va(pid, dram_base, _slot_switch_va(slot_payload["slot"], offsets), raw)
-    refreshed = _read_switch_va(pid, dram_base, _slot_switch_va(slot_payload["slot"], offsets), _ITEM_SIZE)
-    return _decode_slot(refreshed, slot_payload["slot"])
+    slot_va = _slot_switch_va(slot_payload["slot"], offsets)
+    page_start_va = _pocket_page_switch_va(slot_payload["slot"], offsets)
+    slot_offset = slot_va - page_start_va
+    page_before = _read_switch_va(pid, dram_base, page_start_va, _POCKET_PAGE_SIZE)
+
+    _write_switch_va(pid, dram_base, slot_va, raw)
+
+    patched_duplicate_pages = 0
+    for duplicate_page_va in _iter_duplicate_page_matches(pid, dram_base, page_start_va, page_before):
+        try:
+            _write_switch_va(pid, dram_base, duplicate_page_va + slot_offset, raw)
+            patched_duplicate_pages += 1
+        except RuntimeError:
+            continue
+
+    refreshed = _read_switch_va(pid, dram_base, slot_va, _ITEM_SIZE)
+    decoded = _decode_slot(refreshed, slot_payload["slot"])
+    if patched_duplicate_pages:
+        decoded["patchedDuplicatePages"] = patched_duplicate_pages
+    return decoded
 
 
 def read_game_data_procmem():
