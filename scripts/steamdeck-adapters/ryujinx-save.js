@@ -639,7 +639,7 @@ function getItemIndex() {
     for (let i = 0; i < lines.length; i++) {
       const name = lines[i].trim()
       if (!name) continue
-      const entry = { name, file_name: name }
+      const entry = { name, file_name: name, internal_id: i }
       byInternalId.set(i, entry)
       const normalized = normalizeItemLookup(name)
       if (normalized) byLookup.set(normalized, entry)
@@ -702,7 +702,12 @@ function parseItemIdValue(value) {
 }
 
 function normalizeItemLookup(value) {
-  return String(value || '').trim().toLowerCase()
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, ' ')
+    .replace(/^64px[- ]/, '')
+    .replace(/\s+/g, ' ')
 }
 
 function formatFallbackItemId(itemId) {
