@@ -239,11 +239,8 @@ function normalizeLookupLabel(value) {
 
 function findCatalogItemByName(items, name) {
   const lookupAliases = buildLookupAliases(name)
-  const requestedInternalId = parseInternalItemLookup(name)
   if (!lookupAliases.length) {
-    if (!Number.isInteger(requestedInternalId) || requestedInternalId < 0) {
-      return null
-    }
+    return null
   }
 
   const catalogItems = Array.isArray(items) ? items : []
@@ -252,11 +249,8 @@ function findCatalogItemByName(items, name) {
     const itemFileName = normalizeLookupLabel(item && item.file_name)
     const itemNameCanonical = toCanonicalLookup(itemName)
     const itemFileCanonical = toCanonicalLookup(itemFileName)
-    const itemInternalId = typeof (item && item.internal_id) === 'number' && Number.isInteger(item.internal_id)
-      ? item.internal_id
-      : null
 
-    if ((Number.isInteger(requestedInternalId) && requestedInternalId >= 0 && requestedInternalId === itemInternalId) || lookupAliases.some((lookup) => (
+    if (lookupAliases.some((lookup) => (
       lookup === itemName ||
       lookup === itemFileName ||
       lookup === itemNameCanonical ||
@@ -264,25 +258,6 @@ function findCatalogItemByName(items, name) {
     ))) {
       return item
     }
-  }
-
-  return null
-}
-
-function parseInternalItemLookup(value) {
-  const raw = String(value || '').trim()
-  if (!raw) {
-    return null
-  }
-
-  if (/^0x[0-9a-f]+$/i.test(raw)) {
-    const parsed = Number.parseInt(raw.slice(2), 16)
-    return Number.isInteger(parsed) ? parsed : null
-  }
-
-  if (/^\d+$/.test(raw)) {
-    const parsed = Number.parseInt(raw, 10)
-    return Number.isInteger(parsed) ? parsed : null
   }
 
   return null

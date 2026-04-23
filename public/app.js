@@ -716,9 +716,9 @@ function buildBridgeWritePayload(slot) {
     slot && slot.itemId,
     slot && slot.itemName ? slot.itemName : (slot && slot.item && slot.item.name)
   );
-  const resolvedInternalId = resolvedItem && typeof resolvedItem.internal_id === 'number'
-    ? resolvedItem.internal_id
-    : null;
+  const canonicalItemName = resolvedItem && resolvedItem.name
+    ? String(resolvedItem.name).trim()
+    : '';
   const plainItemName = slot && slot.itemName
     ? String(slot.itemName).trim()
     : (slot && slot.item && slot.item.name ? String(slot.item.name).trim() : '');
@@ -726,22 +726,14 @@ function buildBridgeWritePayload(slot) {
   const looksLikeHexId = /^0x[0-9a-f]+$/i.test(rawItemId);
 
   let itemId = null;
-  if (typeof resolvedInternalId === 'number' && Number.isInteger(resolvedInternalId) && resolvedInternalId >= 0) {
-    itemId = `0x${resolvedInternalId.toString(16).toUpperCase()}`;
-  } else if (typeof (slot && slot.internalId) === 'number' && Number.isInteger(slot.internalId) && slot.internalId >= 0) {
-    itemId = `0x${slot.internalId.toString(16).toUpperCase()}`;
+  if (canonicalItemName) {
+    itemId = canonicalItemName;
   } else if (plainItemName) {
     itemId = plainItemName;
   } else if (looksLikeHexId) {
     itemId = rawItemId;
   } else if (rawItemId) {
     itemId = rawItemId;
-  }
-
-  const isEmptyWrite = itemId === null;
-  const hasTrustedItemId = typeof itemId === 'string' && /^0x[0-9a-f]+$/i.test(itemId);
-  if (!isEmptyWrite && !hasTrustedItemId) {
-    return null;
   }
 
   return {
@@ -999,9 +991,6 @@ function isClipboardPayload(value) {
 }
 
 function findItemByLookup(itemId, itemName) {
-  const numericLookups = [itemId, itemName]
-    .map(parseItemInternalIdLookup)
-    .filter((value) => Number.isInteger(value) && value >= 0);
   const baseLookups = [itemId, itemName]
     .map((value) => normalizeItemLookup(value))
     .filter(Boolean);
@@ -1020,32 +1009,9 @@ function findItemByLookup(itemId, itemName) {
   return getKnownCatalogItems().find((item) => {
     const itemFileName = normalizeItemLookup(item.file_name);
     const itemNameLookup = normalizeItemLookup(item.name);
-    const itemInternalId = typeof item.internal_id === 'number' && Number.isInteger(item.internal_id)
-      ? item.internal_id
-      : null;
 
-    return numericLookups.some((lookup) => lookup === itemInternalId) ||
-      allLookups.some((lookup) => lookup === itemFileName || lookup === itemNameLookup);
+    return allLookups.some((lookup) => lookup === itemFileName || lookup === itemNameLookup);
   }) || null;
-}
-
-function parseItemInternalIdLookup(value) {
-  const raw = String(value || '').trim();
-  if (!raw) {
-    return null;
-  }
-
-  if (/^0x[0-9a-f]+$/i.test(raw)) {
-    const parsed = Number.parseInt(raw.slice(2), 16);
-    return Number.isInteger(parsed) ? parsed : null;
-  }
-
-  if (/^\d+$/.test(raw)) {
-    const parsed = Number.parseInt(raw, 10);
-    return Number.isInteger(parsed) ? parsed : null;
-  }
-
-  return null;
 }
 
 function stripVariationSuffix(value) {

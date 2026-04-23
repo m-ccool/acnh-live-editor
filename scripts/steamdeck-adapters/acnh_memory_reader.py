@@ -742,15 +742,24 @@ def _format_fallback_item_id(item_id: int) -> str:
     return f"0x{item_id:04X}"
 
 
+def _normalize_live_item_lookup(value):
+    text = str(value or "").strip().lower().replace("_", " ")
+    text = " ".join(text.split())
+    if text.startswith("64px-"):
+        text = text[5:].strip()
+    elif text.startswith("64px "):
+        text = text[5:].strip()
+    return text
+
+
 def _load_item_index():
     global _ITEM_INDEX
     if _ITEM_INDEX is not None:
         return _ITEM_INDEX
 
     by_internal_id = {}
-    by_file_name = {}
+    by_name = {}
     names_path = Path(__file__).resolve().parents[2] / "data" / "item-names-en.txt"
-    items_path = Path(__file__).resolve().parents[2] / "data" / "items.json"
 
     if names_path.exists():
         lines = names_path.read_text(encoding="utf-8").splitlines()
@@ -759,33 +768,13 @@ def _load_item_index():
             if not name:
                 continue
             by_internal_id[i] = name
-
-    try:
-        parsed = json.loads(items_path.read_text(encoding="utf-8"))
-    except Exception:
-        parsed = []
-    if isinstance(parsed, list):
-        for entry in parsed:
-            if not isinstance(entry, dict):
-                continue
-            internal_id = entry.get("internal_id")
-            if not isinstance(internal_id, int):
-                continue
-
-            item_name = str(entry.get("name") or "").strip()
-            file_name = str(entry.get("file_name") or "").strip()
-            label = item_name or file_name or None
-            if label:
-                by_internal_id[internal_id] = label
-
-            if item_name:
-                by_file_name[item_name] = internal_id
-            if file_name:
-                by_file_name[file_name] = internal_id
+            normalized = _normalize_live_item_lookup(name)
+            if normalized:
+                by_name[normalized] = i
 
     _ITEM_INDEX = {
         "by_internal_id": by_internal_id,
-        "by_file_name": by_file_name,
+        "by_name": by_name,
     }
     return _ITEM_INDEX
 
@@ -837,7 +826,7 @@ def _resolve_item_id(raw_item_id):
         return int(text, 16)
 
     index = _load_item_index()
-    internal_id = index["by_file_name"].get(text)
+    internal_id = index["by_name"].get(_normalize_live_item_lookup(text))
     if isinstance(internal_id, int):
         return internal_id
 
