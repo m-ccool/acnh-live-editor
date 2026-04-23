@@ -61,7 +61,8 @@ _DEFAULT_INVENTORY_OFFSETS = {
 _ITEM_INDEX = None
 _POCKET_SLOT_COUNT = 20
 _POCKET_PAGE_SIZE = _ITEM_SIZE * _POCKET_SLOT_COUNT
-_POCKET_MIRROR_SEARCH_RADIUS = 0x400000
+_POCKET_MIRROR_SEARCH_RADIUS = 0x1000000
+_POCKET_MIRROR_MIN_MATCHING_SLOTS = 12
 
 BOTBASE_FALLBACK_PORTS = [6000, 6001]
 
@@ -751,6 +752,53 @@ def _iter_duplicate_page_matches(pid: int, dram_base: int, page_start_va: int, p
         yield match_va
 
 
+def _count_matching_slots(page_a: bytes, page_b: bytes, skip_slot_offset: int | None = None) -> int:
+    if not page_a or not page_b:
+        return 0
+
+    matching_slots = 0
+    for slot_index in range(_POCKET_SLOT_COUNT):
+        offset = slot_index * _ITEM_SIZE
+        if skip_slot_offset is not None and offset == skip_slot_offset:
+            continue
+        if page_a[offset:offset + _ITEM_SIZE] == page_b[offset:offset + _ITEM_SIZE]:
+            matching_slots += 1
+    return matching_slots
+
+
+def _iter_similar_page_matches(pid: int, dram_base: int, page_start_va: int, page_data: bytes, slot_offset: int):
+    if not page_data:
+        return
+
+    slot_before = page_data[slot_offset:slot_offset + _ITEM_SIZE]
+    if len(slot_before) != _ITEM_SIZE:
+        return
+
+    search_start = max(0, page_start_va - _POCKET_MIRROR_SEARCH_RADIUS)
+    search_end = page_start_va + _POCKET_MIRROR_SEARCH_RADIUS
+    seen_page_starts = {page_start_va}
+
+    for match_va in _iter_pattern_matches(pid, dram_base, search_start, search_end, slot_before):
+        candidate_page_start = match_va - slot_offset
+        if candidate_page_start < search_start or candidate_page_start in seen_page_starts:
+            continue
+        seen_page_starts.add(candidate_page_start)
+
+        try:
+            candidate_page = _read_switch_va(pid, dram_base, candidate_page_start, _POCKET_PAGE_SIZE)
+        except RuntimeError:
+            continue
+
+        if candidate_page[slot_offset:slot_offset + _ITEM_SIZE] != slot_before:
+            continue
+
+        matching_slots = _count_matching_slots(candidate_page, page_data, slot_offset)
+        if matching_slots < _POCKET_MIRROR_MIN_MATCHING_SLOTS:
+            continue
+
+        yield candidate_page_start
+
+
 def _empty_slot(slot: int) -> dict:
     return {
         "slot": slot,
@@ -915,10 +963,25 @@ def _write_slot_procmem(pid: int, dram_base: int, slot_payload: dict):
     _write_switch_va(pid, dram_base, slot_va, raw)
 
     patched_duplicate_pages = 0
+    patched_page_starts = {page_start_va}
     for duplicate_page_va in _iter_duplicate_page_matches(pid, dram_base, page_start_va, page_before):
+        if duplicate_page_va in patched_page_starts:
+            continue
         try:
             _write_switch_va(pid, dram_base, duplicate_page_va + slot_offset, raw)
+            patched_page_starts.add(duplicate_page_va)
             patched_duplicate_pages += 1
+        except RuntimeError:
+            continue
+
+    patched_similar_pages = 0
+    for similar_page_va in _iter_similar_page_matches(pid, dram_base, page_start_va, page_before, slot_offset):
+        if similar_page_va in patched_page_starts:
+            continue
+        try:
+            _write_switch_va(pid, dram_base, similar_page_va + slot_offset, raw)
+            patched_page_starts.add(similar_page_va)
+            patched_similar_pages += 1
         except RuntimeError:
             continue
 
@@ -926,6 +989,8 @@ def _write_slot_procmem(pid: int, dram_base: int, slot_payload: dict):
     decoded = _decode_slot(refreshed, slot_payload["slot"])
     if patched_duplicate_pages:
         decoded["patchedDuplicatePages"] = patched_duplicate_pages
+    if patched_similar_pages:
+        decoded["patchedSimilarPages"] = patched_similar_pages
     return decoded
 
 

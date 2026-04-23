@@ -136,21 +136,35 @@ function renderSelectedPreview() {
 
 function renderClipboardState() {
   const canPaste = !!state.copiedSlotPayload;
-  el.pasteSelectedButton.disabled = !canPaste;
-  el.pasteSelectedButton.classList.toggle('is-ready', canPaste);
-  el.pasteSelectedButton.setAttribute('aria-disabled', canPaste ? 'false' : 'true');
-  el.pasteSelectedButton.title = canPaste
-    ? `Paste ${state.copiedSlotPayload.selectedItem || 'empty slot'} into selected slot`
-    : 'Copy an item first';
+  if (el.pasteSelectedButton) {
+    el.pasteSelectedButton.disabled = !canPaste;
+    el.pasteSelectedButton.classList.toggle('is-ready', canPaste);
+    el.pasteSelectedButton.setAttribute('aria-disabled', canPaste ? 'false' : 'true');
+    el.pasteSelectedButton.title = canPaste
+      ? `Paste ${state.copiedSlotPayload.selectedItem || 'empty slot'} into selected slot`
+      : 'Hold an item first';
+  }
 
-  el.copySelectedButton.classList.toggle('is-armed', canPaste);
-  el.copySelectedButton.setAttribute('aria-label', canPaste ? 'Clear copied item' : 'Copy selected item');
-  el.copySelectedButton.title = canPaste ? 'Clear copied item' : 'Copy selected item';
+  if (el.copySelectedButton) {
+    el.copySelectedButton.classList.toggle('is-armed', canPaste);
+    el.copySelectedButton.setAttribute('aria-label', canPaste ? 'Clear copied item' : 'Copy selected item');
+    el.copySelectedButton.title = canPaste ? 'Clear copied item' : 'Copy selected item';
+  }
 
   if (el.copySelectedIcon) {
     el.copySelectedIcon.src = canPaste
       ? '/assets/icons/line-md--clipboard-remove.svg'
       : '/assets/icons/line-md--clipboard.svg';
+  }
+
+  if (el.selectedItemArtbox) {
+    el.selectedItemArtbox.classList.toggle('is-holding-slot', canPaste);
+    el.selectedItemArtbox.title = canPaste
+      ? `Holding ${state.copiedSlotPayload.selectedItem || 'empty slot'} - tap a pocket slot to place it`
+      : 'Edit selected item';
+    el.selectedItemArtbox.setAttribute('aria-label', canPaste
+      ? `Holding ${state.copiedSlotPayload.selectedItem || 'empty slot'}`
+      : 'Edit selected item');
   }
 }
 

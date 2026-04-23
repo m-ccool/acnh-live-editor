@@ -2080,22 +2080,11 @@ body[data-theme='night'] .quick-cheat-btn::after {
   object-fit: contain;
 }
 
-.selected-item-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.selected-item-actions .toolbar-icon-btn[disabled] {
-  cursor: not-allowed;
-  opacity: 0.45;
-  transform: none;
-}
-
-.selected-item-actions .toolbar-icon-btn.is-ready {
-  border-color: rgba(255, 95, 115, 0.3);
-  background: rgba(255, 95, 115, 0.08);
-  box-shadow: 0 10px 24px rgba(255, 95, 115, 0.12);
+.selected-item-artbox.is-holding-slot {
+  box-shadow:
+    inset 0 0 0 1px rgba(142, 244, 183, 0.22),
+    0 0 0 1px rgba(142, 244, 183, 0.18),
+    0 14px 30px rgba(19, 44, 32, 0.16);
 }
 
 .search-glyph {
@@ -2432,12 +2421,12 @@ body[data-theme='night'] .quick-cheat-btn::after {
 
 .inventory-slot.is-selected {
   border-color: rgba(255,255,255,0.28);
-  background: rgba(255,255,255,0.04);
+  background: rgba(255,255,255,0.03);
 }
 
 .inventory-slot.is-clipboard-source {
   border-color: rgba(142, 244, 183, 0.62);
-  background: rgba(142, 244, 183, 0.14);
+  background: rgba(142, 244, 183, 0.08);
   box-shadow:
     inset 0 0 0 1px rgba(142, 244, 183, 0.2),
     0 0 0 1px rgba(142, 244, 183, 0.14);
@@ -2445,13 +2434,13 @@ body[data-theme='night'] .quick-cheat-btn::after {
 
 .inventory-slot.is-paste-armed-1 {
   border-color: rgba(255, 95, 115, 0.52);
-  background: rgba(255, 95, 115, 0.14);
+  background: rgba(255, 95, 115, 0.08);
   box-shadow: inset 0 0 0 1px rgba(255, 95, 115, 0.14);
 }
 
 .inventory-slot.is-paste-armed-2 {
   border-color: rgba(255, 95, 115, 0.68);
-  background: rgba(255, 95, 115, 0.2);
+  background: rgba(255, 95, 115, 0.12);
   box-shadow: inset 0 0 0 1px rgba(255, 95, 115, 0.22);
 }
 
@@ -2463,13 +2452,24 @@ body[data-theme='night'] .quick-cheat-btn::after {
 
 .inventory-slot.is-pending-write {
   border-color: rgba(123, 212, 255, 0.58);
-  background: rgba(123, 212, 255, 0.08);
+  background: rgba(123, 212, 255, 0.05);
 }
 
 .inventory-slot img {
   width: 72%;
   height: 72%;
   object-fit: contain;
+  opacity: 1;
+  transition: opacity 0.18s var(--ease), transform 0.18s var(--ease), filter 0.18s var(--ease);
+}
+
+.inventory-slot.is-selected img,
+.inventory-slot.is-clipboard-source img,
+.inventory-slot.is-paste-armed-1 img,
+.inventory-slot.is-paste-armed-2 img,
+.inventory-slot.is-paste-armed-3 img,
+.inventory-slot.is-pending-write img {
+  opacity: 0.72;
 }
 
 .inventory-slot-pending-indicator {
@@ -2478,7 +2478,7 @@ body[data-theme='night'] .quick-cheat-btn::after {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle, rgba(12, 18, 34, 0.04) 0%, rgba(12, 18, 34, 0.34) 100%);
+  background: radial-gradient(circle, rgba(123, 212, 255, 0.04) 0%, rgba(123, 212, 255, 0.16) 100%);
   pointer-events: none;
 }
 

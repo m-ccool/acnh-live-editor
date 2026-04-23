@@ -485,8 +485,12 @@ function bindEvents() {
   el.openSelectedSearchButton.addEventListener('click', () => openItemModalForSelectedSlot());
   el.selectedItemArtbox.addEventListener('click', () => openItemModalForSelectedSlot());
 
-  el.copySelectedButton.addEventListener('click', handleSelectedClipboardButton);
-  el.pasteSelectedButton.addEventListener('click', pasteCopiedSlotPayload);
+  if (el.copySelectedButton) {
+    el.copySelectedButton.addEventListener('click', handleSelectedClipboardButton);
+  }
+  if (el.pasteSelectedButton) {
+    el.pasteSelectedButton.addEventListener('click', pasteCopiedSlotPayload);
+  }
 
   el.modalSearchInput.addEventListener('input', (event) => {
     state.modalSearchQuery = event.target.value || '';

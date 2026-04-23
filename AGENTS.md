@@ -55,6 +55,7 @@ This response gate is required in every technical answer.
 - When a fact is not confirmed by user, repo, or direct tool output, call it unconfirmed.
 - When a missing fact materially affects edits, ask one concise question instead of guessing.
 - Do not use conditional phrasing for facts already established in context; state established facts directly.
+- Use the Windows UI browser window as the primary validation surface when it is available, inspect rendered outputs there directly, and only send live tests to the running game or project when the user has explicitly authorized the test and the intended live effect has been stated in the work log or response.
 
 ## Work Integrity
 
