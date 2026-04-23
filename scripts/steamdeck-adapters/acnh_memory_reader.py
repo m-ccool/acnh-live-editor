@@ -749,7 +749,16 @@ def _load_item_index():
 
     by_internal_id = {}
     by_file_name = {}
+    names_path = Path(__file__).resolve().parents[2] / "data" / "item-names-en.txt"
     items_path = Path(__file__).resolve().parents[2] / "data" / "items.json"
+
+    if names_path.exists():
+        lines = names_path.read_text(encoding="utf-8").splitlines()
+        for i, line in enumerate(lines):
+            name = line.strip()
+            if not name:
+                continue
+            by_internal_id[i] = name
 
     try:
         parsed = json.loads(items_path.read_text(encoding="utf-8"))
