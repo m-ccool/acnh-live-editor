@@ -1,3 +1,120 @@
+##Chat Agent Task Outline
+
+
+Current Agent Tasks in Chat:
+
+- (chat agents will assign task here) | progress: 50%
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Completed Agent Tasks in Chat:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Repository Agent Rules
 
 These rules are mandatory for any agent working in this repository.
@@ -66,6 +183,7 @@ This response gate is required in every technical answer.
 - No opportunistic edits: if it was not requested, do not modify it.
 - Do not change files, paths, response formats, or tooling outside the exact requested change.
 - Do not add or modify agent rules unless explicitly requested.
+- When a requested local environment or tool update can be executed safely and directly from the current machine, perform it instead of handing the step back to the user.
 - Before telling the user to update Steam Deck or another machine from git, ensure the required local code changes are actually committed and pushed. If the user works through GitHub Desktop, explicitly note that GitHub Desktop must show the commit/push completed before the remote machine pulls.
 
 ## Command Response Schema
@@ -77,6 +195,12 @@ This response gate is required in every technical answer.
 - First line must be `cd` when directory context matters.
 - No inline commentary inside code blocks.
 - Always provide full command text with no placeholders omitted.
+
+## Prompt Follow-Up Questions
+
+- When concluding a prompt, end with exactly three numbered follow-up questions using `1.`, `2.`, `3.` formatting.
+- These questions must help the user reply quickly with the next troubleshooting or implementation direction.
+- Keep the questions concise and action-oriented so the user can answer by number when iterating on prompts.
 
 ## Fail-Closed Live Data Policy
 
