@@ -14,6 +14,10 @@ COMMAND_ENV_BY_ACTION = {
     "write_game_data": "RYUJINX_LIVE_WRITE_GAME_DATA_CMD",
 }
 
+SAVE_SYNC_ENV_BY_ACTION = {
+    "write_inventory_slot": "RYUJINX_SAVE_WRITE_INVENTORY_CMD",
+}
+
 
 def resolve_live_command(action: str) -> str:
     env_var = COMMAND_ENV_BY_ACTION[action]
@@ -24,6 +28,24 @@ def resolve_live_command(action: str) -> str:
     reader_path = Path(__file__).with_name("acnh_memory_reader.py")
     if reader_path.exists() and reader_path.is_file():
         return f"python3 {shlex.quote(str(reader_path))} {action}"
+
+    return ""
+
+
+def resolve_save_sync_command(action: str) -> str:
+    env_var = SAVE_SYNC_ENV_BY_ACTION.get(action)
+    if not env_var:
+        return ""
+
+    explicit = os.environ.get(env_var, "").strip()
+    if explicit:
+        return explicit
+
+    repo_root = Path(__file__).resolve().parents[2]
+    if action == "write_inventory_slot":
+        script_path = repo_root / "scripts" / "steamdeck-adapters" / "write-inventory-slot.js"
+        if script_path.exists() and script_path.is_file():
+            return f"node {shlex.quote(str(script_path))}"
 
     return ""
 
@@ -163,6 +185,18 @@ def cmd_write_inventory_slot():
         "RYUJINX_LIVE_WRITE_INVENTORY_CMD",
     )
 
+    save_sync_output = None
+    save_sync_command = resolve_save_sync_command("write_inventory_slot")
+    if save_sync_command:
+        try:
+            save_sync_output = run_json_command(
+                save_sync_command,
+                {"command": "write_inventory_slot", "payload": slot_payload},
+                "RYUJINX_SAVE_WRITE_INVENTORY_CMD",
+            )
+        except ValueError as exc:
+            raise ValueError(f"Live inventory write succeeded but save-file persistence failed: {exc}") from exc
+
     response_slot = None
     if isinstance(output, dict):
         response_slot = normalize_slot(output.get("slot"))
@@ -176,6 +210,11 @@ def cmd_write_inventory_slot():
 
     if slots:
         response["slots"] = slots
+
+    if isinstance(save_sync_output, dict):
+        response["lastGameSaveAt"] = normalize_text(save_sync_output.get("lastGameSaveAt")) or None
+        response["lastGameDataFilePath"] = normalize_text(save_sync_output.get("lastGameDataFilePath")) or None
+        response["saveSyncSource"] = normalize_text(save_sync_output.get("source")) or None
 
     print(json.dumps(response))
 

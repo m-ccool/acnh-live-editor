@@ -321,7 +321,10 @@ async function handleWriteInventorySlot(requestId, command, payload) {
       slots: Array.isArray(output && output.slots) ? output.slots : null,
       source: output && output.source ? String(output.source) : 'live-memory',
       backend: output && output.backend ? String(output.backend) : null,
-      adapter: resolveInventoryAdapter()
+      adapter: resolveInventoryAdapter(),
+      lastGameSaveAt: output && output.lastGameSaveAt ? String(output.lastGameSaveAt) : null,
+      lastGameDataFilePath: output && output.lastGameDataFilePath ? String(output.lastGameDataFilePath) : null,
+      saveSyncSource: output && output.saveSyncSource ? String(output.saveSyncSource) : null
     })
   } catch (error) {
     sendError(requestId, command, error.message)
