@@ -28,6 +28,7 @@ def resolve_live_command(action: str) -> str:
     return ""
 
 
+
 def read_stdin_object() -> dict:
     text = sys.stdin.read().strip()
     if not text:
