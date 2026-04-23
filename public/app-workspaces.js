@@ -407,6 +407,10 @@ function renderWorkspacePanels() {
   const filledSlots = state.inventory.filter((entry) => entry.item).length;
   const stackTotal = state.inventory.reduce((sum, entry) => sum + Number(entry.count || 0), 0);
   const categories = getCategorySummary();
+  const selectedLabel = slot.item ? slot.item.name : (slot.itemId || 'Empty slot');
+  const selectedSource = slot.item
+    ? getItemSourceLabel(slot.item)
+    : (slot.itemId ? 'Bridge raw item id' : 'No source');
 
   el.tabFilledSlots.textContent = `${filledSlots} / ${TOTAL_SLOTS}`;
   el.tabStackTotal.textContent = formatNumber(stackTotal);
@@ -416,11 +420,9 @@ function renderWorkspacePanels() {
     window.ACNHReactUI.renderCategoryList(el.tabCategoryList, { categories });
   }
 
-  el.tabSelectionName.textContent = slot.item ? slot.item.name : 'Empty slot';
+  el.tabSelectionName.textContent = selectedLabel;
   el.tabSelectionHex.textContent = slot.hex || '00000000';
-  el.tabSelectionSource.textContent = slot.item
-    ? getItemSourceLabel(slot.item)
-    : 'No source';
+  el.tabSelectionSource.textContent = selectedSource;
 
   el.tabPlayerSummaryName.textContent = state.player.name;
   el.tabPlayerSummaryTown.textContent = state.player.town;
@@ -476,18 +478,19 @@ function renderItemModal() {
   const item = baseItem
     ? (findItemByLookup(baseItem.file_name || slot.itemId || baseItem.name, baseItem.name) || baseItem)
     : null;
+  const modalLabel = item ? item.name : (slot.itemId || 'Empty slot');
 
   if (!state.modalPendingItem && item && slot.item !== item) {
     slot.item = item;
   }
 
-  el.modalPocketTitle.textContent = `Pocket ${slot.slot} · ${item ? item.name : 'Empty slot'}`;
-  el.modalItemName.textContent = item ? item.name : 'Empty slot';
+  el.modalPocketTitle.textContent = `Pocket ${slot.slot} · ${modalLabel}`;
+  el.modalItemName.textContent = modalLabel;
   el.modalInputCount.value = String(slot.count);
   el.modalInputUses.value = String(slot.uses);
   el.modalInputFlag0.value = String(slot.flag0);
   el.modalInputFlag1.value = String(slot.flag1);
-  el.modalHex.textContent = item ? deriveHexFromItem(item) : (slot.hex || '00000000');
+  el.modalHex.textContent = slot.hex || deriveHexFromItem(item) || '00000000';
 
   if (item) {
     el.modalItemPreview.src = getPreferredItemPreviewUrl(item);
@@ -639,10 +642,10 @@ function buildItemModalPayload() {
   const item = state.modalPendingItem || slot.item;
   const payload = {
     selectedSlot: slot.slot,
-    selectedItem: item ? item.name : null,
-    itemId: item ? (item.file_name || item.name) : null,
+    selectedItem: item ? item.name : (slot.itemId || null),
+    itemId: item ? (item.file_name || item.name) : (slot.itemId || null),
     internalId: item ? (item.internal_id || null) : null,
-    hex: item ? deriveHexFromItem(item) : '00000000',
+    hex: slot.hex || deriveHexFromItem(item) || '00000000',
     count: slot.count,
     uses: slot.uses,
     flag0: slot.flag0,

@@ -839,6 +839,7 @@ def _decode_slot(raw: bytes, slot: int) -> dict:
     flag1 = raw[3]
     count = struct.unpack_from("<H", raw, 4)[0]
     uses = struct.unpack_from("<H", raw, 6)[0]
+    hex_value = f"{item_id:08X}"
 
     if item_id == _ITEM_NONE:
         return _empty_slot(slot)
@@ -848,6 +849,7 @@ def _decode_slot(raw: bytes, slot: int) -> dict:
     return {
         "slot": slot,
         "itemId": item_name,
+        "hex": hex_value,
         "count": count,
         "uses": uses,
         "flag0": flag0,

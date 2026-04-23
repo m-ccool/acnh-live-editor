@@ -875,9 +875,27 @@ function buildSlot(slotIndex, item, count, uses, flag0, flag1) {
   };
 }
 
+function normalizeBridgeHex(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '00000000';
+
+  if (/^0x[0-9a-f]+$/i.test(raw)) {
+    const parsed = Number.parseInt(raw.slice(2), 16);
+    if (Number.isInteger(parsed) && parsed >= 0) {
+      return parsed.toString(16).toUpperCase().padStart(8, '0');
+    }
+  }
+
+  if (/^[0-9a-f]{1,8}$/i.test(raw)) {
+    return raw.toUpperCase().padStart(8, '0');
+  }
+
+  return '00000000';
+}
+
 function deriveHexFromItem(item) {
-  if (!item || typeof item.internal_id !== 'number') return '00000000';
-  return item.internal_id.toString(16).toUpperCase().padStart(8, '0');
+  if (!item) return '00000000';
+  return normalizeBridgeHex(item.file_name || item.name);
 }
 
 function normalizeItemLookup(value) {

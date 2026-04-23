@@ -651,6 +651,7 @@ function normalizeBridgeInventorySlots(value) {
     return {
       slot,
       itemId: entry && entry.itemId ? String(entry.itemId) : null,
+      hex: normalizeBridgeHex(entry && entry.hex ? entry.hex : (entry && entry.itemId ? entry.itemId : '')),
       count: normalizeWholeNumber(entry && entry.count, 0),
       uses: normalizeWholeNumber(entry && entry.uses, 0),
       flag0: normalizeWholeNumber(entry && entry.flag0, 0),
@@ -684,6 +685,7 @@ function buildInventoryFromBridgeSlots(bridgeSlots) {
     if (entry.itemId) {
       slot.itemId = entry.itemId;
     }
+    slot.hex = normalizeBridgeHex(entry.hex || entry.itemId || slot.hex);
 
     nextSlots[entry.slot - 1] = slot;
   });
