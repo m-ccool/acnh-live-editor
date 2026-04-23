@@ -326,7 +326,7 @@ function readInventory() {
 
 function writeInventorySlot(payload) {
   return sendCommand('write_inventory_slot', payload, {
-    timeoutMs: 8000
+    timeoutMs: 20000
   })
 }
 

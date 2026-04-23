@@ -68,7 +68,15 @@ def read_stdin_object() -> dict:
 
 
 def run_json_command(command: str, payload: dict, label: str):
-    timeout_seconds = max(1, int(os.environ.get("BRIDGE_COMMAND_TIMEOUT_SECONDS", "6")))
+    timeout_seconds_raw = os.environ.get("BRIDGE_COMMAND_TIMEOUT_SECONDS", "").strip()
+    if timeout_seconds_raw:
+        timeout_seconds = max(1, int(timeout_seconds_raw))
+    else:
+        timeout_ms_raw = os.environ.get("BRIDGE_COMMAND_TIMEOUT_MS", "").strip()
+        if timeout_ms_raw:
+            timeout_seconds = max(1, int(timeout_ms_raw) // 1000)
+        else:
+            timeout_seconds = 12
 
     proc = subprocess.run(
         ["sh", "-lc", command],
