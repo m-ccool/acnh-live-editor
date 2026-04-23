@@ -1,4 +1,5 @@
 .env
+.steamdeck-deploy.env
 .codex-temp/
 .codex-*.log
 test-results/
