@@ -738,6 +738,12 @@ function buildBridgeWritePayload(slot) {
     itemId = rawItemId;
   }
 
+  const isEmptyWrite = itemId === null;
+  const hasTrustedItemId = typeof itemId === 'string' && /^0x[0-9a-f]+$/i.test(itemId);
+  if (!isEmptyWrite && !hasTrustedItemId) {
+    return null;
+  }
+
   return {
     slot: slotNumber,
     itemId,
@@ -750,6 +756,11 @@ function buildBridgeWritePayload(slot) {
 
 async function writeSlotToBridge(slot, actionText) {
   const payload = buildBridgeWritePayload(slot);
+  if (!payload) {
+    state.bridge.lastError = 'Bridge write blocked: selected item does not have a trusted live item ID yet';
+    state.bridge.lastAction = `Bridge write blocked on slot ${slot && slot.slot ? slot.slot : '?'}: untrusted item ID`;
+    return false;
+  }
   if (!state.bridge.connected || !payload) {
     return false;
   }

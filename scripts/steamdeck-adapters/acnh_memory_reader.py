@@ -372,8 +372,12 @@ def _calibrate_player_snapshot(pid: int, dram_base: int, offsets: dict, name_byt
     except Exception:
         pass
 
-    # If baseline is already clean, avoid extra scan work.
-    if _is_clean_player_text(baseline["name"]) and _is_clean_player_text(baseline["town"]):
+    # Only trust the fast path when the numeric fields are also write-safe.
+    if (
+        _is_clean_player_text(baseline["name"])
+        and _is_clean_player_text(baseline["town"])
+        and int(baseline.get("encryptedHits", 0)) == 3
+    ):
         return baseline
 
     return best
@@ -745,32 +749,30 @@ def _load_item_index():
 
     by_internal_id = {}
     by_file_name = {}
-    names_path = Path(__file__).resolve().parents[2] / "data" / "item-names-en.txt"
     items_path = Path(__file__).resolve().parents[2] / "data" / "items.json"
 
-    if names_path.exists():
-        lines = names_path.read_text(encoding="utf-8").splitlines()
-        for i, line in enumerate(lines):
-            name = line.strip()
-            if not name:
+    try:
+        parsed = json.loads(items_path.read_text(encoding="utf-8"))
+    except Exception:
+        parsed = []
+    if isinstance(parsed, list):
+        for entry in parsed:
+            if not isinstance(entry, dict):
                 continue
-            by_internal_id[i] = name
-            by_file_name[name] = i
-    else:
-        try:
-            parsed = json.loads(items_path.read_text(encoding="utf-8"))
-        except Exception:
-            parsed = []
-        if isinstance(parsed, list):
-            for entry in parsed:
-                if not isinstance(entry, dict):
-                    continue
-                file_name = str(entry.get("file_name") or "").strip()
-                internal_id = entry.get("internal_id")
-                if isinstance(internal_id, int):
-                    by_internal_id[internal_id] = file_name or None
-                if file_name:
-                    by_file_name[file_name] = internal_id
+            internal_id = entry.get("internal_id")
+            if not isinstance(internal_id, int):
+                continue
+
+            item_name = str(entry.get("name") or "").strip()
+            file_name = str(entry.get("file_name") or "").strip()
+            label = item_name or file_name or None
+            if label:
+                by_internal_id[internal_id] = label
+
+            if item_name:
+                by_file_name[item_name] = internal_id
+            if file_name:
+                by_file_name[file_name] = internal_id
 
     _ITEM_INDEX = {
         "by_internal_id": by_internal_id,
