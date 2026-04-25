@@ -69,6 +69,17 @@ npm run dev
 
 The floating debug button in the existing Windows UI now runs this same local restart flow from the page, then waits for the app to come back before reloading.
 
+### Persistent Server (auto-restart on crash)
+
+Use `start:persistent` instead of `dev` when you want the server to restart automatically if it crashes or exits:
+
+```powershell
+cd C:\Users\mccoo\OneDrive\Developer\acnh-live-editor
+npm run start:persistent
+```
+
+Logs are written to `%LOCALAPPDATA%\acnh-live-editor\server.log`. The launcher back-offs 5 seconds after a fast crash (<3 s uptime) before retrying.
+
 ## Environment Variables
 
 Create a local `.env` file if needed.
@@ -90,9 +101,11 @@ NOOKIPEDIA_ACCEPT_VERSION=1.7.0
 
 ## Available Scripts
 
-- `npm run dev`: start the local server
-- `npm run start`: start the local server
+- `npm run dev`: start the local server (single run)
+- `npm run start`: start the local server (single run)
+- `npm run start:persistent`: start the local server and auto-restart on crash (logs to `%LOCALAPPDATA%\acnh-live-editor\server.log`)
 - `npm run verify:bridge-backend`: run isolated backend-only bridge verification on non-primary ports
+- `npm run verify:single-write`: offline regression guard — asserts `_write_slot_procmem` issues exactly one 8-byte write at the canonical slot VA
 - `npm run import:catalogue`: rebuild `data/items.json` from imported catalogue data
 - `npm run sync:nookipedia`: fetch and cache the live Nookipedia catalog
 - `npm run bridge:steamdeck`: run the Steam Deck bridge client
@@ -152,6 +165,57 @@ bash scripts/steamdeck-run-bridge.sh
 ```
 
 After that, you can also double-click the `ACNH Live Bridge` icon on Desktop.
+
+### Persistent Bridge Service (survives SSH disconnect and reboots)
+
+The preferred way to run the bridge is as a persistent systemd user service. The service uses `scripts/start-bridge-direct.sh` which execs node directly with no `tee` pipe, so SSH session close cannot send SIGPIPE to the node process.
+
+Install once on Steam Deck:
+
+```bash
+mkdir -p ~/.config/systemd/user
+cat > ~/.config/systemd/user/acnh-bridge.service << 'UNIT'
+[Unit]
+Description=ACNH Live Editor Bridge
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/acnh-live-editor
+ExecStart=/bin/bash %h/acnh-live-editor/scripts/start-bridge-direct.sh
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:%h/.acnh-live-bridge.log
+StandardError=append:%h/.acnh-live-bridge.log
+
+[Install]
+WantedBy=default.target
+UNIT
+
+systemctl --user daemon-reload
+systemctl --user enable acnh-bridge.service
+loginctl enable-linger deck
+systemctl --user start acnh-bridge.service
+```
+
+Service management:
+
+```bash
+systemctl --user status acnh-bridge.service   # check status
+systemctl --user restart acnh-bridge.service  # restart after a config change
+systemctl --user stop acnh-bridge.service     # stop
+journalctl --user -u acnh-bridge.service -f   # follow live logs
+```
+
+After pulling repo updates on the Deck, restart the service:
+
+```bash
+cd ~/acnh-live-editor && git pull --ff-only origin dev
+systemctl --user restart acnh-bridge.service
+```
+
+Note: `deploy-steamdeck-bridge.ps1` (`npm run deploy:steamdeck`) uses `systemd-run --user` automatically when deploying from Windows, with a `setsid`+`nohup` fallback if systemd is unavailable.
 
 What you should see on launch:
 
