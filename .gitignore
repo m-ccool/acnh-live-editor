@@ -1,6 +1,11 @@
 .env
 .steamdeck-deploy.env
+.steamdeck-bridge.env
+.steamdeck-bridge.env.save
 .codex-temp/
 .codex-*.log
 test-results/
 data/nookipedia-items-cache.json
+data/music-library-cache.json
+__pycache__/
+*.pyc

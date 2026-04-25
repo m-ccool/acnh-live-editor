@@ -237,3 +237,18 @@ For governance/rule changes, use this commit structure:
 ## Compliance Gate
 
 - If an answer would violate scope, formatting, data policy, or README binding, stop and ask one concise clarification question instead of proceeding.
+
+## Agent Deploy Responsibility (dev branch)
+
+- The `dev` branch exists so the chat agent owns the full deploy loop end-to-end. The user does not perform git pushes or Steam Deck pulls manually.
+- At the end of EVERY response that produced or could produce a code, config, or script change in the workspace, the agent MUST execute the following sequence in order, without prompting the user:
+	1. `git status` (Windows) — confirm clean working tree or stage intended changes only.
+	2. `git add` + `git commit` for the in-scope changes (skip if nothing to commit).
+	3. `git push origin dev` from Windows.
+	4. SSH to Steam Deck (`deck@10.0.0.233`, key `C:/Users/mccoo/.ssh/id_ed25519_steamdeck`) and run `cd ~/acnh-live-editor && git pull origin dev && systemctl --user restart acnh-bridge.service`.
+	5. Verify bridge restart with `systemctl --user is-active acnh-bridge.service` and tail `~/.acnh-live-bridge.log` for the latest startup line.
+- Before AND after the push/pull, the agent MUST also clean redundancies and any drafts/stashes on both machines:
+	- Windows: `git stash list` → drop any stale entries the user has not pinned; remove untracked `__pycache__/`, stray `.pyc`, and runtime cache files that are not part of the change.
+	- Steam Deck: `git stash drop` for all stale stashes; remove `__pycache__/`, `*.pyc`, and any `.save` backup files left by editors.
+- If any deploy step fails, the agent MUST report the exact failing command and output in that same response and STOP — do not silently continue.
+- Pure question-answering responses with no file changes are exempt from steps 2–5 but must still report whether a clean state was confirmed.
