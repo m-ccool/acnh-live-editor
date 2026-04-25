@@ -66,19 +66,27 @@ def run_case(slot: int, expected_va: int) -> None:
 
     result = reader._write_slot_procmem(FAKE_PID, FAKE_DRAM_BASE, payload)
 
+    # Pulse-write sends 10 writes to the same canonical VA (vsync refresh).
+    # All writes must be to the same canonical VA and same 8-byte payload.
     _check(
-        len(writes) == 1,
-        f"slot {slot}: expected exactly 1 canonical write, got {len(writes)} -> "
+        len(writes) == 10,
+        f"slot {slot}: expected 10 pulse writes, got {len(writes)} -> "
         f"{[hex(va) for va, _ in writes]}",
+    )
+    unique_vas = {va for va, _ in writes}
+    _check(
+        unique_vas == {expected_va},
+        f"slot {slot}: all pulse writes must target canonical VA {hex(expected_va)}, got {[hex(v) for v in unique_vas]}",
     )
     write_va, write_data = writes[0]
     _check(
-        write_va == expected_va,
-        f"slot {slot}: expected canonical write VA {hex(expected_va)}, got {hex(write_va)}",
-    )
-    _check(
         len(write_data) == reader._ITEM_SIZE,
         f"slot {slot}: canonical write expected {reader._ITEM_SIZE} bytes, got {len(write_data)}",
+    )
+    # All 10 writes must carry identical payload
+    _check(
+        len({d for _, d in writes}) == 1,
+        f"slot {slot}: all 10 pulse writes must carry identical payload",
     )
     _check(
         result.get("slot") == slot,
@@ -121,7 +129,7 @@ def main() -> None:
     run_case(slot=21, expected_va=slot21_va)
     run_case(slot=40, expected_va=slot21_va + 19 * reader._ITEM_SIZE)
 
-    print("PASS: single canonical write per slot; no mirror/scan regressions present")
+    print("PASS: 10-pulse canonical write per slot; no mirror/scan regressions present")
 
 
 if __name__ == "__main__":

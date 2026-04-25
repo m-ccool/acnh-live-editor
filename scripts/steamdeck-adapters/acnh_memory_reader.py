@@ -887,14 +887,18 @@ def _read_all_slots_procmem(pid: int, dram_base: int):
 
 
 def _write_slot_procmem(pid: int, dram_base: int, slot_payload: dict):
-    # Single canonical 8-byte write to the game-engine pocket slot VA.
+    # Pulse-write: repeat canonical 8-byte write 10x at 50ms intervals so that
+    # ACNH's vsync-rate display cache picks up the new value while pocket is open.
     # The slot-1 mirror at +0x6A540 was tested live (commit 4a297c2) and proven
     # NOT to refresh the in-game pocket UI; the dual-write was reverted.
+    import time
     offsets = _get_inventory_offsets()
     raw = _encode_slot(slot_payload)
     slot_va = _slot_switch_va(slot_payload["slot"], offsets)
 
-    _write_switch_va(pid, dram_base, slot_va, raw)
+    for _ in range(10):
+        _write_switch_va(pid, dram_base, slot_va, raw)
+        time.sleep(0.05)
 
     refreshed = _read_switch_va(pid, dram_base, slot_va, _ITEM_SIZE)
     return _decode_slot(refreshed, slot_payload["slot"])
