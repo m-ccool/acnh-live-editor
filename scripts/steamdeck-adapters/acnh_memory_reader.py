@@ -63,6 +63,10 @@ _POCKET_SLOT_COUNT = 20
 _POCKET_PAGE_SIZE = _ITEM_SIZE * _POCKET_SLOT_COUNT
 _POCKET_MIRROR_SEARCH_RADIUS = 0x1000000
 _POCKET_MIRROR_MIN_MATCHING_SLOTS = 12
+# Ryujinx loads save slot 0/ and save slot 1/ into memory consecutively.
+# The slot-1 copy sits exactly 0x6A540 bytes above the slot-0 inventory VA.
+# Both copies must be written so the in-game UI reflects the change live.
+_SAVE_SLOT1_INVENTORY_DELTA = 0x6A540
 
 BOTBASE_FALLBACK_PORTS = [6000, 6001]
 
@@ -412,7 +416,13 @@ def _iter_pattern_matches(pid: int, dram_base: int, start_va: int, end_va: int, 
     tail = b""
     while cursor < end_va:
         size = min(chunk_size, end_va - cursor)
-        chunk = _read_switch_va(pid, dram_base, cursor, size)
+        try:
+            chunk = _read_switch_va(pid, dram_base, cursor, size)
+        except RuntimeError:
+            # Skip unreadable chunks (unmapped or guard pages) and keep scanning.
+            tail = b""
+            cursor += size
+            continue
         haystack = tail + chunk
         search_from = 0
         while True:
@@ -962,8 +972,17 @@ def _write_slot_procmem(pid: int, dram_base: int, slot_payload: dict):
 
     _write_switch_va(pid, dram_base, slot_va, raw)
 
+    # Also write to the save slot-1 mirror (live in-game UI buffer).
+    slot1_mirror_va = slot_va + _SAVE_SLOT1_INVENTORY_DELTA
+    patched_slot1_mirror = 0
+    try:
+        _write_switch_va(pid, dram_base, slot1_mirror_va, raw)
+        patched_slot1_mirror = 1
+    except RuntimeError:
+        pass
+
     patched_duplicate_pages = 0
-    patched_page_starts = {page_start_va}
+    patched_page_starts = {page_start_va, page_start_va + _SAVE_SLOT1_INVENTORY_DELTA}
     for duplicate_page_va in _iter_duplicate_page_matches(pid, dram_base, page_start_va, page_before):
         if duplicate_page_va in patched_page_starts:
             continue
@@ -987,6 +1006,7 @@ def _write_slot_procmem(pid: int, dram_base: int, slot_payload: dict):
 
     refreshed = _read_switch_va(pid, dram_base, slot_va, _ITEM_SIZE)
     decoded = _decode_slot(refreshed, slot_payload["slot"])
+    decoded["patchedSlot1Mirror"] = patched_slot1_mirror
     if patched_duplicate_pages:
         decoded["patchedDuplicatePages"] = patched_duplicate_pages
     if patched_similar_pages:
