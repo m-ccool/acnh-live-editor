@@ -4,13 +4,14 @@ Isolated backend regression check for the live-memory inventory writer.
 
 Runs offline (no Ryujinx, no /proc/<pid>/mem). Monkey-patches the memory I/O
 helpers in acnh_memory_reader so we can assert that _write_slot_procmem issues
-exactly ONE _write_switch_va call to the canonical pocket slot VA.
+exactly TWO _write_switch_va calls per slot:
+  1. canonical slot VA (game-engine copy / slot-0)
+  2. slot VA + _SAVE_SLOT1_INVENTORY_DELTA (in-game UI display copy / slot-1)
 
-Why: prior commits 84bdeef -> f0411c6 -> bdba385 layered duplicate-page,
-similar-page, and +0x6A540 "save slot 1 mirror" writes on top of the canonical
-write. Those mirror writes stomped unrelated memory and broke the live in-game
-pocket render until the player closed and reopened the menu. This script is
-the regression guard so that path stays single-write.
+Both writes are required for the in-game pocket UI to refresh live.  This guard
+also verifies that the forbidden page-scanning helpers (duplicate page, similar
+page) are not re-introduced: those helpers stomped unrelated memory in commits
+84bdeef -> f0411c6 -> bdba385 and broke the live render.
 
 Exit code 0 on pass, 1 on failure. Designed to run from the repo root:
     python3 scripts/steamdeck-adapters/verify_single_write.py
@@ -65,22 +66,36 @@ def run_case(slot: int, expected_va: int) -> None:
     result = reader._write_slot_procmem(FAKE_PID, FAKE_DRAM_BASE, payload)
 
     _check(
-        len(writes) == 1,
-        f"slot {slot}: expected exactly 1 write, got {len(writes)} -> "
+        len(writes) == 2,
+        f"slot {slot}: expected exactly 2 writes (canonical + mirror), got {len(writes)} -> "
         f"{[hex(va) for va, _ in writes]}",
     )
     write_va, write_data = writes[0]
     _check(
         write_va == expected_va,
-        f"slot {slot}: expected write VA {hex(expected_va)}, got {hex(write_va)}",
+        f"slot {slot}: expected canonical write VA {hex(expected_va)}, got {hex(write_va)}",
+    )
+    mirror_va, mirror_data = writes[1]
+    expected_mirror_va = expected_va + reader._SAVE_SLOT1_INVENTORY_DELTA
+    _check(
+        mirror_va == expected_mirror_va,
+        f"slot {slot}: expected mirror write VA {hex(expected_mirror_va)}, got {hex(mirror_va)}",
     )
     _check(
         len(write_data) == reader._ITEM_SIZE,
-        f"slot {slot}: expected {reader._ITEM_SIZE}-byte write, got {len(write_data)}",
+        f"slot {slot}: canonical write expected {reader._ITEM_SIZE} bytes, got {len(write_data)}",
+    )
+    _check(
+        write_data == mirror_data,
+        f"slot {slot}: canonical and mirror write data must be identical",
     )
     _check(
         result.get("slot") == slot,
         f"slot {slot}: returned slot mismatch -> {result}",
+    )
+    _check(
+        result.get("mirrorWritten") is True,
+        f"slot {slot}: result must contain mirrorWritten=True -> {result}",
     )
 
     forbidden_attrs = (
@@ -91,13 +106,12 @@ def run_case(slot: int, expected_va: int) -> None:
     for attr in forbidden_attrs:
         _check(
             attr not in result,
-            f"slot {slot}: result must not contain regression attribute {attr!r}",
+            f"slot {slot}: result must not contain removed regression attribute {attr!r}",
         )
 
 
 def main() -> None:
     forbidden_module_attrs = (
-        "_SAVE_SLOT1_INVENTORY_DELTA",
         "_iter_duplicate_page_matches",
         "_iter_similar_page_matches",
         "_pocket_page_switch_va",
@@ -108,8 +122,14 @@ def main() -> None:
     for attr in forbidden_module_attrs:
         _check(
             not hasattr(reader, attr),
-            f"acnh_memory_reader must not export regression symbol {attr!r}",
+            f"acnh_memory_reader must not export scanning regression symbol {attr!r}",
         )
+
+    # Verify the targeted delta constant is present.
+    _check(
+        hasattr(reader, "_SAVE_SLOT1_INVENTORY_DELTA"),
+        "acnh_memory_reader must export _SAVE_SLOT1_INVENTORY_DELTA",
+    )
 
     run_case(slot=1, expected_va=SLOT1_VA)
     run_case(slot=2, expected_va=SLOT1_VA + reader._ITEM_SIZE)
@@ -119,8 +139,9 @@ def main() -> None:
     run_case(slot=21, expected_va=slot21_va)
     run_case(slot=40, expected_va=slot21_va + 19 * reader._ITEM_SIZE)
 
-    print("verify_single_write: PASS (single canonical write per slot)")
+    print("verify_single_write: PASS (canonical + slot-1 mirror dual write per slot)")
 
 
 if __name__ == "__main__":
     main()
+
