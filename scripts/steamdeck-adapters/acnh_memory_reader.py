@@ -51,11 +51,6 @@ _DEFAULT_OFFSETS = {
 
 _ITEM_NONE = 0xFFFE
 _ITEM_SIZE = 8
-# Ryujinx loads save slot 0/ and save slot 1/ into consecutive Switch VA memory.
-# The in-game pocket UI renders from the slot-1 copy which sits 0x6A540 bytes
-# above the slot-0 inventory VA.  Both copies must be written for the pocket
-# display to refresh immediately without a menu close/reopen.
-_SAVE_SLOT1_INVENTORY_DELTA = 0x6A540
 _DEFAULT_INVENTORY_OFFSETS = {
     "2.0.7": {
         "slot1": 0xAFB1E6E0,
@@ -892,30 +887,17 @@ def _read_all_slots_procmem(pid: int, dram_base: int):
 
 
 def _write_slot_procmem(pid: int, dram_base: int, slot_payload: dict):
-    # Write the canonical 8-byte pocket slot (slot-0, game-engine copy), then
-    # patch the slot-1 display copy so the in-game pocket UI refreshes live.
-    # Ryujinx holds both save slots in consecutive Switch VA memory; the pocket
-    # menu renders from the slot-1 copy at slot_va + _SAVE_SLOT1_INVENTORY_DELTA.
-    # Writing only slot_va leaves the display stale until close/reopen.
+    # Single canonical 8-byte write to the game-engine pocket slot VA.
+    # The slot-1 mirror at +0x6A540 was tested live (commit 4a297c2) and proven
+    # NOT to refresh the in-game pocket UI; the dual-write was reverted.
     offsets = _get_inventory_offsets()
     raw = _encode_slot(slot_payload)
     slot_va = _slot_switch_va(slot_payload["slot"], offsets)
 
     _write_switch_va(pid, dram_base, slot_va, raw)
 
-    # Patch the slot-1 display copy for live UI refresh.
-    mirror_va = slot_va + _SAVE_SLOT1_INVENTORY_DELTA
-    mirror_written = False
-    try:
-        _write_switch_va(pid, dram_base, mirror_va, raw)
-        mirror_written = True
-    except RuntimeError:
-        pass  # mirror region not mapped — single write only
-
     refreshed = _read_switch_va(pid, dram_base, slot_va, _ITEM_SIZE)
-    result = _decode_slot(refreshed, slot_payload["slot"])
-    result["mirrorWritten"] = mirror_written
-    return result
+    return _decode_slot(refreshed, slot_payload["slot"])
 
 
 def read_game_data_procmem():

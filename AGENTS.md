@@ -161,9 +161,11 @@ This response gate is required in every technical answer.
 
 ## Confirmed Repo Facts
 
-- Windows UI address: `http://10.0.0.25:3000`
-- Steam Deck bridge target host: `10.0.0.25`
+- Windows UI address: `http://10.0.0.110:3000`
+- Steam Deck bridge target host: `10.0.0.110`
 - Steam Deck bridge target port: `32840`
+- Steam Deck SSH: `deck@10.0.0.233:22`, key `C:/Users/mccoo/.ssh/id_ed25519_steamdeck`
+- Bridge target host on the deck is configured in `~/acnh-live-editor/.steamdeck-bridge.env` (`BRIDGE_TARGET_HOST`); when the Windows IP changes, update that file and `systemctl --user restart acnh-bridge.service` instead of asking the user.
 
 ## Verification Discipline
 
@@ -185,6 +187,19 @@ This response gate is required in every technical answer.
 - Do not add or modify agent rules unless explicitly requested.
 - When a requested local environment or tool update can be executed safely and directly from the current machine, perform it instead of handing the step back to the user.
 - Before telling the user to update Steam Deck or another machine from git, ensure the required local code changes are actually committed and pushed. If the user works through GitHub Desktop, explicitly note that GitHub Desktop must show the commit/push completed before the remote machine pulls.
+
+## Do Not Hand Work Back To The User
+
+- NEVER tell the user to do something the agent can perform directly with the tools available in this session (SSH to the deck, edit files, restart services, run scripts, fetch URLs, capture screenshots, push/pull git, update env files, etc.).
+- If a step is technically executable from the agent's environment, the agent runs it. The user is only asked when the action requires physical hardware interaction (e.g. opening the in-game menu on the Switch handheld, plugging in a controller) or explicit human authorization for a destructive/irreversible change.
+- Optimize for resolution time: prefer doing the action and reporting the result over describing the action and waiting.
+
+## Never Overcomplicate
+
+- Pick the shortest path that resolves the user's request. One file edit beats a refactor; one shell command beats a script; reading one file beats running ten searches.
+- Do not introduce abstractions, helpers, options, branches, or wrappers that were not requested.
+- Do not chain hypothetical "what if" steps into a single response. Resolve the current step, observe the result, then act on the next step.
+- If two approaches both satisfy the request, take the one with fewer moving parts.
 
 ## Command Response Schema
 
