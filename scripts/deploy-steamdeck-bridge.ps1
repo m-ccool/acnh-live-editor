@@ -134,10 +134,18 @@ $remoteLines = @(
 
 if ($RestartBridge) {
   $processMatch = Escape-SingleQuotedBash $resolvedBridgeProcessMatch
-  $startCommand = Escape-SingleQuotedBash $resolvedBridgeStartCommand
   $remoteLines += @(
     "pkill -f '$processMatch' >/dev/null 2>&1 || true",
-    "nohup sh -lc '$startCommand' > ~/.acnh-live-bridge.log 2>&1 < /dev/null &",
+    'sleep 1',
+    # Use systemd-run so the bridge unit outlives the SSH session.
+    # Falls back to nohup+setsid if systemd-run is unavailable.
+    "if command -v systemd-run >/dev/null 2>&1; then",
+    "  systemctl --user stop acnh-bridge.service >/dev/null 2>&1 || true",
+    "  systemd-run --user --unit=acnh-bridge --working-directory=$resolvedRepoDir bash $resolvedRepoDir/scripts/start-bridge-direct.sh",
+    "else",
+    "  setsid nohup bash $resolvedRepoDir/scripts/start-bridge-direct.sh >> ~/.acnh-live-bridge.log 2>&1 < /dev/null &",
+    "  disown",
+    "fi",
     'sleep 2',
     "pgrep -f '$processMatch' >/dev/null"
   )
