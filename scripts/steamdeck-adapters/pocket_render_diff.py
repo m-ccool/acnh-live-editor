@@ -42,6 +42,22 @@ OUTPUT_DIR = REPO_ROOT / "test-results" / "pocket-diff"
 WINDOW_BASE_VA = 0xAFB00000
 WINDOW_SIZE = 0x200000  # 2 MiB
 
+# Known ACNH 2.0.7 VA regions for address annotation in diff output.
+_REGIONS = [
+    (0xAFB1E6E0, 0xAFB1E6E0 + 20 * 8,           "pocket-slots-1-20-canonical"),
+    (0xAFB1E6E0 - (20 * 8 + 0x18), 0xAFB1E6E0,  "pocket-slots-21-40-canonical"),
+    (0xAFB1E6E0 + 0x6A540, 0xAFB1E6E0 + 0x6A540 + 20 * 8, "slot1-mirror-+0x6A540"),
+    (0xAFBC6400, 0xAFBC6700,                       "player-save-struct"),
+]
+
+def _annotate_va(va: int) -> str:
+    """Return a region label if the VA falls in a known range, else ''."""
+    for start, end, label in _REGIONS:
+        if start <= va < end:
+            slot = (va - start) // 8 + 1
+            return f" [{label} slot~{slot}]"
+    return ""
+
 
 def _capture(label: str) -> Path:
     reader._check_ptrace_scope()
@@ -83,7 +99,8 @@ def _diff(label_a: str, label_b: str) -> None:
         size = end - start
         before = a[start:end].hex()
         after = b[start:end].hex()
-        print(f"  VA {hex(va):>12} +{size:<5} | {before} -> {after}")
+        label = _annotate_va(va)
+        print(f"  VA {hex(va):>12} +{size:<5} | {before} -> {after}{label}")
     if len(diffs) > 200:
         print(f"  ...{len(diffs) - 200} more runs truncated")
 
