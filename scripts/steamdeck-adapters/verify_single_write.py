@@ -66,32 +66,20 @@ def run_case(slot: int, expected_va: int) -> None:
 
     result = reader._write_slot_procmem(FAKE_PID, FAKE_DRAM_BASE, payload)
 
-    # Pulse-write sends 10 writes to canonical VA + 2 dirty-flag toggle writes.
-    # Slot writes: 10 × canonical VA. Dirty flag: 1 × 0x00, 1 × 0x01 at BANK1_DIRTY_FLAG_VA.
-    _DIRTY_FLAG_VA = 0xAFB1E784
-    slot_writes = [(va, d) for va, d in writes if va == expected_va]
-    dirty_writes = [(va, d) for va, d in writes if va == _DIRTY_FLAG_VA]
+    # Single canonical write per slot. Pulse and dirty-flag regressions removed.
     _check(
-        len(slot_writes) == 10,
-        f"slot {slot}: expected 10 pulse writes to canonical VA, got {len(slot_writes)}",
+        len(writes) == 1,
+        f"slot {slot}: expected exactly 1 canonical write, got {len(writes)} -> "
+        f"{[hex(va) for va, _ in writes]}",
     )
+    write_va, write_data = writes[0]
     _check(
-        len(dirty_writes) == 2,
-        f"slot {slot}: expected 2 dirty-flag toggle writes, got {len(dirty_writes)}",
+        write_va == expected_va,
+        f"slot {slot}: expected canonical write VA {hex(expected_va)}, got {hex(write_va)}",
     )
-    _check(
-        dirty_writes[0][1] == b'\x00' and dirty_writes[1][1] == b'\x01',
-        f"slot {slot}: dirty-flag toggle must be 0x00 then 0x01, got {[d.hex() for _, d in dirty_writes]}",
-    )
-    write_va, write_data = slot_writes[0]
     _check(
         len(write_data) == reader._ITEM_SIZE,
         f"slot {slot}: canonical write expected {reader._ITEM_SIZE} bytes, got {len(write_data)}",
-    )
-    # All 10 slot writes must carry identical payload
-    _check(
-        len({d for _, d in slot_writes}) == 1,
-        f"slot {slot}: all 10 pulse writes must carry identical payload",
     )
     _check(
         result.get("slot") == slot,
@@ -134,7 +122,7 @@ def main() -> None:
     run_case(slot=21, expected_va=slot21_va)
     run_case(slot=40, expected_va=slot21_va + 19 * reader._ITEM_SIZE)
 
-    print("PASS: 10-pulse canonical write + dirty-flag toggle per slot; no mirror/scan regressions present")
+    print("PASS: single canonical write per slot; no mirror/scan regressions present")
 
 
 if __name__ == "__main__":
