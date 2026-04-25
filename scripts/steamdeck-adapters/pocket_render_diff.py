@@ -39,8 +39,9 @@ OUTPUT_DIR = REPO_ROOT / "test-results" / "pocket-diff"
 
 # Window: cover both inventory pages plus +/- 0x80000 to catch any
 # nearby UI mirror buffer.  ACNH 2.0.7 slot1 VA = 0xAFB1E6E0.
+# Override with --va / --size at the command line for wider scans.
 WINDOW_BASE_VA = 0xAFB00000
-WINDOW_SIZE = 0x200000  # 2 MiB
+WINDOW_SIZE = 0x200000  # 2 MiB default
 
 # Known ACNH 2.0.7 VA regions for address annotation in diff output.
 _REGIONS = [
@@ -59,7 +60,7 @@ def _annotate_va(va: int) -> str:
     return ""
 
 
-def _capture(label: str) -> Path:
+def _capture(label: str, base_va: int, size: int) -> Path:
     reader._check_ptrace_scope()
     pid = reader._find_ryujinx_pid()
     dram_base = reader._find_dram_base(pid)
@@ -67,13 +68,13 @@ def _capture(label: str) -> Path:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     out_path = OUTPUT_DIR / f"{label}.bin"
 
-    data = reader._read_switch_va(pid, dram_base, WINDOW_BASE_VA, WINDOW_SIZE)
+    data = reader._read_switch_va(pid, dram_base, base_va, size)
     out_path.write_bytes(data)
-    print(f"captured {len(data)} bytes from VA {hex(WINDOW_BASE_VA)} -> {out_path}")
+    print(f"captured {len(data)} bytes from VA {hex(base_va)} -> {out_path}")
     return out_path
 
 
-def _diff(label_a: str, label_b: str) -> None:
+def _diff(label_a: str, label_b: str, base_va: int = WINDOW_BASE_VA) -> None:
     a = (OUTPUT_DIR / f"{label_a}.bin").read_bytes()
     b = (OUTPUT_DIR / f"{label_b}.bin").read_bytes()
     if len(a) != len(b):
@@ -95,7 +96,7 @@ def _diff(label_a: str, label_b: str) -> None:
 
     print(f"{len(diffs)} differing runs ({label_a} vs {label_b}):")
     for start, end in diffs[:200]:
-        va = WINDOW_BASE_VA + start
+        va = base_va + start
         size = end - start
         before = a[start:end].hex()
         after = b[start:end].hex()
@@ -115,12 +116,24 @@ def main() -> None:
         metavar=("A", "B"),
         help="diff two previously captured labels",
     )
+    parser.add_argument(
+        "--va",
+        default=hex(WINDOW_BASE_VA),
+        help=f"start VA for capture (hex, default {hex(WINDOW_BASE_VA)})",
+    )
+    parser.add_argument(
+        "--size",
+        default=hex(WINDOW_SIZE),
+        help=f"scan size in bytes (hex, default {hex(WINDOW_SIZE)})",
+    )
     args = parser.parse_args()
+    base_va = int(args.va, 16)
+    size = int(args.size, 16)
 
     if args.label:
-        _capture(args.label)
+        _capture(args.label, base_va, size)
     else:
-        _diff(args.diff[0], args.diff[1])
+        _diff(args.diff[0], args.diff[1], base_va)
 
 
 if __name__ == "__main__":

@@ -891,6 +891,11 @@ def _write_slot_procmem(pid: int, dram_base: int, slot_payload: dict):
     # ACNH's vsync-rate display cache picks up the new value while pocket is open.
     # The slot-1 mirror at +0x6A540 was tested live (commit 4a297c2) and proven
     # NOT to refresh the in-game pocket UI; the dual-write was reverted.
+    #
+    # After the pulse writes, toggle the adjacent bank1 dirty-flag candidate
+    # at 0xAFB1E784 (0x01 byte immediately after the bank1 capacity uint32).
+    # A 0→1 rising edge may signal the pocket UI to invalidate its display cache.
+    _BANK1_DIRTY_FLAG_VA = 0xAFB1E784
     import time
     offsets = _get_inventory_offsets()
     raw = _encode_slot(slot_payload)
@@ -899,6 +904,11 @@ def _write_slot_procmem(pid: int, dram_base: int, slot_payload: dict):
     for _ in range(10):
         _write_switch_va(pid, dram_base, slot_va, raw)
         time.sleep(0.05)
+
+    # Toggle dirty flag: 0 → brief pause → 1
+    _write_switch_va(pid, dram_base, _BANK1_DIRTY_FLAG_VA, b'\x00')
+    time.sleep(0.016)  # ~1 vsync frame
+    _write_switch_va(pid, dram_base, _BANK1_DIRTY_FLAG_VA, b'\x01')
 
     refreshed = _read_switch_va(pid, dram_base, slot_va, _ITEM_SIZE)
     return _decode_slot(refreshed, slot_payload["slot"])
