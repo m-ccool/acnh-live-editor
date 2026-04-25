@@ -963,55 +963,20 @@ def _read_all_slots_procmem(pid: int, dram_base: int):
 
 
 def _write_slot_procmem(pid: int, dram_base: int, slot_payload: dict):
+    # Live in-game inventory render: write the canonical 8-byte pocket slot.
+    # Per NHSE / sys-botbase ACNH live-edit pattern, the in-game pocket UI
+    # reads the player pocket directly from the canonical slot1 VA every
+    # frame, so a single write to slot_va updates instantly. Earlier mirror
+    # writes (duplicate pages, similar pages, +0x6A540 save-slot-1) stomped
+    # unrelated regions and broke the live refresh until menu reopen.
     offsets = _get_inventory_offsets()
     raw = _encode_slot(slot_payload)
     slot_va = _slot_switch_va(slot_payload["slot"], offsets)
-    page_start_va = _pocket_page_switch_va(slot_payload["slot"], offsets)
-    slot_offset = slot_va - page_start_va
-    page_before = _read_switch_va(pid, dram_base, page_start_va, _POCKET_PAGE_SIZE)
 
     _write_switch_va(pid, dram_base, slot_va, raw)
 
-    # Also write to the save slot-1 mirror (live in-game UI buffer).
-    slot1_mirror_va = slot_va + _SAVE_SLOT1_INVENTORY_DELTA
-    patched_slot1_mirror = 0
-    try:
-        _write_switch_va(pid, dram_base, slot1_mirror_va, raw)
-        patched_slot1_mirror = 1
-    except RuntimeError:
-        pass
-
-    patched_duplicate_pages = 0
-    patched_page_starts = {page_start_va, page_start_va + _SAVE_SLOT1_INVENTORY_DELTA}
-    for duplicate_page_va in _iter_duplicate_page_matches(pid, dram_base, page_start_va, page_before):
-        if duplicate_page_va in patched_page_starts:
-            continue
-        try:
-            _write_switch_va(pid, dram_base, duplicate_page_va + slot_offset, raw)
-            patched_page_starts.add(duplicate_page_va)
-            patched_duplicate_pages += 1
-        except RuntimeError:
-            continue
-
-    patched_similar_pages = 0
-    for similar_page_va in _iter_similar_page_matches(pid, dram_base, page_start_va, page_before, slot_offset):
-        if similar_page_va in patched_page_starts:
-            continue
-        try:
-            _write_switch_va(pid, dram_base, similar_page_va + slot_offset, raw)
-            patched_page_starts.add(similar_page_va)
-            patched_similar_pages += 1
-        except RuntimeError:
-            continue
-
     refreshed = _read_switch_va(pid, dram_base, slot_va, _ITEM_SIZE)
-    decoded = _decode_slot(refreshed, slot_payload["slot"])
-    decoded["patchedSlot1Mirror"] = patched_slot1_mirror
-    if patched_duplicate_pages:
-        decoded["patchedDuplicatePages"] = patched_duplicate_pages
-    if patched_similar_pages:
-        decoded["patchedSimilarPages"] = patched_similar_pages
-    return decoded
+    return _decode_slot(refreshed, slot_payload["slot"])
 
 
 def read_game_data_procmem():
