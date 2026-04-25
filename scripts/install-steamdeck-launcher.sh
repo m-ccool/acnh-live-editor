@@ -49,3 +49,41 @@ create_desktop_entry "${APP_FILE}"
 echo "[acnh-bridge] Launcher created: ${DESKTOP_FILE}"
 echo "[acnh-bridge] App entry created: ${APP_FILE}"
 echo "[acnh-bridge] Double-click the Desktop icon to run bridge client."
+
+# Install persistent systemd user service -----------------------------------
+UNIT_DIR="${HOME}/.config/systemd/user"
+UNIT_FILE="${UNIT_DIR}/acnh-bridge.service"
+DIRECT_LAUNCHER="${REPO_DIR}/scripts/start-bridge-direct.sh"
+
+if command -v systemctl >/dev/null 2>&1 && [[ -f "${DIRECT_LAUNCHER}" ]]; then
+  mkdir -p "${UNIT_DIR}"
+  chmod +x "${DIRECT_LAUNCHER}"
+
+  cat > "${UNIT_FILE}" <<UNIT
+[Unit]
+Description=ACNH Live Editor Bridge
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=${REPO_DIR}
+ExecStart=/bin/bash ${DIRECT_LAUNCHER}
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:%h/.acnh-live-bridge.log
+StandardError=append:%h/.acnh-live-bridge.log
+
+[Install]
+WantedBy=default.target
+UNIT
+
+  systemctl --user daemon-reload
+  systemctl --user enable acnh-bridge.service
+  loginctl enable-linger "$(whoami)" 2>/dev/null || true
+
+  echo "[acnh-bridge] systemd unit installed: ${UNIT_FILE}"
+  echo "[acnh-bridge] Service enabled. Run: systemctl --user start acnh-bridge.service"
+else
+  echo "[acnh-bridge] systemd not available or start-bridge-direct.sh missing — skipping service install."
+fi
