@@ -198,7 +198,7 @@ const state = {
   modalPendingItem: null,
   activeTab: 'village',
   activeFilter: 'all',
-  theme: THEME_SUNRISE,
+  theme: THEME_NIGHT,
   playerModalSection: 'player',
   playerFlagsTab: 'recipes',
   logPanelHeightVh: DEFAULT_LOG_PANEL_HEIGHT_VH,
