@@ -83,6 +83,9 @@ function createApiRouter(options = {}) {
 
   router.post('/api/bridge/write-inventory-slot', async (req, res) => {
     const slot = Number(req.body && req.body.slot)
+    const itemPayload = req.body && req.body.item && typeof req.body.item === 'object'
+      ? req.body.item
+      : req.body
 
     if (!Number.isInteger(slot) || slot < 1) {
       res.status(400).json({ error: 'slot must be a positive integer' })
@@ -92,11 +95,11 @@ function createApiRouter(options = {}) {
     try {
       res.json(await bridgeService.writeInventorySlot({
         slot,
-        itemId: req.body && req.body.itemId ? String(req.body.itemId) : null,
-        count: Number(req.body && req.body.count || 0),
-        uses: Number(req.body && req.body.uses || 0),
-        flag0: Number(req.body && req.body.flag0 || 0),
-        flag1: Number(req.body && req.body.flag1 || 0)
+        itemId: itemPayload && itemPayload.itemId ? String(itemPayload.itemId) : null,
+        count: Number(itemPayload && itemPayload.count || 0),
+        uses: Number(itemPayload && itemPayload.uses || 0),
+        flag0: Number(itemPayload && itemPayload.flag0 || 0),
+        flag1: Number(itemPayload && itemPayload.flag1 || 0)
       }))
     } catch (error) {
       res.status(resolveBridgeErrorStatus(error)).json({ error: error.message })

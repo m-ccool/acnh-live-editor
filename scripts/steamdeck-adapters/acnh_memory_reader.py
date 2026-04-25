@@ -59,14 +59,6 @@ _DEFAULT_INVENTORY_OFFSETS = {
 }
 
 _ITEM_INDEX = None
-_POCKET_SLOT_COUNT = 20
-_POCKET_PAGE_SIZE = _ITEM_SIZE * _POCKET_SLOT_COUNT
-_POCKET_MIRROR_SEARCH_RADIUS = 0x1000000
-_POCKET_MIRROR_MIN_MATCHING_SLOTS = 12
-# Ryujinx loads save slot 0/ and save slot 1/ into memory consecutively.
-# The slot-1 copy sits exactly 0x6A540 bytes above the slot-0 inventory VA.
-# Both copies must be written so the in-game UI reflects the change live.
-_SAVE_SLOT1_INVENTORY_DELTA = 0x6A540
 
 BOTBASE_FALLBACK_PORTS = [6000, 6001]
 
@@ -739,74 +731,6 @@ def _slot_switch_va(slot: int, offsets: dict) -> int:
     if slot <= 20:
         return offsets["slot1"] + ((slot - 1) * _ITEM_SIZE)
     return offsets["slot21"] + ((slot - 21) * _ITEM_SIZE)
-
-
-def _pocket_page_switch_va(slot: int, offsets: dict) -> int:
-    if slot < 1 or slot > 40:
-        raise ValueError(f"slot out of range: {slot}")
-    return offsets["slot1"] if slot <= 20 else offsets["slot21"]
-
-
-def _iter_duplicate_page_matches(pid: int, dram_base: int, page_start_va: int, page_data: bytes):
-    if not page_data:
-        return
-
-    search_start = max(0, page_start_va - _POCKET_MIRROR_SEARCH_RADIUS)
-    search_end = page_start_va + _POCKET_MIRROR_SEARCH_RADIUS
-    seen = set()
-
-    for match_va in _iter_pattern_matches(pid, dram_base, search_start, search_end, page_data):
-        if match_va == page_start_va or match_va in seen:
-            continue
-        seen.add(match_va)
-        yield match_va
-
-
-def _count_matching_slots(page_a: bytes, page_b: bytes, skip_slot_offset: int | None = None) -> int:
-    if not page_a or not page_b:
-        return 0
-
-    matching_slots = 0
-    for slot_index in range(_POCKET_SLOT_COUNT):
-        offset = slot_index * _ITEM_SIZE
-        if skip_slot_offset is not None and offset == skip_slot_offset:
-            continue
-        if page_a[offset:offset + _ITEM_SIZE] == page_b[offset:offset + _ITEM_SIZE]:
-            matching_slots += 1
-    return matching_slots
-
-
-def _iter_similar_page_matches(pid: int, dram_base: int, page_start_va: int, page_data: bytes, slot_offset: int):
-    if not page_data:
-        return
-
-    slot_before = page_data[slot_offset:slot_offset + _ITEM_SIZE]
-    if len(slot_before) != _ITEM_SIZE:
-        return
-
-    search_start = max(0, page_start_va - _POCKET_MIRROR_SEARCH_RADIUS)
-    search_end = page_start_va + _POCKET_MIRROR_SEARCH_RADIUS
-    seen_page_starts = {page_start_va}
-
-    for match_va in _iter_pattern_matches(pid, dram_base, search_start, search_end, slot_before):
-        candidate_page_start = match_va - slot_offset
-        if candidate_page_start < search_start or candidate_page_start in seen_page_starts:
-            continue
-        seen_page_starts.add(candidate_page_start)
-
-        try:
-            candidate_page = _read_switch_va(pid, dram_base, candidate_page_start, _POCKET_PAGE_SIZE)
-        except RuntimeError:
-            continue
-
-        if candidate_page[slot_offset:slot_offset + _ITEM_SIZE] != slot_before:
-            continue
-
-        matching_slots = _count_matching_slots(candidate_page, page_data, slot_offset)
-        if matching_slots < _POCKET_MIRROR_MIN_MATCHING_SLOTS:
-            continue
-
-        yield candidate_page_start
 
 
 def _empty_slot(slot: int) -> dict:

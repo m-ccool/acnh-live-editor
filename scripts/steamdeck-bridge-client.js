@@ -8,6 +8,7 @@ const deviceName = process.env.BRIDGE_DEVICE_NAME || 'steamdeck-bridge-client'
 const heartbeatMs = Number(process.env.BRIDGE_HEARTBEAT_MS || 5000)
 const reconnectDelayMs = Number(process.env.BRIDGE_RECONNECT_DELAY_MS || 3000)
 const commandTimeoutMs = Number(process.env.BRIDGE_COMMAND_TIMEOUT_MS || 5000)
+const writeCommandTimeoutMs = Math.max(commandTimeoutMs, 15000)
 const processMatch = String(process.env.RYUJINX_PROCESS_MATCH || 'ryujinx').toLowerCase()
 const strictRyujinxProbe = String(process.env.RYUJINX_STRICT_PROCESS_CHECK || '1') !== '0'
 const customStatusCommand = String(process.env.RYUJINX_STATUS_CMD || '').trim()
@@ -313,7 +314,8 @@ async function handleWriteInventorySlot(requestId, command, payload) {
         command: 'write_inventory_slot',
         payload: payload || {}
       },
-      'RYUJINX_WRITE_INVENTORY_CMD'
+      'RYUJINX_WRITE_INVENTORY_CMD',
+      writeCommandTimeoutMs
     )
 
     sendResponse(requestId, command, {
@@ -412,10 +414,10 @@ function resolveGameDataAdapter() {
   return customReadGameDataCommand ? 'live-command' : 'unconfigured'
 }
 
-function runJsonCommand(commandLine, payload, label) {
+function runJsonCommand(commandLine, payload, label, timeoutMs = commandTimeoutMs) {
   return new Promise((resolve, reject) => {
     const child = execFile('sh', ['-lc', commandLine], {
-      timeout: commandTimeoutMs,
+      timeout: timeoutMs,
       maxBuffer: 1024 * 1024
     }, (error, stdout, stderr) => {
       const stderrText = String(stderr || '').trim()

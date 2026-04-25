@@ -7,6 +7,7 @@
     "dev": "node server.js",
     "start": "node server.js",
     "verify:bridge-backend": "node scripts/verify-bridge-backend.js",
+    "verify:single-write": "python scripts/steamdeck-adapters/verify_single_write.py",
     "deploy:steamdeck": "powershell -ExecutionPolicy Bypass -File scripts/deploy-steamdeck-bridge.ps1 -RestartBridge",
     "sync:react-runtime": "node scripts/sync-react-runtime.js",
     "import:catalogue": "node scripts/import-catalogue.js",

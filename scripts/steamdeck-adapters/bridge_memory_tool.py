@@ -32,6 +32,35 @@ def resolve_live_command(action: str) -> str:
     return ""
 
 
+def resolve_node_bin() -> str:
+    candidates = []
+
+    explicit = os.environ.get("NODE_BIN", "").strip()
+    if explicit:
+        candidates.append(explicit)
+
+    for value in (
+        "/usr/bin/node",
+        "/usr/local/bin/node",
+    ):
+        candidates.append(value)
+
+    nvm_root = Path.home() / ".nvm" / "versions" / "node"
+    if nvm_root.exists() and nvm_root.is_dir():
+        for candidate in sorted(nvm_root.glob("*/bin/node")):
+            candidates.append(str(candidate))
+
+    seen = set()
+    for candidate in candidates:
+        if not candidate or candidate in seen:
+            continue
+        seen.add(candidate)
+        if Path(candidate).exists() and os.access(candidate, os.X_OK):
+            return candidate
+
+    return ""
+
+
 def resolve_save_sync_command(action: str) -> str:
     env_var = SAVE_SYNC_ENV_BY_ACTION.get(action)
     if not env_var:
@@ -45,7 +74,9 @@ def resolve_save_sync_command(action: str) -> str:
     if action == "write_inventory_slot":
         script_path = repo_root / "scripts" / "steamdeck-adapters" / "write-inventory-slot.js"
         if script_path.exists() and script_path.is_file():
-            return f"node {shlex.quote(str(script_path))}"
+            node_bin = resolve_node_bin()
+            if node_bin:
+                return f"{shlex.quote(node_bin)} {shlex.quote(str(script_path))}"
 
     return ""
 
