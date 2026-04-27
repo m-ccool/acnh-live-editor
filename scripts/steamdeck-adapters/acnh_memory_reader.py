@@ -265,6 +265,11 @@ def _write_player_text_field(pid: int, dram_base: int, switch_va: int, text: str
     encoded = encoded[:max_bytes]
     payload = encoded.ljust(field_bytes, b'\x00')
     _write_switch_va(pid, dram_base, switch_va, payload)
+    # Also write to the save slot-1 mirror so the in-game UI reflects the change.
+    try:
+        _write_switch_va(pid, dram_base, switch_va + _SAVE_SLOT1_INVENTORY_DELTA, payload)
+    except RuntimeError:
+        pass
 
 
 def _write_player_number_field(pid: int, dram_base: int, switch_va: int, value: int):
