@@ -329,12 +329,13 @@ Scope guard for Steam Deck MVP:
 - UI panels render bridge/game-data payloads.
 - Live inventory write from Windows UI through bridge into Ryujinx memory confirmed functional (`84bdeef`, 2026-04-23). Save persists; in-game display refresh is a pinned bug (see Known Bugs).
 - Inventory slot editing UI fully wired: click slot → item modal → assign item + count → Apply writes to live memory.
-- Player data editing modal fully wired: wallet, bank bells, nook miles write live through bridge; player name and town update local state (bridge write support for text fields depends on bridge adapter).
+- Player data editing modal fully wired: wallet, bank bells, nook miles, player name, and town all write live through bridge into Ryujinx procmem (text fields via UTF-16LE write, confirmed 2026-04-27).
 - Stack count badge styled and positioned over item icon in inventory slots.
+- Player name and town live-write confirmed end-to-end: bridge write path (`write_game_data` via `RYUJINX_WRITE_GAME_DATA_CMD`) wired into `bridge_memory_tool.py` → `acnh_memory_reader.py` → Ryujinx procmem UTF-16LE write. `ok: true` confirmed 2026-04-27.
 
 ### Upcoming
 
-- Validate player name and town live-write capability in the bridge adapter.
+- Player field expansion: passport description, birthday, skin tone editing (deferred until name/town write utility was confirmed — now unblocked).
 - Complete unresolved MVP checklist and return TODO items below.
 
 ### Blocked
