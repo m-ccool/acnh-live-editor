@@ -42,7 +42,7 @@ mem_path = f"/proc/{pid}/mem"
 DRAM_SIZE = 0x100000000  # 4 GB
 matches = []
 
-for (start, end, label) in maps:
+for (start, end, perms, label) in maps:
     # Skip named mapped files
     if label and label.strip() and label.strip() != "(deleted)":
         continue
