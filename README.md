@@ -69,17 +69,6 @@ npm run dev
 
 The floating debug button in the existing Windows UI now runs this same local restart flow from the page, then waits for the app to come back before reloading.
 
-### Persistent Server (auto-restart on crash)
-
-Use `start:persistent` instead of `dev` when you want the server to restart automatically if it crashes or exits:
-
-```powershell
-cd C:\Users\mccoo\OneDrive\Developer\acnh-live-editor
-npm run start:persistent
-```
-
-Logs are written to `%LOCALAPPDATA%\acnh-live-editor\server.log`. The launcher back-offs 5 seconds after a fast crash (<3 s uptime) before retrying.
-
 ## Environment Variables
 
 Create a local `.env` file if needed.
@@ -101,11 +90,9 @@ NOOKIPEDIA_ACCEPT_VERSION=1.7.0
 
 ## Available Scripts
 
-- `npm run dev`: start the local server (single run)
-- `npm run start`: start the local server (single run)
-- `npm run start:persistent`: start the local server and auto-restart on crash (logs to `%LOCALAPPDATA%\acnh-live-editor\server.log`)
+- `npm run dev`: start the local server
+- `npm run start`: start the local server
 - `npm run verify:bridge-backend`: run isolated backend-only bridge verification on non-primary ports
-- `npm run verify:single-write`: offline regression guard — asserts `_write_slot_procmem` issues exactly one 8-byte write at the canonical slot VA
 - `npm run import:catalogue`: rebuild `data/items.json` from imported catalogue data
 - `npm run sync:nookipedia`: fetch and cache the live Nookipedia catalog
 - `npm run bridge:steamdeck`: run the Steam Deck bridge client
@@ -165,57 +152,6 @@ bash scripts/steamdeck-run-bridge.sh
 ```
 
 After that, you can also double-click the `ACNH Live Bridge` icon on Desktop.
-
-### Persistent Bridge Service (survives SSH disconnect and reboots)
-
-The preferred way to run the bridge is as a persistent systemd user service. The service uses `scripts/start-bridge-direct.sh` which execs node directly with no `tee` pipe, so SSH session close cannot send SIGPIPE to the node process.
-
-Install once on Steam Deck:
-
-```bash
-mkdir -p ~/.config/systemd/user
-cat > ~/.config/systemd/user/acnh-bridge.service << 'UNIT'
-[Unit]
-Description=ACNH Live Editor Bridge
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-WorkingDirectory=%h/acnh-live-editor
-ExecStart=/bin/bash %h/acnh-live-editor/scripts/start-bridge-direct.sh
-Restart=on-failure
-RestartSec=5
-StandardOutput=append:%h/.acnh-live-bridge.log
-StandardError=append:%h/.acnh-live-bridge.log
-
-[Install]
-WantedBy=default.target
-UNIT
-
-systemctl --user daemon-reload
-systemctl --user enable acnh-bridge.service
-loginctl enable-linger deck
-systemctl --user start acnh-bridge.service
-```
-
-Service management:
-
-```bash
-systemctl --user status acnh-bridge.service   # check status
-systemctl --user restart acnh-bridge.service  # restart after a config change
-systemctl --user stop acnh-bridge.service     # stop
-journalctl --user -u acnh-bridge.service -f   # follow live logs
-```
-
-After pulling repo updates on the Deck, restart the service:
-
-```bash
-cd ~/acnh-live-editor && git pull --ff-only origin dev
-systemctl --user restart acnh-bridge.service
-```
-
-Note: `deploy-steamdeck-bridge.ps1` (`npm run deploy:steamdeck`) uses `systemd-run --user` automatically when deploying from Windows, with a `setsid`+`nohup` fallback if systemd is unavailable.
 
 What you should see on launch:
 
@@ -391,9 +327,14 @@ Scope guard for Steam Deck MVP:
 - Steam Deck launcher + bridge run scripts are wired.
 - Bridge status/read endpoints are active in the app backend.
 - UI panels render bridge/game-data payloads.
+- Live inventory write from Windows UI through bridge into Ryujinx memory confirmed functional (`84bdeef`, 2026-04-23). Save persists; in-game display refresh is a pinned bug (see Known Bugs).
+- Inventory slot editing UI fully wired: click slot → item modal → assign item + count → Apply writes to live memory.
+- Player data editing modal fully wired: wallet, bank bells, nook miles write live through bridge; player name and town update local state (bridge write support for text fields depends on bridge adapter).
+- Stack count badge styled and positioned over item icon in inventory slots.
 
 ### Upcoming
 
+- Validate player name and town live-write capability in the bridge adapter.
 - Complete unresolved MVP checklist and return TODO items below.
 
 ### Blocked
@@ -426,6 +367,18 @@ This order is optimized for smaller diffs, lower context cost, and faster Codex 
 - [ ] Decide the client direction: either remove unused `react` / `react-dom` dependencies or commit to a real React build path.
 - [ ] Keep the README/runbook current as the MVP scope gets completed.
 
+### Known Bugs
+
+#### BUG-001: In-game pocket UI does not refresh after live inventory write
+
+- **Status:** Pinned — do not re-investigate without a new approach.
+- **Symptom:** After a live memory write to the canonical inventory slot VA, the in-game pocket menu does not visually refresh until the player closes and reopens the pocket.
+- **Write first confirmed functional:** commit `84bdeef` (2026-04-23) — "Show pending inventory write + patch memory writer". Save data persists correctly.
+- **First fix attempt:** commit `4a297c2` (2026-04-25) — "fix: dual-write slot-0 + slot-1 mirror for live in-game pocket render". Immediately reverted at `1db1e96` (proven not to work).
+- **Multi-day investigation (2026-04-25 → 2026-04-27):** pulse-write, dirty-flag toggle, display buffer writer, DRAM scan, render-copy scan, focused cherry-pattern scans — all failed.
+- **Root cause:** The game's render buffer VA could not be reliably identified. The game immediately overwrites attempted display-buffer writes.
+- **Accepted state:** Write to canonical memory is the MVP goal and is working. Visual refresh is a UX gap, not a data-loss issue.
+
 ### Return TODOs
 
 - [ ] Fix the refresh-item glitch.
@@ -450,9 +403,14 @@ Confirmed in this repo:
 - Backend verification data is isolated from the primary UI and bridge path.
 - Enforcement and fail-closed data policy are defined in `AGENTS.md`.
 
-Not yet confirmed in this repo:
+Confirmed in this session:
 
-- A direct live inventory write from the Windows UI through the bridge into actual ACNH memory on the Steam Deck.
+- Direct live inventory write from the Windows UI through the bridge into ACNH memory on Steam Deck is confirmed working (commit `84bdeef`, 2026-04-23). Canonical slot VA write is functional; save persists on game close.
+- Player data editing (wallet, bank bells, nook miles) writes live through the bridge. Player name and town update local state; live-write support for text fields depends on bridge adapter capability.
+
+Pinned bug:
+
+- BUG-001: In-game pocket display does not refresh after a live write. Canonical memory write is confirmed correct. See Known Bugs section above.
 
 ## Shortest Path To Live UI Readback
 

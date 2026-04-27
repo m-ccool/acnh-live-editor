@@ -719,11 +719,11 @@ function buildBridgeWritePayload(slot) {
     slot && slot.itemName ? slot.itemName : (slot && slot.item && slot.item.name)
   );
   const canonicalItemName = resolvedItem && resolvedItem.name
-    ? stripVariationSuffix(String(resolvedItem.name).trim())
+    ? String(resolvedItem.name).trim()
     : '';
   const plainItemName = slot && slot.itemName
-    ? stripVariationSuffix(String(slot.itemName).trim())
-    : (slot && slot.item && slot.item.name ? stripVariationSuffix(String(slot.item.name).trim()) : '');
+    ? String(slot.itemName).trim()
+    : (slot && slot.item && slot.item.name ? String(slot.item.name).trim() : '');
   const rawItemId = slot && slot.itemId ? String(slot.itemId).trim() : '';
   const looksLikeHexId = /^0x[0-9a-f]+$/i.test(rawItemId);
 
