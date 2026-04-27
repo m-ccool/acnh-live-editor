@@ -1052,19 +1052,6 @@ async function commitPlayerState(nextPlayer, actionText) {
     return;
   }
 
-  const numericChanged =
-    nextPlayer.wallet !== state.player.wallet ||
-    nextPlayer.bank !== state.player.bank ||
-    nextPlayer.miles !== state.player.miles;
-
-  if (!numericChanged) {
-    state.bridge.lastAction = 'Live player writes currently support wallet, bank, and miles only';
-    renderBridge();
-    renderPlayer();
-    hydratePlayerForm();
-    return;
-  }
-
   await writePlayerChanges(nextPlayer, actionText);
 
   renderDerivedPanels();

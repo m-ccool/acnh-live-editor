@@ -51,14 +51,6 @@ _DEFAULT_OFFSETS = {
 
 _ITEM_NONE = 0xFFFE
 _ITEM_SIZE = 8
-
-# Display buffer lives in Switch heap; scan this VA range when pocket is open.
-_DISPLAY_BUFFER_SCAN_START = 0x20000000
-_DISPLAY_BUFFER_SCAN_END   = 0x30000000
-_DISPLAY_BUFFER_CHUNK_SIZE = 0x100000   # 1 MB
-# Cached Switch VA of slot1 in the display buffer (stable while pocket is open).
-_display_buffer_slot1_va = None
-
 _DEFAULT_INVENTORY_OFFSETS = {
     "2.0.7": {
         "slot1": 0xAFB1E6E0,
@@ -67,6 +59,14 @@ _DEFAULT_INVENTORY_OFFSETS = {
 }
 
 _ITEM_INDEX = None
+_POCKET_SLOT_COUNT = 20
+_POCKET_PAGE_SIZE = _ITEM_SIZE * _POCKET_SLOT_COUNT
+_POCKET_MIRROR_SEARCH_RADIUS = 0x1000000
+_POCKET_MIRROR_MIN_MATCHING_SLOTS = 12
+# Ryujinx loads save slot 0/ and save slot 1/ into memory consecutively.
+# The slot-1 copy sits exactly 0x6A540 bytes above the slot-0 inventory VA.
+# Both copies must be written so the in-game UI reflects the change live.
+_SAVE_SLOT1_INVENTORY_DELTA = 0x6A540
 
 BOTBASE_FALLBACK_PORTS = [6000, 6001]
 
@@ -256,6 +256,15 @@ def _read_player_number_field(pid: int, dram_base: int, switch_va: int):
         return encrypted, True
     plain = _read_uint32(_read_switch_va(pid, dram_base, switch_va, 4))
     return plain, False
+
+
+def _write_player_text_field(pid: int, dram_base: int, switch_va: int, text: str, field_bytes: int):
+    clean = _clean_player_text(str(text or ""))
+    encoded = clean.encode("utf-16le")
+    max_bytes = max(2, field_bytes) & ~1
+    encoded = encoded[:max_bytes]
+    payload = encoded.ljust(field_bytes, b'\x00')
+    _write_switch_va(pid, dram_base, switch_va, payload)
 
 
 def _write_player_number_field(pid: int, dram_base: int, switch_va: int, value: int):
@@ -741,6 +750,74 @@ def _slot_switch_va(slot: int, offsets: dict) -> int:
     return offsets["slot21"] + ((slot - 21) * _ITEM_SIZE)
 
 
+def _pocket_page_switch_va(slot: int, offsets: dict) -> int:
+    if slot < 1 or slot > 40:
+        raise ValueError(f"slot out of range: {slot}")
+    return offsets["slot1"] if slot <= 20 else offsets["slot21"]
+
+
+def _iter_duplicate_page_matches(pid: int, dram_base: int, page_start_va: int, page_data: bytes):
+    if not page_data:
+        return
+
+    search_start = max(0, page_start_va - _POCKET_MIRROR_SEARCH_RADIUS)
+    search_end = page_start_va + _POCKET_MIRROR_SEARCH_RADIUS
+    seen = set()
+
+    for match_va in _iter_pattern_matches(pid, dram_base, search_start, search_end, page_data):
+        if match_va == page_start_va or match_va in seen:
+            continue
+        seen.add(match_va)
+        yield match_va
+
+
+def _count_matching_slots(page_a: bytes, page_b: bytes, skip_slot_offset: int | None = None) -> int:
+    if not page_a or not page_b:
+        return 0
+
+    matching_slots = 0
+    for slot_index in range(_POCKET_SLOT_COUNT):
+        offset = slot_index * _ITEM_SIZE
+        if skip_slot_offset is not None and offset == skip_slot_offset:
+            continue
+        if page_a[offset:offset + _ITEM_SIZE] == page_b[offset:offset + _ITEM_SIZE]:
+            matching_slots += 1
+    return matching_slots
+
+
+def _iter_similar_page_matches(pid: int, dram_base: int, page_start_va: int, page_data: bytes, slot_offset: int):
+    if not page_data:
+        return
+
+    slot_before = page_data[slot_offset:slot_offset + _ITEM_SIZE]
+    if len(slot_before) != _ITEM_SIZE:
+        return
+
+    search_start = max(0, page_start_va - _POCKET_MIRROR_SEARCH_RADIUS)
+    search_end = page_start_va + _POCKET_MIRROR_SEARCH_RADIUS
+    seen_page_starts = {page_start_va}
+
+    for match_va in _iter_pattern_matches(pid, dram_base, search_start, search_end, slot_before):
+        candidate_page_start = match_va - slot_offset
+        if candidate_page_start < search_start or candidate_page_start in seen_page_starts:
+            continue
+        seen_page_starts.add(candidate_page_start)
+
+        try:
+            candidate_page = _read_switch_va(pid, dram_base, candidate_page_start, _POCKET_PAGE_SIZE)
+        except RuntimeError:
+            continue
+
+        if candidate_page[slot_offset:slot_offset + _ITEM_SIZE] != slot_before:
+            continue
+
+        matching_slots = _count_matching_slots(candidate_page, page_data, slot_offset)
+        if matching_slots < _POCKET_MIRROR_MIN_MATCHING_SLOTS:
+            continue
+
+        yield candidate_page_start
+
+
 def _empty_slot(slot: int) -> dict:
     return {
         "slot": slot,
@@ -894,109 +971,56 @@ def _read_all_slots_procmem(pid: int, dram_base: int):
     return slots
 
 
-def _find_display_buffer_slot1_va(pid: int, dram_base: int, canonical_fp_bytes: bytes):
-    """Scan Switch VA heap range for the pocket display buffer.
-
-    canonical_fp_bytes: 32 bytes = raw bytes of canonical slots 3-6 (0-indexed 2-5).
-    Returns the Switch VA of slot 1 in the display buffer, or None if not found.
-    The display buffer only exists while the in-game pocket menu is open.
-    """
-    offsets   = _get_inventory_offsets()
-    fp_offset = 2 * _ITEM_SIZE          # fingerprint is 16 bytes past slot1
-    canon_fp_va  = offsets["slot1"] + fp_offset
-    mirror_fp_va = offsets["slot1"] + 0x6A540 + fp_offset
-    needle    = canonical_fp_bytes
-    mem_path  = f"/proc/{pid}/mem"
-    try:
-        with open(mem_path, "rb", 0) as fh:
-            host = dram_base + _DISPLAY_BUFFER_SCAN_START
-            end  = dram_base + _DISPLAY_BUFFER_SCAN_END
-            buf  = b""
-            pos  = host
-            while pos < end:
-                try:
-                    fh.seek(pos)
-                    chunk = fh.read(_DISPLAY_BUFFER_CHUNK_SIZE)
-                except OSError:
-                    pos += _DISPLAY_BUFFER_CHUNK_SIZE
-                    buf  = b""
-                    continue
-                if not chunk:
-                    pos += _DISPLAY_BUFFER_CHUNK_SIZE
-                    continue
-                search = buf[-len(needle):] + chunk
-                offset = 0
-                while True:
-                    idx = search.find(needle, offset)
-                    if idx == -1:
-                        break
-                    match_host = pos - len(buf[-len(needle):]) + idx
-                    match_va   = match_host - dram_base
-                    slot1_va   = match_va - fp_offset
-                    if match_va not in (canon_fp_va, mirror_fp_va):
-                        return slot1_va
-                    offset = idx + 1
-                buf = chunk
-                pos += _DISPLAY_BUFFER_CHUNK_SIZE
-    except (OSError, PermissionError):
-        pass
-    return None
-
-
-_DISPLAY_BUFFER_PAGE2_DELTA = -((20 * _ITEM_SIZE) + 0x18)
-
-
-def _display_buffer_slot_va(disp_slot1_va: int, slot: int) -> int:
-    """Compute display buffer VA for a slot, mirroring the canonical page split.
-
-    Page 1 (slots 1-20):  disp_slot1_va + (slot-1)*8
-    Page 2 (slots 21-40): (disp_slot1_va + _DISPLAY_BUFFER_PAGE2_DELTA) + (slot-21)*8
-
-    The two display allocations are separated by the same 0xB8-byte gap as canonical.
-    """
-    if slot <= 20:
-        return disp_slot1_va + (slot - 1) * _ITEM_SIZE
-    return disp_slot1_va + _DISPLAY_BUFFER_PAGE2_DELTA + (slot - 21) * _ITEM_SIZE
-
-
 def _write_slot_procmem(pid: int, dram_base: int, slot_payload: dict):
-    global _display_buffer_slot1_va
     offsets = _get_inventory_offsets()
-    raw     = _encode_slot(slot_payload)
-    slot    = slot_payload["slot"]
-    slot_va = _slot_switch_va(slot, offsets)
+    raw = _encode_slot(slot_payload)
+    slot_va = _slot_switch_va(slot_payload["slot"], offsets)
+    page_start_va = _pocket_page_switch_va(slot_payload["slot"], offsets)
+    slot_offset = slot_va - page_start_va
+    page_before = _read_switch_va(pid, dram_base, page_start_va, _POCKET_PAGE_SIZE)
 
-    # Read canonical slots 3-6 BEFORE write as fingerprint for display buffer scan.
-    try:
-        fp_va = offsets["slot1"] + 2 * _ITEM_SIZE
-        canonical_fp_bytes = _read_switch_va(pid, dram_base, fp_va, 4 * _ITEM_SIZE)
-    except Exception:
-        canonical_fp_bytes = None
-
-    # 1. Write to canonical (save buffer).
     _write_switch_va(pid, dram_base, slot_va, raw)
 
-    # 2. Write to display buffer so the change appears instantly in-game.
-    if canonical_fp_bytes is not None:
-        if _display_buffer_slot1_va is not None:
-            try:
-                _write_switch_va(pid, dram_base,
-                                 _display_buffer_slot_va(_display_buffer_slot1_va, slot), raw)
-            except RuntimeError:
-                # Display buffer freed (pocket closed); fall through to rescan.
-                _display_buffer_slot1_va = None
-        if _display_buffer_slot1_va is None:
-            found_va = _find_display_buffer_slot1_va(pid, dram_base, canonical_fp_bytes)
-            if found_va is not None:
-                _display_buffer_slot1_va = found_va
-                try:
-                    _write_switch_va(pid, dram_base,
-                                     _display_buffer_slot_va(_display_buffer_slot1_va, slot), raw)
-                except RuntimeError:
-                    _display_buffer_slot1_va = None
+    # Also write to the save slot-1 mirror (live in-game UI buffer).
+    slot1_mirror_va = slot_va + _SAVE_SLOT1_INVENTORY_DELTA
+    patched_slot1_mirror = 0
+    try:
+        _write_switch_va(pid, dram_base, slot1_mirror_va, raw)
+        patched_slot1_mirror = 1
+    except RuntimeError:
+        pass
+
+    patched_duplicate_pages = 0
+    patched_page_starts = {page_start_va, page_start_va + _SAVE_SLOT1_INVENTORY_DELTA}
+    for duplicate_page_va in _iter_duplicate_page_matches(pid, dram_base, page_start_va, page_before):
+        if duplicate_page_va in patched_page_starts:
+            continue
+        try:
+            _write_switch_va(pid, dram_base, duplicate_page_va + slot_offset, raw)
+            patched_page_starts.add(duplicate_page_va)
+            patched_duplicate_pages += 1
+        except RuntimeError:
+            continue
+
+    patched_similar_pages = 0
+    for similar_page_va in _iter_similar_page_matches(pid, dram_base, page_start_va, page_before, slot_offset):
+        if similar_page_va in patched_page_starts:
+            continue
+        try:
+            _write_switch_va(pid, dram_base, similar_page_va + slot_offset, raw)
+            patched_page_starts.add(similar_page_va)
+            patched_similar_pages += 1
+        except RuntimeError:
+            continue
 
     refreshed = _read_switch_va(pid, dram_base, slot_va, _ITEM_SIZE)
-    return _decode_slot(refreshed, slot_payload["slot"])
+    decoded = _decode_slot(refreshed, slot_payload["slot"])
+    decoded["patchedSlot1Mirror"] = patched_slot1_mirror
+    if patched_duplicate_pages:
+        decoded["patchedDuplicatePages"] = patched_duplicate_pages
+    if patched_similar_pages:
+        decoded["patchedSimilarPages"] = patched_similar_pages
+    return decoded
 
 
 def read_game_data_procmem():
@@ -1091,6 +1115,11 @@ def write_game_data_procmem(request):
     wallet = max(0, min(999999999, int(player_payload.get("wallet", snapshot["wallet"]))))
     bank = max(0, min(999999999, int(player_payload.get("bank", snapshot["bank"]))))
     miles = max(0, min(999999999, int(player_payload.get("miles", snapshot["miles"]))))
+
+    if "name" in player_payload and player_payload["name"] is not None:
+        _write_player_text_field(pid, dram_base, offsets["name"], str(player_payload["name"]), name_bytes)
+    if "town" in player_payload and player_payload["town"] is not None:
+        _write_player_text_field(pid, dram_base, offsets["town"], str(player_payload["town"]), town_bytes)
 
     _write_player_number_field(pid, dram_base, offsets["wallet"], wallet)
     _write_player_number_field(pid, dram_base, offsets["bank"], bank)

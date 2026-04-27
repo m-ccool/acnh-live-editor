@@ -2512,17 +2512,17 @@ body[data-theme='night'] .quick-cheat-btn::after {
 
 .inventory-slot-stack-count {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 1.05rem;
+  bottom: 7%;
+  right: 7%;
+  font-size: 0.82rem;
   font-weight: 700;
   line-height: 1;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
   color: #fff;
   text-shadow:
-    0 1px 5px rgba(0,0,0,0.9),
-    0 0 10px rgba(0,0,0,0.7);
+    0 1px 4px rgba(0,0,0,0.95),
+    0 0 8px rgba(0,0,0,0.8),
+    1px 1px 0 rgba(0,0,0,0.7);
   pointer-events: none;
   z-index: 2;
 }
