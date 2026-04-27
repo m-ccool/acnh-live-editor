@@ -727,32 +727,6 @@ body.modal-open .app-shell {
     inset 0 1px 0 rgba(255,255,255,0.12);
 }
 
-.shell-card::before,
-.theme-switch-track::before,
-.meta-value::before,
-.inventory-card::before,
-.tab-panel::before,
-.tab-stat-card::before,
-.tab-card::before,
-.footer-mark::before,
-.modal-card::before,
-.item-modal-artbox::before {
-  display: none;
-}
-
-.shell-card::after,
-.theme-switch-track::after,
-.meta-value::after,
-.inventory-card::after,
-.tab-panel::after,
-.tab-stat-card::after,
-.tab-card::after,
-.footer-mark::after,
-.modal-card::after,
-.item-modal-artbox::after {
-  display: none;
-}
-
 .shell-card > *,
 .theme-switch-track > *,
 .meta-value > *,
@@ -1786,6 +1760,8 @@ body[data-theme='night'] .theme-switch-hint {
   font-family: "Cascadia Code", "SFMono-Regular", Consolas, Menlo, monospace;
   text-shadow: 0 0 10px rgba(186, 247, 192, 0.1);
   white-space: pre-wrap;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.18) transparent;
   transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
 }
 
@@ -2377,20 +2353,12 @@ body[data-theme='night'] .quick-cheat-btn::after {
 .inventory-card {
   min-height: 208px;
   overflow: hidden;
-  isolation: isolate;
   padding: 14px;
   border: 1px solid var(--glass-edge-soft);
   border-radius: 18px;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.012)),
-    rgba(255,255,255,0.014);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.08),
-    inset 0 -1px 0 rgba(255,255,255,0.012);
+  background: transparent;
   transition:
-    border-color 0.82s cubic-bezier(.16,.84,.28,1),
-    background 0.82s cubic-bezier(.16,.84,.28,1),
-    box-shadow 0.82s cubic-bezier(.16,.84,.28,1);
+    border-color 0.82s cubic-bezier(.16,.84,.28,1);
   position: relative;
   z-index: 1;
 }
