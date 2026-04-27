@@ -113,11 +113,54 @@ for (start, end, perms, label) in maps:
 
         pos = chunk_end
 
+GOLDEN_SHOVEL_ID_BYTES = GOLDEN_SHOVEL_ID = (0x217e).to_bytes(2, "little")
+
 print(f"\n=== Cherry x7 hits (stale render copy candidates): {len(cherry7_hosts)} ===")
 for h in cherry7_hosts[:20]:
     dram_rel = h - dram_base if DRAM_HOST_START <= h < DRAM_HOST_END else None
     rel = f"  Switch VA {hex(dram_rel)}" if dram_rel is not None else ""
     print(f"  host={hex(h)}{rel}")
+
+# Narrow candidates: check each cherry×7 for golden shovel at various stride offsets
+# (render copy may use 8/12/16/24-byte per-slot structs)
+print(f"\n=== Checking cherry×7 hits for golden shovel neighbor ===")
+slot2_candidates = []
+for h in cherry7_hosts:
+    try:
+        with open(mem_path, "rb") as f:
+            f.seek(h - 32)
+            ctx = f.read(160)  # read context around cherry hit
+    except Exception:
+        continue
+    cherry_pos = 32  # cherry×7 is at ctx[32]
+    for stride in range(8, 97, 4):
+        ahead = cherry_pos + stride
+        if ahead + 2 <= len(ctx) and ctx[ahead:ahead+2] == GOLDEN_SHOVEL_ID_BYTES:
+            slot2_candidates.append({"host": h, "stride": stride, "ctx": ctx[cherry_pos:cherry_pos+stride+8].hex()})
+            print(f"  host={hex(h)}  stride={stride}  next={ctx[ahead:ahead+8].hex()}")
+            break  # only report first matching stride per cherry hit
+
+print(f"\n=== {len(slot2_candidates)} golden-shovel-neighbor cherry candidates ===")
+
+if "--write" in sys.argv and slot2_candidates:
+    import time
+    test_data = struct.pack("<HBBHH", 0x08ef, 0, 0, 99, 0)  # cherry x99
+    orig_data = struct.pack("<HBBHH", 0x08ef, 0, 0, 7, 0)
+    print(f"\nWill write cherry×99 to {len(slot2_candidates)} candidate(s), auto-restore after 3s each...")
+    for c in slot2_candidates[:10]:
+        h = c["host"]
+        try:
+            with open(mem_path, "r+b") as f:
+                f.seek(h)
+                f.write(test_data)
+            print(f"  wrote ×99 to host={hex(h)}")
+            time.sleep(3.0)
+            with open(mem_path, "r+b") as f:
+                f.seek(h)
+                f.write(orig_data)
+            print(f"  restored ×7\n")
+        except OSError as e:
+            print(f"  FAILED: {e}")
 
 print(f"\n=== Cherry x6 hits in anon regions (live-render candidate): {len(cherry6_hosts)} ===")
 for h in cherry6_hosts[:20]:
