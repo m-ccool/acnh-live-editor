@@ -1,13 +1,119 @@
 #!/usr/bin/env python3
 """
-Dirty-flag investigation tool.
+Two-stage differential scan to find the pocket render copy.
 
-Captures a window of bytes around the ACNH inventory region from a live
-Ryujinx /proc/<pid>/mem and writes it to test-results/.  Run twice with
-different --label values, then diff to find addresses that change between
-states (e.g. pocket menu CLOSED vs OPEN).
+Stage A (run with pocket OPEN):
+  - Writes cherry x6 to canonical slot 2
+  - Scans all memory for cherry x6
+  - Saves hit list to /tmp/stage_a.txt
 
-Workflow (run on the deck):
+Stage B (run after close+reopen pocket, canonical still x6):
+  - Scans all memory for cherry x6
+  - Saves hit list to /tmp/stage_b.txt
+
+Diff: addresses in B but not A = render/display copies populated at pocket-open.
+
+Usage:
+  python3 pocket_render_diff.py a   # before close/reopen
+  python3 pocket_render_diff.py b   # after close/reopen
+  python3 pocket_render_diff.py diff  # print the diff
+
+ORIGINAL CONTENT BELOW (REPLACED):
+"""
+__REPLACED__ = True
+import sys, struct
+sys.path.insert(0, "scripts/steamdeck-adapters")
+import acnh_memory_reader as r
+
+TARGET_COUNT = 6
+SEARCH_BYTES = b'\xef\x08\x00\x00'
+
+def scan_all():
+    pid = r._find_ryujinx_pid()
+    dram_base = r._find_dram_base(pid)
+    regions = r._parse_maps(pid)
+    print(f"PID={pid}  DRAM_BASE={hex(dram_base)}  regions={len(regions)}")
+    CHUNK = 1024 * 1024
+    hits = []
+    mem_path = f"/proc/{pid}/mem"
+    with open(mem_path, "rb") as f:
+        for (start, end, perms, label) in regions:
+            size = end - start
+            offset = 0
+            while offset < size:
+                chunk_size = min(CHUNK, size - offset)
+                try:
+                    f.seek(start + offset)
+                    data = f.read(chunk_size)
+                except OSError:
+                    offset += chunk_size
+                    continue
+                pos = 0
+                while True:
+                    idx = data.find(SEARCH_BYTES, pos)
+                    if idx == -1:
+                        break
+                    if idx + 8 <= len(data):
+                        item_id, f0, f1, count, uses = struct.unpack_from("<HBBHH", data, idx)
+                        if count == TARGET_COUNT:
+                            host_addr = start + offset + idx
+                            ctx_s = max(0, idx - 16)
+                            ctx_e = min(len(data), idx + 32)
+                            ctx = data[ctx_s:ctx_e].hex()
+                            hits.append((host_addr, label, ctx))
+                    pos = idx + 1
+                offset += chunk_size
+    return hits, dram_base
+
+def write_canonical_x6():
+    pid = r._find_ryujinx_pid()
+    base = r._find_dram_base(pid)
+    data = struct.pack("<HBBHH", 0x08ef, 0, 0, TARGET_COUNT, 0)
+    r._write_switch_va(pid, base, 0xafb1e6e8, data)
+    readback = r._read_switch_va(pid, base, 0xafb1e6e8, 8)
+    print(f"canonical slot2 = {readback.hex()}  (expect ef08000006000000)")
+
+if __name__ == "__main__":
+    mode = sys.argv[1] if len(sys.argv) > 1 else "a"
+    if mode == "a":
+        print("=== STAGE A: Writing cherry x6 to canonical, scanning pocket OPEN ===")
+        write_canonical_x6()
+        hits, dbase = scan_all()
+        with open("/tmp/stage_a.txt", "w") as out:
+            for h, label, ctx in hits:
+                out.write(f"{hex(h)} {label} {ctx}\n")
+        print(f"\nStage A: {len(hits)} hits saved to /tmp/stage_a.txt")
+        for h, label, ctx in hits:
+            print(f"  {hex(h)}  {label}  ctx={ctx}")
+        print("\nNow CLOSE the pocket and REOPEN it, then run: python3 pocket_render_diff.py b")
+    elif mode == "b":
+        print("=== STAGE B: Scanning after close+reopen pocket ===")
+        hits, dbase = scan_all()
+        with open("/tmp/stage_b.txt", "w") as out:
+            for h, label, ctx in hits:
+                out.write(f"{hex(h)} {label} {ctx}\n")
+        print(f"\nStage B: {len(hits)} hits saved to /tmp/stage_b.txt")
+        for h, label, ctx in hits:
+            print(f"  {hex(h)}  {label}  ctx={ctx}")
+        print("\nNow run: python3 pocket_render_diff.py diff")
+    elif mode == "diff":
+        print("=== DIFF: Stage B minus Stage A (render copies) ===")
+        with open("/tmp/stage_a.txt") as f:
+            a_addrs = set(line.split()[0] for line in f)
+        with open("/tmp/stage_b.txt") as f:
+            b_lines = [line.strip() for line in f if line.strip()]
+        print(f"Stage A: {len(a_addrs)} hits  Stage B: {len(b_lines)} hits")
+        print("\n--- NEW in B (render copies populated at pocket-open) ---")
+        for line in b_lines:
+            if line.split()[0] not in a_addrs:
+                print(" ", line)
+        print("\n--- IN BOTH (live logic copies) ---")
+        for line in b_lines:
+            if line.split()[0] in a_addrs:
+                print(" ", line)
+
+# ORIGINAL FILE CONTENT (pocket_render_diff.py formerly captured DRAM diffs):
+__ORIGINAL__ = """
     # 1. With pocket menu CLOSED in-game:
     python3 scripts/steamdeck-adapters/pocket_render_diff.py --label closed
 
