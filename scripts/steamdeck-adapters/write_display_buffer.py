@@ -42,11 +42,14 @@ def read_canonical(pid, base):
 
 def find_display_buffer(pid, base, canonical_slots):
     """
-    Scan DRAM heap range for a run of bytes matching canonical slots 1-4.
-    Returns the Switch VA of slot 1, or None if not found.
+    Scan DRAM heap range for a run of bytes matching canonical slots 3-6.
+    (Slots 3-6 are stable tool slots; slot 2 may differ if test-modified.)
+    Returns the Switch VA of slot 1 (match_va - 16), or None if not found.
     """
-    needle = b"".join(canonical_slots[:4])   # 32 bytes fingerprint
-    mem_path = f"/proc/{pid}/mem"
+    FP_START  = 2                              # 0-based: slot3=index2
+    needle    = b"".join(canonical_slots[FP_START:FP_START + 4])  # 32 bytes
+    fp_offset = FP_START * SLOT_SIZE           # 16 bytes before fingerprint = slot1
+    mem_path  = f"/proc/{pid}/mem"
 
     with open(mem_path, "rb", 0) as f:
         host = base + SCAN_START
@@ -71,12 +74,15 @@ def find_display_buffer(pid, base, canonical_slots):
                 idx = search.find(needle, offset)
                 if idx == -1:
                     break
-                # Compute absolute host address of this match
-                match_host = pos - len(buf[-len(needle):]) + idx
-                switch_va  = match_host - base
+                # Compute host address of fingerprint match
+                match_host  = pos - len(buf[-len(needle):]) + idx
+                match_va    = match_host - base       # switch_va of the fingerprint
+                slot1_va    = match_va - fp_offset    # rewind to slot 1
                 # Skip canonical and mirror addresses
-                if switch_va not in (CANONICAL_SLOT1_VA, CANONICAL_SLOT1_VA + 0x6A540):
-                    return switch_va
+                canon_fp_va  = CANONICAL_SLOT1_VA + fp_offset
+                mirror_fp_va = CANONICAL_SLOT1_VA + 0x6A540 + fp_offset
+                if match_va not in (canon_fp_va, mirror_fp_va):
+                    return slot1_va
                 offset = idx + 1
             buf = chunk
             pos += CHUNK_SIZE
