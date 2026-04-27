@@ -2472,6 +2472,20 @@ body[data-theme='night'] .quick-cheat-btn::after {
   opacity: 0.72;
 }
 
+.inventory-slot-stack-count {
+  position: absolute;
+  bottom: 4px;
+  right: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.85), 0 0 6px rgba(0,0,0,0.6);
+  pointer-events: none;
+  z-index: 2;
+  letter-spacing: -0.02em;
+}
+
 .inventory-slot-pending-indicator {
   position: absolute;
   inset: 0;

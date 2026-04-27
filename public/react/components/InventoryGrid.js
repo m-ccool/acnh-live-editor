@@ -71,6 +71,12 @@
               )
             );
           }
+
+          if (slot.count > 1) {
+            children.push(
+              h('span', { className: 'inventory-slot-stack-count', key: `slot-count-${slot.slot}`, 'aria-hidden': 'true' }, String(slot.count))
+            );
+          }
         }
 
         if (slot.slot === pendingSlot) {
