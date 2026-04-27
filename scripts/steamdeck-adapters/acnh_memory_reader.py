@@ -51,6 +51,14 @@ _DEFAULT_OFFSETS = {
 
 _ITEM_NONE = 0xFFFE
 _ITEM_SIZE = 8
+
+# Display buffer lives in Switch heap; scan this VA range when pocket is open.
+_DISPLAY_BUFFER_SCAN_START = 0x20000000
+_DISPLAY_BUFFER_SCAN_END   = 0x30000000
+_DISPLAY_BUFFER_CHUNK_SIZE = 0x100000   # 1 MB
+# Cached Switch VA of slot1 in the display buffer (stable while pocket is open).
+_display_buffer_slot1_va = None
+
 _DEFAULT_INVENTORY_OFFSETS = {
     "2.0.7": {
         "slot1": 0xAFB1E6E0,
@@ -886,17 +894,90 @@ def _read_all_slots_procmem(pid: int, dram_base: int):
     return slots
 
 
-def _write_slot_procmem(pid: int, dram_base: int, slot_payload: dict):
-    # Single canonical 8-byte write to the game-engine pocket slot VA.
-    # The slot-1 mirror at +0x6A540 was tested live (commit 4a297c2) and proven
-    # NOT to refresh the in-game pocket UI; the dual-write was reverted.
-    # Pulse-write (10x 50ms) was tested and also did not update the display.
-    # Dirty-flag toggle at 0xAFB1E784 was unconfirmed and removed.
-    offsets = _get_inventory_offsets()
-    raw = _encode_slot(slot_payload)
-    slot_va = _slot_switch_va(slot_payload["slot"], offsets)
+def _find_display_buffer_slot1_va(pid: int, dram_base: int, canonical_fp_bytes: bytes):
+    """Scan Switch VA heap range for the pocket display buffer.
 
+    canonical_fp_bytes: 32 bytes = raw bytes of canonical slots 3-6 (0-indexed 2-5).
+    Returns the Switch VA of slot 1 in the display buffer, or None if not found.
+    The display buffer only exists while the in-game pocket menu is open.
+    """
+    offsets   = _get_inventory_offsets()
+    fp_offset = 2 * _ITEM_SIZE          # fingerprint is 16 bytes past slot1
+    canon_fp_va  = offsets["slot1"] + fp_offset
+    mirror_fp_va = offsets["slot1"] + 0x6A540 + fp_offset
+    needle    = canonical_fp_bytes
+    mem_path  = f"/proc/{pid}/mem"
+    try:
+        with open(mem_path, "rb", 0) as fh:
+            host = dram_base + _DISPLAY_BUFFER_SCAN_START
+            end  = dram_base + _DISPLAY_BUFFER_SCAN_END
+            buf  = b""
+            pos  = host
+            while pos < end:
+                try:
+                    fh.seek(pos)
+                    chunk = fh.read(_DISPLAY_BUFFER_CHUNK_SIZE)
+                except OSError:
+                    pos += _DISPLAY_BUFFER_CHUNK_SIZE
+                    buf  = b""
+                    continue
+                if not chunk:
+                    pos += _DISPLAY_BUFFER_CHUNK_SIZE
+                    continue
+                search = buf[-len(needle):] + chunk
+                offset = 0
+                while True:
+                    idx = search.find(needle, offset)
+                    if idx == -1:
+                        break
+                    match_host = pos - len(buf[-len(needle):]) + idx
+                    match_va   = match_host - dram_base
+                    slot1_va   = match_va - fp_offset
+                    if match_va not in (canon_fp_va, mirror_fp_va):
+                        return slot1_va
+                    offset = idx + 1
+                buf = chunk
+                pos += _DISPLAY_BUFFER_CHUNK_SIZE
+    except (OSError, PermissionError):
+        pass
+    return None
+
+
+def _write_slot_procmem(pid: int, dram_base: int, slot_payload: dict):
+    global _display_buffer_slot1_va
+    offsets  = _get_inventory_offsets()
+    raw      = _encode_slot(slot_payload)
+    slot_va  = _slot_switch_va(slot_payload["slot"], offsets)
+    slot_idx = slot_payload["slot"] - 1   # 0-based
+
+    # Read canonical slots 3-6 BEFORE write so fingerprint matches display buffer.
+    try:
+        fp_va = offsets["slot1"] + 2 * _ITEM_SIZE
+        canonical_fp_bytes = _read_switch_va(pid, dram_base, fp_va, 4 * _ITEM_SIZE)
+    except Exception:
+        canonical_fp_bytes = None
+
+    # 1. Write to canonical (save buffer).
     _write_switch_va(pid, dram_base, slot_va, raw)
+
+    # 2. Write to display buffer so the change appears instantly in-game.
+    if canonical_fp_bytes is not None:
+        if _display_buffer_slot1_va is not None:
+            try:
+                _write_switch_va(pid, dram_base,
+                                 _display_buffer_slot1_va + slot_idx * _ITEM_SIZE, raw)
+            except RuntimeError:
+                # Display buffer freed (pocket closed); fall through to rescan.
+                _display_buffer_slot1_va = None
+        if _display_buffer_slot1_va is None:
+            found_va = _find_display_buffer_slot1_va(pid, dram_base, canonical_fp_bytes)
+            if found_va is not None:
+                _display_buffer_slot1_va = found_va
+                try:
+                    _write_switch_va(pid, dram_base,
+                                     _display_buffer_slot1_va + slot_idx * _ITEM_SIZE, raw)
+                except RuntimeError:
+                    _display_buffer_slot1_va = None
 
     refreshed = _read_switch_va(pid, dram_base, slot_va, _ITEM_SIZE)
     return _decode_slot(refreshed, slot_payload["slot"])
