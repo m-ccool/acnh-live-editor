@@ -43,12 +43,13 @@ DRAM_SIZE = 0x100000000  # 4 GB
 matches = []
 
 for (start, end, perms, label) in maps:
-    # Skip named mapped files
-    if label and label.strip() and label.strip() != "(deleted)":
+    # Only scan anonymous (no label) regions — skip named files AND (deleted) doublemapper/DRAM
+    stripped = label.strip() if label else ""
+    if stripped:
         continue
-    # Include ALL regions (DRAM + anonymous + deleted doublemapper)
     size = end - start
-    if size < 40 or size > 600 * 1024 * 1024:
+    # Skip tiny or enormous regions; render heap objects are in small-medium anonymous regions
+    if size < 40 or size > 128 * 1024 * 1024:
         continue
 
     try:
