@@ -943,14 +943,30 @@ def _find_display_buffer_slot1_va(pid: int, dram_base: int, canonical_fp_bytes: 
     return None
 
 
+_DISPLAY_BUFFER_PAGE2_DELTA = -((20 * _ITEM_SIZE) + 0x18)
+
+
+def _display_buffer_slot_va(disp_slot1_va: int, slot: int) -> int:
+    """Compute display buffer VA for a slot, mirroring the canonical page split.
+
+    Page 1 (slots 1-20):  disp_slot1_va + (slot-1)*8
+    Page 2 (slots 21-40): (disp_slot1_va + _DISPLAY_BUFFER_PAGE2_DELTA) + (slot-21)*8
+
+    The two display allocations are separated by the same 0xB8-byte gap as canonical.
+    """
+    if slot <= 20:
+        return disp_slot1_va + (slot - 1) * _ITEM_SIZE
+    return disp_slot1_va + _DISPLAY_BUFFER_PAGE2_DELTA + (slot - 21) * _ITEM_SIZE
+
+
 def _write_slot_procmem(pid: int, dram_base: int, slot_payload: dict):
     global _display_buffer_slot1_va
-    offsets  = _get_inventory_offsets()
-    raw      = _encode_slot(slot_payload)
-    slot_va  = _slot_switch_va(slot_payload["slot"], offsets)
-    slot_idx = slot_payload["slot"] - 1   # 0-based
+    offsets = _get_inventory_offsets()
+    raw     = _encode_slot(slot_payload)
+    slot    = slot_payload["slot"]
+    slot_va = _slot_switch_va(slot, offsets)
 
-    # Read canonical slots 3-6 BEFORE write so fingerprint matches display buffer.
+    # Read canonical slots 3-6 BEFORE write as fingerprint for display buffer scan.
     try:
         fp_va = offsets["slot1"] + 2 * _ITEM_SIZE
         canonical_fp_bytes = _read_switch_va(pid, dram_base, fp_va, 4 * _ITEM_SIZE)
@@ -965,7 +981,7 @@ def _write_slot_procmem(pid: int, dram_base: int, slot_payload: dict):
         if _display_buffer_slot1_va is not None:
             try:
                 _write_switch_va(pid, dram_base,
-                                 _display_buffer_slot1_va + slot_idx * _ITEM_SIZE, raw)
+                                 _display_buffer_slot_va(_display_buffer_slot1_va, slot), raw)
             except RuntimeError:
                 # Display buffer freed (pocket closed); fall through to rescan.
                 _display_buffer_slot1_va = None
@@ -975,7 +991,7 @@ def _write_slot_procmem(pid: int, dram_base: int, slot_payload: dict):
                 _display_buffer_slot1_va = found_va
                 try:
                     _write_switch_va(pid, dram_base,
-                                     _display_buffer_slot1_va + slot_idx * _ITEM_SIZE, raw)
+                                     _display_buffer_slot_va(_display_buffer_slot1_va, slot), raw)
                 except RuntimeError:
                     _display_buffer_slot1_va = None
 
