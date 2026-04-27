@@ -1640,9 +1640,20 @@ body[data-theme='night'] .theme-switch-hint {
   --log-console-height: 13vh;
   position: relative;
   padding: 18px;
+}
+
+body:not([data-theme='night']) .log-panel {
   background:
-    linear-gradient(180deg, rgba(94, 188, 197, 0.1), rgba(120, 148, 224, 0.03)),
-    rgba(20, 29, 48, 0.28);
+    linear-gradient(180deg, var(--glass-top), var(--glass-bottom)),
+    linear-gradient(180deg, rgba(100, 200, 210, 0.06), rgba(140, 160, 240, 0.02)),
+    var(--panel);
+}
+
+body[data-theme='night'] .log-panel {
+  background:
+    linear-gradient(180deg, var(--glass-top), var(--glass-bottom)),
+    linear-gradient(180deg, rgba(130, 120, 210, 0.06), rgba(80, 70, 160, 0.02)),
+    var(--panel);
 }
 
 .log-panel-head {
@@ -1760,9 +1771,23 @@ body[data-theme='night'] .theme-switch-hint {
   font-family: "Cascadia Code", "SFMono-Regular", Consolas, Menlo, monospace;
   text-shadow: 0 0 10px rgba(186, 247, 192, 0.1);
   white-space: pre-wrap;
+  overflow-x: hidden;
+  overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,0.18) transparent;
+  scrollbar-color: rgba(186, 247, 192, 0.26) rgba(7, 14, 13, 0.88);
   transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
+}
+
+.code-block::-webkit-scrollbar {
+  width: 5px;
+}
+.code-block::-webkit-scrollbar-track {
+  background: rgba(7, 14, 13, 0.88);
+  border-radius: 999px;
+}
+.code-block::-webkit-scrollbar-thumb {
+  background: rgba(186, 247, 192, 0.26);
+  border-radius: 999px;
 }
 
 #bridge-status {
@@ -2015,9 +2040,9 @@ body[data-theme='night'] .quick-cheat-btn::after {
   border: 1px solid var(--line);
   border-radius: 18px;
   background:
-    radial-gradient(circle at top, rgba(255, 193, 145, 0.16), transparent 52%),
-    radial-gradient(circle at 50% 100%, rgba(130, 170, 255, 0.12), transparent 48%),
-    rgba(255,255,255,0.04);
+    radial-gradient(circle at top, rgba(255, 193, 145, 0.14), transparent 52%),
+    radial-gradient(circle at 50% 100%, rgba(130, 170, 255, 0.1), transparent 48%),
+    rgba(255,255,255,0.02);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2025,6 +2050,14 @@ body[data-theme='night'] .quick-cheat-btn::after {
     inset 0 1px 0 rgba(255,255,255,0.05),
     0 16px 36px rgba(0, 0, 0, 0.18);
   transition: border-color 0.2s var(--ease), background 0.2s var(--ease), box-shadow 0.2s var(--ease);
+}
+
+body[data-theme='night'] .selected-item-artbox {
+  background:
+    radial-gradient(circle at top, rgba(174, 160, 240, 0.1), transparent 52%),
+    radial-gradient(circle at 50% 100%, rgba(108, 100, 182, 0.08), transparent 48%),
+    rgba(255,255,255,0.015);
+  border-color: var(--line);
 }
 
 .selected-item-edit-button {
@@ -2273,15 +2306,22 @@ body[data-theme='night'] .quick-cheat-btn::after {
   border: 1px solid var(--line);
   border-radius: 22px;
   background:
-    radial-gradient(circle at top, rgba(255, 191, 145, 0.18), transparent 54%),
-    radial-gradient(circle at 50% 100%, rgba(120,170,255,0.12), transparent 56%),
-    rgba(255,255,255,0.04);
+    radial-gradient(circle at top, rgba(255, 191, 145, 0.14), transparent 54%),
+    radial-gradient(circle at 50% 100%, rgba(120,170,255,0.1), transparent 56%),
+    rgba(255,255,255,0.02);
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,0.05),
     0 18px 40px rgba(0,0,0,0.2);
+}
+
+body[data-theme='night'] .avatar-box {
+  background:
+    radial-gradient(circle at top, rgba(174, 160, 240, 0.1), transparent 54%),
+    radial-gradient(circle at 50% 100%, rgba(108, 100, 182, 0.1), transparent 56%),
+    rgba(255,255,255,0.015);
 }
 
 .avatar-button {
@@ -2601,22 +2641,14 @@ body[data-theme='night'] .tab-btn.is-active {
   min-height: 320px;
   position: relative;
   overflow: hidden;
-  isolation: isolate;
   padding: 18px;
   border: 1px solid var(--glass-edge-soft);
   border-radius: 0 16px 16px 16px;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.012)),
-    rgba(255,255,255,0.014);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.08),
-    inset 0 -1px 0 rgba(255,255,255,0.012);
+  background: transparent;
   transition:
     opacity 0.82s cubic-bezier(.16,.84,.28,1),
     transform 0.82s cubic-bezier(.16,.84,.28,1),
-    border-color 0.82s cubic-bezier(.16,.84,.28,1),
-    background 0.82s cubic-bezier(.16,.84,.28,1),
-    box-shadow 0.82s cubic-bezier(.16,.84,.28,1);
+    border-color 0.82s cubic-bezier(.16,.84,.28,1);
 }
 
 .tab-panel[hidden] {
@@ -2656,19 +2688,11 @@ body[data-theme='night'] .tab-btn.is-active {
 .tab-card {
   position: relative;
   overflow: hidden;
-  isolation: isolate;
   border: 1px solid var(--glass-edge-soft);
   border-radius: 16px;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.012)),
-    rgba(255,255,255,0.014);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.08),
-    inset 0 -1px 0 rgba(255,255,255,0.012);
+  background: transparent;
   transition:
     border-color 0.82s cubic-bezier(.16,.84,.28,1),
-    background 0.82s cubic-bezier(.16,.84,.28,1),
-    box-shadow 0.82s cubic-bezier(.16,.84,.28,1),
     transform 0.82s cubic-bezier(.16,.84,.28,1);
 }
 
