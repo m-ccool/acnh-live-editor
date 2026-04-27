@@ -41,11 +41,11 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 _DEFAULT_OFFSETS = {
     "2.0.7": {
-        "name":   0xAFBC6400,
-        "town":   0xAFBC6600,
-        "wallet": 0xAFBC6510,
-        "bank":   0xAFBC6514,
-        "miles":  0xAFBC6518,
+        "name":   0xAFAF2CA0,
+        "town":   0xAFAF2C84,
+        "wallet": 0xAFB1E798,
+        "bank":   0xAFB1E79C,
+        "miles":  0xAFB1E7A0,
     }
 }
 
@@ -75,8 +75,8 @@ _ENCRYPTION_CONSTANT = 0x80E32B11
 _SHIFT_BASE = 3
 _DEFAULT_EXPECTED_PLAYER = {
     "name": "b",
-    "town": "the island",
-    "wallet": 10146,
+    "town": "island",  # game stores name without "The"; display adds it
+    "wallet": 9046,
     "bank": 999922002,
     "miles": 9999999,
 }
