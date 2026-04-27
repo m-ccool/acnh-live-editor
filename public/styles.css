@@ -1774,6 +1774,7 @@ body[data-theme='night'] .log-panel {
   white-space: pre-wrap;
   scrollbar-width: thin;
   scrollbar-color: rgba(186, 247, 192, 0.26) rgba(7, 14, 13, 0.88);
+  transform: translateZ(0);
   transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
 }
 
@@ -2396,6 +2397,7 @@ body[data-theme='night'] .avatar-box {
   border: 1px solid var(--glass-edge-soft);
   border-radius: 18px;
   background: transparent;
+  contain: layout;
   transition:
     border-color 0.82s cubic-bezier(.16,.84,.28,1);
   position: relative;
@@ -2467,7 +2469,7 @@ body[data-theme='night'] .avatar-box {
   height: 72%;
   object-fit: contain;
   opacity: 1;
-  transition: opacity 0.18s var(--ease), transform 0.18s var(--ease), filter 0.18s var(--ease);
+  transition: opacity 0.18s var(--ease), filter 0.18s var(--ease);
 }
 
 .inventory-slot.is-selected img,
