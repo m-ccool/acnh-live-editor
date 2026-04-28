@@ -8,6 +8,7 @@ Commands:
   create_backup [--label "My label"]
   restore_backup --id <backup_id>
   delete_backup  --id <backup_id>
+  update_label   --id <backup_id> --label "New label"
 
 Save directories backed up:
   ~/.config/Ryujinx/bis/user/save/0000000000000002  (both slots)
@@ -179,6 +180,23 @@ def cmd_delete_backup(backup_id):
     print(json.dumps({"ok": True, "deleted": backup_id, "label": (manifest or {}).get("label", "")}))
 
 
+def cmd_update_label(backup_id, label):
+    manifest_path = _manifest_path(backup_id)
+    if not os.path.isfile(manifest_path):
+        print(json.dumps({"ok": False, "error": f"Backup not found: {backup_id}"}))
+        sys.exit(1)
+
+    with open(manifest_path, "r", encoding="utf-8") as f:
+        manifest = json.load(f)
+
+    manifest["label"] = label[:80]
+
+    with open(manifest_path, "w", encoding="utf-8") as f:
+        json.dump(manifest, f, indent=2)
+
+    print(json.dumps({"ok": True, "id": backup_id, "label": manifest["label"]}))
+
+
 def main():
     parser = argparse.ArgumentParser(description="ACNH Save Backup Manager")
     sub = parser.add_subparsers(dest="cmd")
@@ -194,6 +212,10 @@ def main():
     p_delete = sub.add_parser("delete_backup")
     p_delete.add_argument("--id", required=True)
 
+    p_label = sub.add_parser("update_label")
+    p_label.add_argument("--id", required=True)
+    p_label.add_argument("--label", required=True)
+
     args = parser.parse_args()
 
     if args.cmd == "list_backups":
@@ -204,6 +226,8 @@ def main():
         cmd_restore_backup(backup_id=args.id)
     elif args.cmd == "delete_backup":
         cmd_delete_backup(backup_id=args.id)
+    elif args.cmd == "update_label":
+        cmd_update_label(backup_id=args.id, label=args.label)
     else:
         parser.print_help()
         sys.exit(1)

@@ -1,29 +1,9 @@
-##Chat Agent Task Outline
-
-
-Current Agent Tasks in Chat:
-
-- (chat agents will assign task here) | progress: 50%
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Completed Agent Tasks in Chat:
-
-
-
-
+## BEFORE TEST, ENSURE ENVRONMENT IS READY - ENSURE ALL BELOW ARE ADHERED TO AS ABSOLUTE RULES OF OPERATION.
+- refer to agents.md and readme.me
+- clean up any pending changes relating to your work (other agents are working in the background)
+- Turn on any listeners available within the project, debugs, consoles, and webview terminals, are utilized in the most efficent manner possible - do not prompt user when agent is capable
+- create roadmap for issue, operation, result, next steps per mvp (or address bug)
+- unsure Ui, Steamdeck, and Git all push/pulled updated correctly
 
 
 
