@@ -75,7 +75,7 @@ _ENCRYPTION_CONSTANT = 0x80E32B11
 _SHIFT_BASE = 3
 _DEFAULT_EXPECTED_PLAYER = {
     "name": "b",
-    "town": "island",  # game stores name without "The"; display adds it
+    "town": "the island",
     "wallet": 9046,
     "bank": 999922002,
     "miles": 9999999,
