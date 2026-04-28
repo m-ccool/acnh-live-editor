@@ -268,11 +268,17 @@
           <div class="player-meta">
             <div class="meta-row">
               <span class="meta-key">Player Name:</span>
-              <input id="player-name" class="meta-value meta-input" type="text" aria-label="Player Name" maxlength="8" />
+              <div class="meta-value meta-reload-wrap">
+                <input id="player-name" class="meta-input" type="text" aria-label="Player Name" maxlength="8" />
+                <span class="reload-required-hint" title="Takes effect after game reload"><img src="/assets/icons/line-md--downloading-loop.svg" alt="reload required" class="reload-icon" /></span>
+              </div>
             </div>
             <div class="meta-row">
               <span class="meta-key">Town Name:</span>
-              <input id="town-name" class="meta-value meta-input" type="text" aria-label="Town Name" maxlength="8" />
+              <div class="meta-value meta-reload-wrap">
+                <input id="town-name" class="meta-input" type="text" aria-label="Town Name" maxlength="8" />
+                <span class="reload-required-hint" title="Takes effect after game reload"><img src="/assets/icons/line-md--downloading-loop.svg" alt="reload required" class="reload-icon" /></span>
+              </div>
             </div>
             <div class="meta-row">
               <span class="meta-key">Wallet:</span>
@@ -792,12 +798,12 @@
           <section id="player-modal-view-player" class="player-modal-view player-modal-form-panel tab-panel">
             <div class="form-grid player-modal-form-grid">
               <label class="field-wrap">
-                <span>Player Name</span>
+                <span>Player Name <img src="/assets/icons/line-md--downloading-loop.svg" alt="reload required" class="reload-icon field-reload-icon" title="Takes effect after game reload" /></span>
                 <input id="player-input-name" type="text" maxlength="8" />
               </label>
 
               <label class="field-wrap">
-                <span>Town Name</span>
+                <span>Town Name <img src="/assets/icons/line-md--downloading-loop.svg" alt="reload required" class="reload-icon field-reload-icon" title="Takes effect after game reload" /></span>
                 <input id="player-input-town" type="text" maxlength="8" />
               </label>
 
