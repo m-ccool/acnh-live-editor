@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "dev": "node server.js",
-    "dev:watch": "nodemon --watch server.js --watch modules/ server.js",
+    "dev:watch": "nodemon --watch server.js --watch modules/ --watch public/ server.js",
     "start": "node server.js",
     "verify:bridge-backend": "node scripts/verify-bridge-backend.js",
     "deploy:steamdeck": "powershell -ExecutionPolicy Bypass -File scripts/deploy-steamdeck-bridge.ps1 -RestartBridge",

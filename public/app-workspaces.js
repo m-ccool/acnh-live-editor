@@ -1346,7 +1346,8 @@ async function handleCreateBackup() {
     });
     const data = await res.json();
     if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
-    setBackupsStatus(`Backup created: ${data.backup && data.backup.id ? data.backup.id.slice(0, 18) : 'done'}`);
+    const newId = data.backup && data.backup.id;
+    setBackupsStatus(`Created: ~/acnh-live-editor/data/save-backups/${newId || '???'}/`);
     await loadBackupsList();
   } catch (err) {
     setBackupsStatus(`Error: ${err.message}`);
@@ -1370,6 +1371,7 @@ async function handleUpdateLabel(id, label) {
       void input.offsetWidth; // reflow to restart animation
       input.classList.add('backup-label-saved');
     }
+    setBackupsStatus('Label saved.');
   } catch (err) {
     setBackupsStatus(`Label error: ${err.message}`);
   }
