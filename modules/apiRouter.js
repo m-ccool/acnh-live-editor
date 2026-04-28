@@ -169,6 +169,21 @@ function createApiRouter(options = {}) {
     }
   })
 
+  router.patch('/api/backups/:id/label', async (req, res) => {
+    const id = String(req.params.id || '').trim()
+    if (!id || !/^[\w\-]+$/.test(id)) {
+      res.status(400).json({ error: 'Invalid backup id' })
+      return
+    }
+    const label = String(req.body.label || '').slice(0, 80)
+    try {
+      const result = await bridgeService.updateBackupLabel(id, label)
+      res.json(result.payload || result)
+    } catch (error) {
+      res.status(resolveBridgeErrorStatus(error)).json({ error: error.message })
+    }
+  })
+
   router.get('/api/items', (req, res) => {
     try {
       res.json(listStarterItemsWithPreview())

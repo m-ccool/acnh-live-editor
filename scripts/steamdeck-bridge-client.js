@@ -183,6 +183,7 @@ function buildSupportedCommands() {
     commands.push('create_backup')
     commands.push('restore_backup')
     commands.push('delete_backup')
+    commands.push('update_label')
   }
 
   return commands
@@ -244,7 +245,7 @@ function handleMessage(message) {
     return
   }
 
-  if (command === 'list_backups' || command === 'create_backup' || command === 'restore_backup' || command === 'delete_backup') {
+  if (command === 'list_backups' || command === 'create_backup' || command === 'restore_backup' || command === 'delete_backup' || command === 'update_label') {
     handleBackupCommand(requestId, command, message && message.payload)
     return
   }
@@ -431,6 +432,9 @@ async function handleBackupCommand(requestId, command, payload) {
     let args = subcommand
     if ((command === 'restore_backup' || command === 'delete_backup') && id) {
       args += ` --id ${JSON.stringify(id)}`
+    }
+    if (command === 'update_label' && id) {
+      args += ` --id ${JSON.stringify(id)} --label ${JSON.stringify(label)}`
     }
     if (command === 'create_backup' && label) {
       args += ` --label ${JSON.stringify(label)}`

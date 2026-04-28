@@ -1325,6 +1325,11 @@ function renderBackupsList(backups) {
   el.backupsList.querySelectorAll('.backup-delete-btn').forEach((btn) => {
     btn.addEventListener('click', () => handleDeleteBackup(btn.dataset.id));
   });
+
+  el.backupsList.querySelectorAll('.backup-label-input').forEach((input) => {
+    input.addEventListener('blur', () => handleUpdateLabel(input.dataset.id, input.value));
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') input.blur(); });
+  });
 }
 
 async function handleCreateBackup() {
@@ -1349,8 +1354,26 @@ async function handleCreateBackup() {
   }
 }
 
+async function handleUpdateLabel(id, label) {
+  if (!id) return;
+  try {
+    const res = await fetch(`/api/backups/${encodeURIComponent(id)}/label`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label: String(label).slice(0, 80) })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  } catch (err) {
+    setBackupsStatus(`Label error: ${err.message}`);
+  }
+}
+
 async function handleRestoreBackup(id) {
   if (!id) return;
+  const confirmed = window.confirm(
+    'Restore this backup?\n\nClose the game before restoring. This will overwrite your current save files.'
+  );
+  if (!confirmed) return;
   setBackupsStatus('Restoring\u2026');
 
   const row = el.backupsList && el.backupsList.querySelector(`[data-id="${CSS.escape(id)}"]`);
