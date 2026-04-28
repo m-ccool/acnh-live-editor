@@ -269,15 +269,15 @@
             <div class="meta-row">
               <span class="meta-key">Player Name:</span>
               <div class="meta-value meta-reload-wrap">
-                <input id="player-name" class="meta-input" type="text" aria-label="Player Name" maxlength="8" />
-                <span class="reload-required-hint" title="Takes effect after game reload"><img src="/assets/icons/line-md--downloading-loop.svg" alt="reload required" class="reload-icon" /></span>
+                <input id="player-name" class="meta-input" type="text" aria-label="Player Name" maxlength="8" readonly title="Name editing temporarily disabled — safe write pending" />
+                <span class="reload-required-hint" title="Name editing temporarily disabled"><img src="/assets/icons/line-md--downloading-loop.svg" alt="reload required" class="reload-icon" /></span>
               </div>
             </div>
             <div class="meta-row">
               <span class="meta-key">Town Name:</span>
               <div class="meta-value meta-reload-wrap">
-                <input id="town-name" class="meta-input" type="text" aria-label="Town Name" maxlength="8" />
-                <span class="reload-required-hint" title="Takes effect after game reload"><img src="/assets/icons/line-md--downloading-loop.svg" alt="reload required" class="reload-icon" /></span>
+                <input id="town-name" class="meta-input" type="text" aria-label="Town Name" maxlength="8" readonly title="Town editing temporarily disabled — safe write pending" />
+                <span class="reload-required-hint" title="Town editing temporarily disabled"><img src="/assets/icons/line-md--downloading-loop.svg" alt="reload required" class="reload-icon" /></span>
               </div>
             </div>
             <div class="meta-row">
@@ -799,12 +799,12 @@
             <div class="form-grid player-modal-form-grid">
               <label class="field-wrap">
                 <span>Player Name <img src="/assets/icons/line-md--downloading-loop.svg" alt="reload required" class="reload-icon field-reload-icon" title="Takes effect after game reload" /></span>
-                <input id="player-input-name" type="text" maxlength="8" />
+                <input id="player-input-name" type="text" maxlength="8" readonly title="Name editing temporarily disabled — safe write pending" />
               </label>
 
               <label class="field-wrap">
                 <span>Town Name <img src="/assets/icons/line-md--downloading-loop.svg" alt="reload required" class="reload-icon field-reload-icon" title="Takes effect after game reload" /></span>
-                <input id="player-input-town" type="text" maxlength="8" />
+                <input id="player-input-town" type="text" maxlength="8" readonly title="Town editing temporarily disabled — safe write pending" />
               </label>
 
               <label class="field-wrap">

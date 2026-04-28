@@ -44,8 +44,8 @@ _DEFAULT_OFFSETS = {
         "name":   0xAFAF2CA0,
         "town":   0xAFAF2C84,
         "wallet": 0xAFB1E798,
-        "bank":   0xAFB1E79C,
-        "miles":  0xAFB1E7A0,
+        "bank":   0xAFB43114,
+        "miles":  0xAFAF9150,
     }
 }
 
@@ -1121,10 +1121,14 @@ def write_game_data_procmem(request):
     bank = max(0, min(999999999, int(player_payload.get("bank", snapshot["bank"]))))
     miles = max(0, min(999999999, int(player_payload.get("miles", snapshot["miles"]))))
 
-    if "name" in player_payload and player_payload["name"] is not None:
-        _write_player_text_field(pid, dram_base, offsets["name"], str(player_payload["name"]), name_bytes)
-    if "town" in player_payload and player_payload["town"] is not None:
-        _write_player_text_field(pid, dram_base, offsets["town"], str(player_payload["town"]), town_bytes)
+    # NAME/TOWN WRITES DISABLED: these hit the save-checksum-protected buffer.
+    # ACNH validates the save checksum on load; writing without recalculating the
+    # checksum causes the anti-tamper to place Empty Cans on all floor tiles.
+    # Wallet/bank/miles are safe because they live in the runtime struct (not save buf).
+    # if "name" in player_payload and player_payload["name"] is not None:
+    #     _write_player_text_field(pid, dram_base, offsets["name"], str(player_payload["name"]), name_bytes)
+    # if "town" in player_payload and player_payload["town"] is not None:
+    #     _write_player_text_field(pid, dram_base, offsets["town"], str(player_payload["town"]), town_bytes)
 
     _write_player_number_field(pid, dram_base, offsets["wallet"], wallet)
     _write_player_number_field(pid, dram_base, offsets["bank"], bank)
