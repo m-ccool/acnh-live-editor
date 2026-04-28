@@ -3081,15 +3081,38 @@ body:not([data-theme='night']) .modal-filter-btn {
   display: grid;
   grid-template-columns: 1fr 130px 130px 70px 120px;
   gap: 6px;
-  align-items: center;
+  align-items: start;
   padding: 6px 4px;
   border-radius: 6px;
   font-size: 0.82rem;
   border-bottom: 1px solid rgba(255,255,255,0.05);
+  overflow: hidden;
 }
 
 .backups-row:last-child {
   border-bottom: none;
+}
+
+.backup-path-hint {
+  display: block;
+  font-size: 0.66rem;
+  opacity: 0.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+  font-family: ui-monospace, "Cascadia Code", "SF Mono", Consolas, monospace;
+  pointer-events: none;
+}
+
+@keyframes backup-label-flash {
+  0%   { border-bottom-color: rgba(98, 214, 111, 0.7); }
+  60%  { border-bottom-color: rgba(98, 214, 111, 0.3); }
+  100% { border-bottom-color: transparent; }
+}
+
+.backup-label-saved {
+  animation: backup-label-flash 1.2s var(--ease) forwards;
 }
 
 .backup-label-input {
@@ -3103,6 +3126,13 @@ body:not([data-theme='night']) .modal-filter-btn {
   padding: 2px 4px;
   border-radius: 3px;
   transition: border-color 0.15s;
+}
+
+.backups-col-label {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .backup-label-input:hover,

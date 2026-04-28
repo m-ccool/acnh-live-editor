@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "dev": "node server.js",
+    "dev:watch": "nodemon --watch server.js --watch modules/ server.js",
     "start": "node server.js",
     "verify:bridge-backend": "node scripts/verify-bridge-backend.js",
     "deploy:steamdeck": "powershell -ExecutionPolicy Bypass -File scripts/deploy-steamdeck-bridge.ps1 -RestartBridge",
@@ -21,5 +22,8 @@
     "express": "^4.21.2",
     "react": "18.3.1",
     "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
   }
 }

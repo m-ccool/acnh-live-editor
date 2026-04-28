@@ -1305,6 +1305,7 @@ function renderBackupsList(backups) {
           aria-label="Backup label"
           data-id="${escapeHtml(backup.id)}"
         />
+        <span class="backup-path-hint" title="Backup location on Steam Deck">~/acnh-live-editor/data/save-backups/${escapeHtml(backup.id)}/</span>
       </span>
       <span class="backups-col-date" title="${escapeHtml(backup.saveDateHint || '')}">${escapeHtml(saveDate)}</span>
       <span class="backups-col-created" title="${escapeHtml(backup.createdAt || '')}">${escapeHtml(createdAt)}</span>
@@ -1356,6 +1357,7 @@ async function handleCreateBackup() {
 
 async function handleUpdateLabel(id, label) {
   if (!id) return;
+  const input = el.backupsList && el.backupsList.querySelector(`.backup-label-input[data-id="${CSS.escape(id)}"]`);
   try {
     const res = await fetch(`/api/backups/${encodeURIComponent(id)}/label`, {
       method: 'PATCH',
@@ -1363,6 +1365,11 @@ async function handleUpdateLabel(id, label) {
       body: JSON.stringify({ label: String(label).slice(0, 80) })
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (input) {
+      input.classList.remove('backup-label-saved');
+      void input.offsetWidth; // reflow to restart animation
+      input.classList.add('backup-label-saved');
+    }
   } catch (err) {
     setBackupsStatus(`Label error: ${err.message}`);
   }
