@@ -2179,6 +2179,10 @@ body[data-theme='night'] .selected-item-artbox {
 .meta-reload-wrap .meta-input {
   flex: 1;
   min-width: 0;
+  background: transparent;
+  border: none;
+  padding: 0;
+  height: 100%;
 }
 
 .reload-required-hint {
