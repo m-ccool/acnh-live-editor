@@ -5,7 +5,7 @@ const BRIDGE_PORT = Number(process.env.BRIDGE_PORT || 32840)
 const HEARTBEAT_STALE_MS = 15000
 const BRIDGE_REQUEST_TIMEOUT_MS = Number(process.env.BRIDGE_REQUEST_TIMEOUT_MS || 5000)
 const BRIDGE_STATUS_REFRESH_MS = Math.max(1000, Number(process.env.BRIDGE_STATUS_REFRESH_MS || 3000))
-const SUPPORTED_COMMANDS = Object.freeze(['read_status', 'read_inventory', 'write_inventory_slot', 'read_game_data', 'write_game_data'])
+const SUPPORTED_COMMANDS = Object.freeze(['read_status', 'read_inventory', 'write_inventory_slot', 'read_game_data', 'write_game_data', 'list_backups', 'create_backup', 'restore_backup', 'delete_backup'])
 
 const pendingRequests = new Map()
 let requestCounter = 0
@@ -470,6 +470,22 @@ function normalizeCapabilities(value) {
   )
 }
 
+function listBackups() {
+  return sendCommand('list_backups', {}, { timeoutMs: 10000 })
+}
+
+function createBackup(label) {
+  return sendCommand('create_backup', { label: label || '' }, { timeoutMs: 30000 })
+}
+
+function restoreBackup(id) {
+  return sendCommand('restore_backup', { id }, { timeoutMs: 30000 })
+}
+
+function deleteBackup(id) {
+  return sendCommand('delete_backup', { id }, { timeoutMs: 10000 })
+}
+
 function inferReadGameDataSupport(capabilities) {
   if (!Array.isArray(capabilities) || capabilities.length === 0) {
     return null
@@ -494,10 +510,14 @@ function formatRemoteLabel() {
 module.exports = {
   BRIDGE_HOST,
   BRIDGE_PORT,
+  createBackup,
+  deleteBackup,
   getStatus,
+  listBackups,
   readGameData,
   readInventory,
   readStatus,
+  restoreBackup,
   sendCommand,
   start,
   writeInventorySlot,

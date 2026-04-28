@@ -16,6 +16,7 @@ const customReadInventoryCommand = String(process.env.RYUJINX_READ_INVENTORY_CMD
 const customWriteInventoryCommand = String(process.env.RYUJINX_WRITE_INVENTORY_CMD || '').trim()
 const customReadGameDataCommand = String(process.env.RYUJINX_READ_GAME_DATA_CMD || '').trim()
 const customWriteGameDataCommand = String(process.env.RYUJINX_WRITE_GAME_DATA_CMD || '').trim()
+const customBackupManagerCommand = String(process.env.RYUJINX_BACKUP_MANAGER_CMD || '').trim()
 const startedAt = new Date().toISOString()
 
 const supportedCommands = buildSupportedCommands()
@@ -177,6 +178,13 @@ function buildSupportedCommands() {
     commands.push('write_game_data')
   }
 
+  if (customBackupManagerCommand) {
+    commands.push('list_backups')
+    commands.push('create_backup')
+    commands.push('restore_backup')
+    commands.push('delete_backup')
+  }
+
   return commands
 }
 
@@ -233,6 +241,11 @@ function handleMessage(message) {
 
   if (command === 'write_game_data') {
     handleWriteGameData(requestId, command, message && message.payload)
+    return
+  }
+
+  if (command === 'list_backups' || command === 'create_backup' || command === 'restore_backup' || command === 'delete_backup') {
+    handleBackupCommand(requestId, command, message && message.payload)
     return
   }
 
@@ -399,6 +412,38 @@ async function handleWriteGameData(requestId, command, payload) {
       lastGameSaveAt: output.lastGameSaveAt ? String(output.lastGameSaveAt) : null,
       lastGameDataFilePath: output.lastGameDataFilePath ? String(output.lastGameDataFilePath) : null
     })
+  } catch (error) {
+    sendError(requestId, command, error.message)
+  }
+}
+
+async function handleBackupCommand(requestId, command, payload) {
+  if (!customBackupManagerCommand) {
+    sendError(requestId, command, 'RYUJINX_BACKUP_MANAGER_CMD is not configured')
+    return
+  }
+
+  try {
+    const subcommand = command  // e.g. 'list_backups'
+    const id = payload && payload.id ? String(payload.id) : null
+    const label = payload && payload.label ? String(payload.label) : ''
+
+    let args = subcommand
+    if ((command === 'restore_backup' || command === 'delete_backup') && id) {
+      args += ` --id ${JSON.stringify(id)}`
+    }
+    if (command === 'create_backup' && label) {
+      args += ` --label ${JSON.stringify(label)}`
+    }
+
+    const commandLine = `${customBackupManagerCommand} ${args}`
+    const output = await runJsonCommand(commandLine, { command, payload: payload || {} }, 'RYUJINX_BACKUP_MANAGER_CMD', 30000)
+
+    if (!output || typeof output !== 'object') {
+      throw new Error('RYUJINX_BACKUP_MANAGER_CMD must output a JSON object')
+    }
+
+    sendResponse(requestId, command, output)
   } catch (error) {
     sendError(requestId, command, error.message)
   }

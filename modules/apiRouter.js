@@ -122,6 +122,53 @@ function createApiRouter(options = {}) {
     }
   })
 
+  router.get('/api/backups', async (req, res) => {
+    try {
+      const result = await bridgeService.listBackups()
+      res.json(result.payload || result)
+    } catch (error) {
+      res.status(resolveBridgeErrorStatus(error)).json({ error: error.message })
+    }
+  })
+
+  router.post('/api/backups', async (req, res) => {
+    const label = String(req.body && req.body.label || '').slice(0, 80)
+    try {
+      const result = await bridgeService.createBackup(label)
+      res.json(result.payload || result)
+    } catch (error) {
+      res.status(resolveBridgeErrorStatus(error)).json({ error: error.message })
+    }
+  })
+
+  router.post('/api/backups/:id/restore', async (req, res) => {
+    const id = String(req.params.id || '').trim()
+    if (!id || !/^[\w\-]+$/.test(id)) {
+      res.status(400).json({ error: 'Invalid backup id' })
+      return
+    }
+    try {
+      const result = await bridgeService.restoreBackup(id)
+      res.json(result.payload || result)
+    } catch (error) {
+      res.status(resolveBridgeErrorStatus(error)).json({ error: error.message })
+    }
+  })
+
+  router.delete('/api/backups/:id', async (req, res) => {
+    const id = String(req.params.id || '').trim()
+    if (!id || !/^[\w\-]+$/.test(id)) {
+      res.status(400).json({ error: 'Invalid backup id' })
+      return
+    }
+    try {
+      const result = await bridgeService.deleteBackup(id)
+      res.json(result.payload || result)
+    } catch (error) {
+      res.status(resolveBridgeErrorStatus(error)).json({ error: error.message })
+    }
+  })
+
   router.get('/api/items', (req, res) => {
     try {
       res.json(listStarterItemsWithPreview())

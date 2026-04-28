@@ -305,6 +305,12 @@ function cacheDom() {
   el.settingsDebugRefresh = document.getElementById('settings-debug-refresh');
   el.settingsGithubButton = document.getElementById('settings-github-button');
 
+  el.backupsModal = document.getElementById('backups-modal');
+  el.backupsList = document.getElementById('backups-list');
+  el.backupsCreateBtn = document.getElementById('backups-create-btn');
+  el.backupsStatusMsg = document.getElementById('backups-status-msg');
+  el.openBackupsBtn = document.getElementById('open-backups-btn');
+
   el.playerModal = document.getElementById('player-modal');
   el.playerModalTitle = document.getElementById('player-modal-title');
   el.playerAvatarButton = document.getElementById('player-avatar-button');
@@ -477,6 +483,7 @@ function bindEvents() {
 
   el.playerModalSave.addEventListener('click', applyPlayerEdits);
   bindInlinePlayerFieldEvents();
+  bindBackupEvents();
 
   if (el.pauseBridgeButton) {
     el.pauseBridgeButton.addEventListener('click', toggleBridgePoll);
@@ -574,7 +581,8 @@ function bindEvents() {
     });
   });
 
-  [el.settingsModal, el.playerModal, el.itemModal].forEach((modal) => {
+  [el.settingsModal, el.playerModal, el.itemModal, el.backupsModal].forEach((modal) => {
+    if (!modal) return;
     modal.addEventListener('click', (event) => {
       if (event.target === modal) closeModal(modal);
     });
@@ -585,6 +593,7 @@ function bindEvents() {
       closeModal(el.settingsModal);
       closeModal(el.playerModal);
       closeModal(el.itemModal);
+      closeModal(el.backupsModal);
     }
   });
 
@@ -673,7 +682,7 @@ function handlePageDragEnd(event) {
 }
 
 function hasOpenModal() {
-  return [el.settingsModal, el.playerModal, el.itemModal].some((modal) => {
+  return [el.settingsModal, el.playerModal, el.itemModal, el.backupsModal].some((modal) => {
     return modal && !modal.classList.contains('hidden');
   });
 }

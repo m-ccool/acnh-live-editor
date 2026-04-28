@@ -3032,6 +3032,139 @@ body:not([data-theme='night']) .modal-filter-btn {
   min-height: 360px;
 }
 
+.modal-card-backups {
+  width: min(680px, 100%);
+}
+
+.backups-shell {
+  padding: 14px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.backups-toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.backups-status-msg {
+  font-size: 0.78rem;
+  opacity: 0.7;
+  flex: 1;
+}
+
+.backups-col-head {
+  display: grid;
+  grid-template-columns: 1fr 130px 130px 70px 120px;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.55;
+  padding: 0 4px 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.backups-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.backups-row {
+  display: grid;
+  grid-template-columns: 1fr 130px 130px 70px 120px;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 4px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.backups-row:last-child {
+  border-bottom: none;
+}
+
+.backup-label-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.82rem;
+  width: 100%;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: border-color 0.15s;
+}
+
+.backup-label-input:hover,
+.backup-label-input:focus {
+  border-bottom-color: rgba(255,255,255,0.3);
+  outline: none;
+}
+
+.backups-col-date,
+.backups-col-created,
+.backups-col-size {
+  font-size: 0.78rem;
+  opacity: 0.75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.backups-col-actions {
+  display: flex;
+  gap: 5px;
+  justify-content: flex-end;
+}
+
+.backup-restore-btn {
+  font-size: 0.72rem;
+  padding: 3px 8px;
+}
+
+.backup-delete-btn {
+  font-size: 0.85rem;
+  opacity: 0.5;
+  padding: 2px 6px;
+  transition: opacity 0.15s;
+}
+
+.backup-delete-btn:hover {
+  opacity: 1;
+}
+
+.backups-empty,
+.backups-loading,
+.backups-error {
+  text-align: center;
+  padding: 28px 16px;
+  opacity: 0.55;
+  font-size: 0.85rem;
+}
+
+.backups-error {
+  color: #ff8080;
+  opacity: 1;
+}
+
+.village-actions {
+  padding: 10px 0 4px;
+  display: flex;
+  gap: 10px;
+}
+
+
+
 .modal-card-form {
   width: min(900px, 100%);
 }

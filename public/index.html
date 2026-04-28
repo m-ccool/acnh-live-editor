@@ -454,6 +454,18 @@
                 </div>
               </article>
             </div>
+
+            <div class="village-actions">
+              <button
+                id="open-backups-btn"
+                type="button"
+                class="action-btn action-btn-solid"
+                aria-label="Open save backups"
+              >
+                <img src="/assets/icons/line-md--downloading-loop.svg" alt="" class="icon-img icon-white btn-icon" onerror="this.style.display='none'" />
+                Backups
+              </button>
+            </div>
           </div>
         </section>
               <h3>Villagers Workbench</h3>
@@ -666,6 +678,49 @@
     </div>
 
     <audio id="music-audio" preload="none"></audio>
+  </div>
+
+  <div
+    id="backups-modal"
+    class="modal hidden"
+    aria-hidden="true"
+    aria-modal="true"
+    role="dialog"
+    aria-labelledby="backups-modal-title"
+  >
+    <div class="modal-card modal-card-backups modal-fade">
+      <div class="modal-head">
+        <h2 id="backups-modal-title">Save Backups</h2>
+        <button class="icon-button modal-close" type="button" data-close-modal="backups-modal">×</button>
+      </div>
+
+      <div class="backups-shell">
+        <div class="backups-toolbar">
+          <button
+            id="backups-create-btn"
+            type="button"
+            class="action-btn action-btn-solid"
+            aria-label="Create new backup"
+          >
+            <img src="/assets/icons/line-md--downloading-loop.svg" alt="" class="icon-img icon-white btn-icon" onerror="this.style.display='none'" />
+            New Backup
+          </button>
+          <span id="backups-status-msg" class="backups-status-msg"></span>
+        </div>
+
+        <div class="backups-col-head">
+          <span class="backups-col-label">Label</span>
+          <span class="backups-col-date">Save Date</span>
+          <span class="backups-col-created">Backed Up</span>
+          <span class="backups-col-size">Size</span>
+          <span class="backups-col-actions"></span>
+        </div>
+
+        <div id="backups-list" class="backups-list">
+          <div class="backups-empty">No backups yet. Click <strong>New Backup</strong> to create one.</div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div

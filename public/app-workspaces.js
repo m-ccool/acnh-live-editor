@@ -1243,3 +1243,170 @@ function syncModalState() {
   document.body.classList.toggle('modal-open', hasOpenModal());
 }
 
+// ─── Backups ──────────────────────────────────────────────────────────────────
+
+function bindBackupEvents() {
+  if (el.openBackupsBtn) {
+    el.openBackupsBtn.addEventListener('click', () => {
+      openModal(el.backupsModal);
+      loadBackupsList();
+    });
+  }
+
+  if (el.backupsCreateBtn) {
+    el.backupsCreateBtn.addEventListener('click', handleCreateBackup);
+  }
+}
+
+async function loadBackupsList() {
+  if (!el.backupsList) return;
+  el.backupsList.innerHTML = '<div class="backups-loading">Loading\u2026</div>';
+  setBackupsStatus('');
+
+  try {
+    const res = await fetch('/api/backups');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    renderBackupsList(Array.isArray(data.backups) ? data.backups : []);
+  } catch (err) {
+    el.backupsList.innerHTML = `<div class="backups-error">Failed to load backups: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function renderBackupsList(backups) {
+  if (!el.backupsList) return;
+
+  if (backups.length === 0) {
+    el.backupsList.innerHTML = '<div class="backups-empty">No backups yet. Click <strong>New Backup</strong> to create one.</div>';
+    return;
+  }
+
+  el.backupsList.innerHTML = '';
+
+  backups.slice().reverse().forEach((backup) => {
+    const row = document.createElement('div');
+    row.className = 'backups-row';
+    row.dataset.id = backup.id;
+
+    const saveDate = backup.saveDateHint ? formatBackupDate(backup.saveDateHint) : '—';
+    const createdAt = backup.createdAt ? formatBackupDate(backup.createdAt) : '—';
+    const sizeStr = backup.sizeBytes ? formatBackupSize(backup.sizeBytes) : '—';
+    const label = backup.label || '';
+
+    row.innerHTML = `
+      <span class="backups-col-label">
+        <input
+          class="backup-label-input"
+          type="text"
+          value="${escapeHtml(label)}"
+          placeholder="Add label\u2026"
+          maxlength="80"
+          aria-label="Backup label"
+          data-id="${escapeHtml(backup.id)}"
+        />
+      </span>
+      <span class="backups-col-date" title="${escapeHtml(backup.saveDateHint || '')}">${escapeHtml(saveDate)}</span>
+      <span class="backups-col-created" title="${escapeHtml(backup.createdAt || '')}">${escapeHtml(createdAt)}</span>
+      <span class="backups-col-size">${escapeHtml(sizeStr)}</span>
+      <span class="backups-col-actions">
+        <button class="action-btn backup-restore-btn" type="button" data-id="${escapeHtml(backup.id)}" title="Restore this backup">Restore</button>
+        <button class="icon-button backup-delete-btn" type="button" data-id="${escapeHtml(backup.id)}" title="Delete this backup" aria-label="Delete backup">×</button>
+      </span>
+    `;
+
+    el.backupsList.appendChild(row);
+  });
+
+  el.backupsList.querySelectorAll('.backup-restore-btn').forEach((btn) => {
+    btn.addEventListener('click', () => handleRestoreBackup(btn.dataset.id));
+  });
+
+  el.backupsList.querySelectorAll('.backup-delete-btn').forEach((btn) => {
+    btn.addEventListener('click', () => handleDeleteBackup(btn.dataset.id));
+  });
+}
+
+async function handleCreateBackup() {
+  if (!el.backupsCreateBtn) return;
+  el.backupsCreateBtn.disabled = true;
+  setBackupsStatus('Creating backup\u2026');
+
+  try {
+    const res = await fetch('/api/backups', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label: '' })
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+    setBackupsStatus(`Backup created: ${data.backup && data.backup.id ? data.backup.id.slice(0, 18) : 'done'}`);
+    await loadBackupsList();
+  } catch (err) {
+    setBackupsStatus(`Error: ${err.message}`);
+  } finally {
+    if (el.backupsCreateBtn) el.backupsCreateBtn.disabled = false;
+  }
+}
+
+async function handleRestoreBackup(id) {
+  if (!id) return;
+  setBackupsStatus('Restoring\u2026');
+
+  const row = el.backupsList && el.backupsList.querySelector(`[data-id="${CSS.escape(id)}"]`);
+  const restoreBtn = row && row.querySelector('.backup-restore-btn');
+  if (restoreBtn) restoreBtn.disabled = true;
+
+  try {
+    const res = await fetch(`/api/backups/${encodeURIComponent(id)}/restore`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+    setBackupsStatus('Restored. Restart the game to load the restored save.');
+  } catch (err) {
+    setBackupsStatus(`Restore error: ${err.message}`);
+    if (restoreBtn) restoreBtn.disabled = false;
+  }
+}
+
+async function handleDeleteBackup(id) {
+  if (!id) return;
+  setBackupsStatus('Deleting\u2026');
+
+  try {
+    const res = await fetch(`/api/backups/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+    setBackupsStatus(`Deleted.`);
+    await loadBackupsList();
+  } catch (err) {
+    setBackupsStatus(`Delete error: ${err.message}`);
+  }
+}
+
+function setBackupsStatus(msg) {
+  if (el.backupsStatusMsg) el.backupsStatusMsg.textContent = msg;
+}
+
+function formatBackupDate(iso) {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) +
+      ' ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  } catch (_) {
+    return iso;
+  }
+}
+
+function formatBackupSize(bytes) {
+  if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  if (bytes >= 1024) return Math.round(bytes / 1024) + ' KB';
+  return bytes + ' B';
+}
+
+function escapeHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
