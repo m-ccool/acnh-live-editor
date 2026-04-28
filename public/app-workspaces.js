@@ -108,7 +108,11 @@ async function writePlayerChanges(nextPlayer = state.player, actionText = 'Playe
 
 function renderPlayer() {
   el.playerName.value = state.player.name || '';
+  el.playerName.dataset.gameValue = state.player.name || '';
   el.townName.value = state.player.town || '';
+  el.townName.dataset.gameValue = state.player.town || '';
+  _updateNameTownIconState(el.playerName);
+  _updateNameTownIconState(el.townName);
   el.walletValue.value = formatNumber(state.player.wallet);
   el.bankValue.value = formatNumber(state.player.bank);
   el.milesValue.value = formatNumber(state.player.miles);
@@ -998,7 +1002,18 @@ function setPlayerModalSection(section) {
   renderPlayerModal();
 }
 
+function _updateNameTownIconState(inputEl) {
+  const hint = inputEl && inputEl.nextElementSibling;
+  if (!hint || !hint.classList.contains('reload-required-hint')) return;
+  const isPending = inputEl.value !== (inputEl.dataset.gameValue || '');
+  hint.classList.toggle('has-pending', isPending);
+}
+
 function bindInlinePlayerFieldEvents() {
+  [el.playerName, el.townName].filter(Boolean).forEach((field) => {
+    field.addEventListener('input', () => _updateNameTownIconState(field));
+  });
+
   const inlineFields = [
     el.playerName,
     el.townName,

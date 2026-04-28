@@ -2189,7 +2189,12 @@ body[data-theme='night'] .selected-item-artbox {
   display: flex;
   align-items: center;
   flex-shrink: 0;
-  opacity: 0.55;
+  opacity: 0.25;
+  transition: opacity 0.2s ease;
+}
+
+.reload-required-hint.has-pending {
+  opacity: 1;
 }
 
 .reload-icon {
