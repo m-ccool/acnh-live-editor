@@ -1331,6 +1331,41 @@ function renderBackupsList(backups) {
     input.addEventListener('blur', () => handleUpdateLabel(input.dataset.id, input.value));
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter') input.blur(); });
   });
+
+  el.backupsList.querySelectorAll('.backup-path-hint').forEach((hint) => {
+    let pressTimer = null;
+    const LONG_PRESS_MS = 600;
+
+    const startPress = () => {
+      hint.classList.add('long-press-active');
+      pressTimer = setTimeout(async () => {
+        pressTimer = null;
+        const path = hint.textContent;
+        try {
+          await navigator.clipboard.writeText(path);
+        } catch (_) {
+          // clipboard unavailable — show tip anyway for UX consistency
+        }
+        hint.classList.remove('long-press-active');
+        const tip = document.createElement('span');
+        tip.className = 'backup-copied-tip';
+        tip.textContent = 'Copied!';
+        hint.appendChild(tip);
+        tip.addEventListener('animationend', () => tip.remove());
+      }, LONG_PRESS_MS);
+    };
+
+    const cancelPress = () => {
+      if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+      hint.classList.remove('long-press-active');
+    };
+
+    hint.addEventListener('pointerdown', startPress);
+    hint.addEventListener('pointerup', cancelPress);
+    hint.addEventListener('pointercancel', cancelPress);
+    hint.addEventListener('pointermove', cancelPress);
+    hint.addEventListener('contextmenu', (e) => e.preventDefault());
+  });
 }
 
 async function handleCreateBackup() {

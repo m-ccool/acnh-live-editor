@@ -3102,7 +3102,36 @@ body:not([data-theme='night']) .modal-filter-btn {
   text-overflow: ellipsis;
   margin-top: 1px;
   font-family: ui-monospace, "Cascadia Code", "SF Mono", Consolas, monospace;
+  cursor: default;
+  user-select: none;
+  position: relative;
+}
+
+.backup-path-hint.long-press-active {
+  opacity: 0.6;
+}
+
+.backup-copied-tip {
+  position: absolute;
+  left: 0;
+  top: -1.4rem;
+  font-size: 0.65rem;
+  font-family: inherit;
+  background: rgba(98, 214, 111, 0.18);
+  color: rgba(98, 214, 111, 0.95);
+  border: 1px solid rgba(98, 214, 111, 0.3);
+  border-radius: 4px;
+  padding: 1px 7px;
   pointer-events: none;
+  white-space: nowrap;
+  animation: copied-tip-fade 1.4s ease forwards;
+  z-index: 10;
+}
+
+@keyframes copied-tip-fade {
+  0%   { opacity: 1; transform: translateY(0); }
+  60%  { opacity: 0.9; transform: translateY(-3px); }
+  100% { opacity: 0; transform: translateY(-6px); }
 }
 
 @keyframes backup-label-flash {
