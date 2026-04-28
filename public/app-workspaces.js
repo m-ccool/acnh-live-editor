@@ -1310,8 +1310,8 @@ function renderBackupsList(backups) {
       <span class="backups-col-created" title="${escapeHtml(backup.createdAt || '')}">${escapeHtml(createdAt)}</span>
       <span class="backups-col-size">${escapeHtml(sizeStr)}</span>
       <span class="backups-col-actions">
-        <button class="action-btn backup-restore-btn" type="button" data-id="${escapeHtml(backup.id)}" title="Restore this backup">Restore</button>
-        <button class="icon-button backup-delete-btn" type="button" data-id="${escapeHtml(backup.id)}" title="Delete this backup" aria-label="Delete backup">×</button>
+        <button class="backup-restore-btn" type="button" data-id="${escapeHtml(backup.id)}" title="Restore this backup">Restore</button>
+        <button class="backup-delete-btn" type="button" data-id="${escapeHtml(backup.id)}" title="Delete this backup" aria-label="Delete backup">×</button>
       </span>
     `;
 
