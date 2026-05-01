@@ -1577,8 +1577,8 @@ def _read_one_villager(pid, dram_base, slot_va, slot_index):
     except Exception:
         moving_out = False
 
-    # Image URL: try Nookipedia CDN pattern
-    img_url = f'https://api.nookipedia.com/nh/villagers/{internal_id}/image' if internal_id else None
+    # Image URL: acnhcdn.com public CDN — no auth required
+    img_url = f'https://acnhcdn.com/latest/NpcIcon/{display_name}.png' if display_name else None
 
     return {
         'slot':         slot_index,
