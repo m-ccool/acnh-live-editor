@@ -597,10 +597,10 @@ function renderWorkspacePanels() {
   el.tabSelectionHex.textContent = slot.hex || '00000000';
   el.tabSelectionSource.textContent = selectedSource;
 
-  el.tabPlayerSummaryName.textContent = state.player.name;
-  el.tabPlayerSummaryTown.textContent = state.player.town;
-  el.tabPlayerSummaryWallet.textContent = formatNumber(state.player.wallet);
-  el.tabPlayerSummaryMiles.textContent = formatNumber(state.player.miles);
+  if (el.tabPlayerSummaryName) el.tabPlayerSummaryName.textContent = state.player.name;
+  if (el.tabPlayerSummaryTown) el.tabPlayerSummaryTown.textContent = state.player.town;
+  if (el.tabPlayerSummaryWallet) el.tabPlayerSummaryWallet.textContent = formatNumber(state.player.wallet);
+  if (el.tabPlayerSummaryMiles) el.tabPlayerSummaryMiles.textContent = formatNumber(state.player.miles);
 
   if (!state.bridge.connected) {
     el.tabBridgeState.textContent = 'Offline';
