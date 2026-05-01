@@ -40,26 +40,25 @@ for chunk_start in range(0xAF000000, 0xB3000000, 0x200000):
         va = chunk_start + i
         print(f'MATCH va=0x{va:x} [{cat1[0]}/{sp1}] + [{cat2[0]}/{sp2}] p={p1},{p2}', flush=True)
         found.append(va)
-        if len(found) >= 3:
+        if len(found) >= 10:
             break
-    if len(found) >= 3:
+    if len(found) >= 10:
         break
 
 if not found:
     print('NO MATCH FOUND', flush=True)
 else:
-    # Dump all 10 slots for the first match to identify real array base
-    import struct
-    first_va = found[0]
-    print(f'\n--- Checking all 10 slots at first match 0x{first_va:x} ---', flush=True)
-    try:
-        full = r._read_switch_va(pid, dbase, first_va, STRIDE * 10)
-        for slot in range(10):
-            off = slot * STRIDE
-            sp = full[off]; vr = full[off+1]; p = full[off+2]
-            cat = r._VILLAGER_CATALOG.get((sp, vr))
-            name = cat[0] if cat else f'?sp{sp}v{vr}'
-            pers = r._VILLAGER_PERSONALITY_NAMES[p] if p <= 7 else f'?{p}'
-            print(f'  slot {slot+1}: sp={sp} vr={vr} p={p} name={name} pers={pers}', flush=True)
-    except Exception as ex:
-        print(f'  read failed: {ex}', flush=True)
+    # Dump all 10 slots for each match
+    for first_va in found:
+        print(f'\n--- Checking all 10 slots at 0x{first_va:x} ---', flush=True)
+        try:
+            full = r._read_switch_va(pid, dbase, first_va, STRIDE * 10)
+            for slot in range(10):
+                off = slot * STRIDE
+                sp = full[off]; vr = full[off+1]; p = full[off+2]
+                cat = r._VILLAGER_CATALOG.get((sp, vr))
+                name = cat[0] if cat else f'?sp{sp}v{vr}'
+                pers = r._VILLAGER_PERSONALITY_NAMES[p] if p <= 7 else f'?{p}'
+                print(f'  slot {slot+1}: sp={sp} vr={vr} p={p} name={name} pers={pers}', flush=True)
+        except Exception as ex:
+            print(f'  read failed: {ex}', flush=True)
