@@ -1,9 +1,29 @@
-## BEFORE TEST, ENSURE ENVRONMENT IS READY - ENSURE ALL BELOW ARE ADHERED TO AS ABSOLUTE RULES OF OPERATION.
-- refer to agents.md and readme.me
-- clean up any pending changes relating to your work (other agents are working in the background)
-- Turn on any listeners available within the project, debugs, consoles, and webview terminals, are utilized in the most efficent manner possible - do not prompt user when agent is capable
-- create roadmap for issue, operation, result, next steps per mvp (or address bug)
-- unsure Ui, Steamdeck, and Git all push/pulled updated correctly
+##Chat Agent Task Outline
+
+
+Current Agent Tasks in Chat:
+
+- (chat agents will assign task here) | progress: 50%
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Completed Agent Tasks in Chat:
+
+
+
+
 
 
 
@@ -142,10 +162,8 @@ This response gate is required in every technical answer.
 ## Confirmed Repo Facts
 
 - Windows UI address: `http://10.0.0.110:3000`
-- Steam Deck bridge target host: `10.0.0.110`
+- Steam Deck bridge target host: `10.0.0.110` (auto-discovered via UDP beacon; `.steamdeck-bridge.env` uses `BRIDGE_TARGET_HOST=auto`)
 - Steam Deck bridge target port: `32840`
-- Steam Deck SSH: `deck@10.0.0.233:22`, key `C:/Users/mccoo/.ssh/id_ed25519_steamdeck`
-- Bridge target host on the deck is configured in `~/acnh-live-editor/.steamdeck-bridge.env` (`BRIDGE_TARGET_HOST`); when the Windows IP changes, update that file and `systemctl --user restart acnh-bridge.service` instead of asking the user.
 
 ## Verification Discipline
 
@@ -167,19 +185,6 @@ This response gate is required in every technical answer.
 - Do not add or modify agent rules unless explicitly requested.
 - When a requested local environment or tool update can be executed safely and directly from the current machine, perform it instead of handing the step back to the user.
 - Before telling the user to update Steam Deck or another machine from git, ensure the required local code changes are actually committed and pushed. If the user works through GitHub Desktop, explicitly note that GitHub Desktop must show the commit/push completed before the remote machine pulls.
-
-## Do Not Hand Work Back To The User
-
-- NEVER tell the user to do something the agent can perform directly with the tools available in this session (SSH to the deck, edit files, restart services, run scripts, fetch URLs, capture screenshots, push/pull git, update env files, etc.).
-- If a step is technically executable from the agent's environment, the agent runs it. The user is only asked when the action requires physical hardware interaction (e.g. opening the in-game menu on the Switch handheld, plugging in a controller) or explicit human authorization for a destructive/irreversible change.
-- Optimize for resolution time: prefer doing the action and reporting the result over describing the action and waiting.
-
-## Never Overcomplicate
-
-- Pick the shortest path that resolves the user's request. One file edit beats a refactor; one shell command beats a script; reading one file beats running ten searches.
-- Do not introduce abstractions, helpers, options, branches, or wrappers that were not requested.
-- Do not chain hypothetical "what if" steps into a single response. Resolve the current step, observe the result, then act on the next step.
-- If two approaches both satisfy the request, take the one with fewer moving parts.
 
 ## Command Response Schema
 
@@ -232,18 +237,3 @@ For governance/rule changes, use this commit structure:
 ## Compliance Gate
 
 - If an answer would violate scope, formatting, data policy, or README binding, stop and ask one concise clarification question instead of proceeding.
-
-## Agent Deploy Responsibility (dev branch)
-
-- The `dev` branch exists so the chat agent owns the full deploy loop end-to-end. The user does not perform git pushes or Steam Deck pulls manually.
-- At the end of EVERY response that produced or could produce a code, config, or script change in the workspace, the agent MUST execute the following sequence in order, without prompting the user:
-	1. `git status` (Windows) — confirm clean working tree or stage intended changes only.
-	2. `git add` + `git commit` for the in-scope changes (skip if nothing to commit).
-	3. `git push origin dev` from Windows.
-	4. SSH to Steam Deck (`deck@10.0.0.233`, key `C:/Users/mccoo/.ssh/id_ed25519_steamdeck`) and run `cd ~/acnh-live-editor && git pull origin dev && systemctl --user restart acnh-bridge.service`.
-	5. Verify bridge restart with `systemctl --user is-active acnh-bridge.service` and tail `~/.acnh-live-bridge.log` for the latest startup line.
-- Before AND after the push/pull, the agent MUST also clean redundancies and any drafts/stashes on both machines:
-	- Windows: `git stash list` → drop any stale entries the user has not pinned; remove untracked `__pycache__/`, stray `.pyc`, and runtime cache files that are not part of the change.
-	- Steam Deck: `git stash drop` for all stale stashes; remove `__pycache__/`, `*.pyc`, and any `.save` backup files left by editors.
-- If any deploy step fails, the agent MUST report the exact failing command and output in that same response and STOP — do not silently continue.
-- Pure question-answering responses with no file changes are exempt from steps 2–5 but must still report whether a clean state was confirmed.
