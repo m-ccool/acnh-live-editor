@@ -1,11 +1,11 @@
 const express = require('express')
+const dgram = require('dgram')
 const path = require('path')
 require('dotenv').config({
   path: path.join(__dirname, '.env'),
   quiet: true
 })
 
-const { Bonjour } = require('bonjour-service')
 const bridgeService = require('./modules/bridgeService')
 const {
   BRIDGE_HOST,
@@ -43,14 +43,20 @@ app.listen(PORT, async () => {
 
   console.log(`Bridge listener ${BRIDGE_HOST}:${BRIDGE_PORT}`)
 
-  // Advertise bridge via mDNS so Deck clients discover us automatically
-  try {
-    const bonjour = new Bonjour()
-    bonjour.publish({ name: 'acnh-live-editor', type: 'acnh-bridge', protocol: 'tcp', port: BRIDGE_PORT })
-    console.log(`mDNS: advertising _acnh-bridge._tcp on port ${BRIDGE_PORT}`)
-  } catch (err) {
-    console.warn(`mDNS advertisement failed (non-fatal): ${err.message}`)
-  }
+  // UDP beacon: broadcast our IP every 3s so Deck clients auto-discover us
+  // Uses port 32841 (BRIDGE_PORT+1). Outbound UDP broadcast is never firewalled.
+  const BEACON_PORT = BRIDGE_PORT + 1
+  const beacon = dgram.createSocket({ type: 'udp4', reuseAddr: true })
+  beacon.bind(() => {
+    beacon.setBroadcast(true)
+    const payload = Buffer.from(JSON.stringify({ service: 'acnh-bridge', port: BRIDGE_PORT }))
+    const sendBeacon = () => {
+      beacon.send(payload, 0, payload.length, BEACON_PORT, '255.255.255.255', () => {})
+    }
+    sendBeacon()
+    setInterval(sendBeacon, 3000)
+    console.log(`UDP beacon broadcasting on port ${BEACON_PORT}`)
+  })
 
   refreshCatalogInBackground()
 })

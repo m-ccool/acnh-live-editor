@@ -1,12 +1,14 @@
 const net = require('net')
+const dgram = require('dgram')
 const os = require('os')
 const { execFile } = require('child_process')
 
 const configuredHost = (process.env.BRIDGE_TARGET_HOST || 'auto').trim()
 const port = Number(process.env.BRIDGE_TARGET_PORT || 32840)
+const BEACON_PORT = port + 1
 
-// If host is 'auto', discover via mDNS; otherwise use configured value directly.
-// resolvedHost is set before connectSocket() is called.
+// If host is 'auto', listen for UDP beacon from server to discover its IP.
+// Otherwise use the configured value directly.
 let host = configuredHost === 'auto' ? null : configuredHost
 const deviceName = process.env.BRIDGE_DEVICE_NAME || 'steamdeck-bridge-client'
 const heartbeatMs = Number(process.env.BRIDGE_HEARTBEAT_MS || 5000)
@@ -47,47 +49,40 @@ if (host) {
   renderPanel()
   connectSocket()
 } else {
-  // Auto-discover server via mDNS (_acnh-bridge._tcp)
+  // Auto-discover: listen for UDP beacon broadcast from the server
   panelState = 'CONNECTING'
-  panelDetail = 'Discovering server via mDNS...'
+  panelDetail = 'Waiting for server beacon (UDP auto-discovery)...'
   renderPanel()
 
+  const beaconSocket = dgram.createSocket({ type: 'udp4', reuseAddr: true })
   let discovered = false
-  let discoveryTimeout = null
 
-  try {
-    const { Bonjour } = require('bonjour-service')
-    const bonjour = new Bonjour()
-    const browser = bonjour.find({ type: 'acnh-bridge', protocol: 'tcp' }, (service) => {
-      if (discovered) return
-      const addr = (service.addresses || []).find(a => /^\d+\.\d+\.\d+\.\d+$/.test(a)) || service.host
-      if (!addr) return
+  beaconSocket.on('message', (msg, rinfo) => {
+    if (discovered) return
+    try {
+      const data = JSON.parse(msg.toString())
+      if (data.service !== 'acnh-bridge') return
       discovered = true
-      clearTimeout(discoveryTimeout)
-      browser.stop()
-      bonjour.destroy()
-      host = addr
-      panelDetail = `Discovered ${host}:${port} via mDNS`
+      beaconSocket.close()
+      host = rinfo.address
+      panelDetail = `Discovered ${host}:${port} via UDP beacon`
       renderPanel()
       connectSocket()
-    })
+    } catch (_) {}
+  })
 
-    // Fallback after 8s: try hostname.local (avahi resolves Windows .local names)
-    discoveryTimeout = setTimeout(() => {
-      if (discovered) return
-      browser.stop()
-      bonjour.destroy()
-      const os = require('os')
-      // Last resort: prompt user or use localhost
-      panelState = 'ERROR'
-      panelDetail = 'mDNS discovery timed out. Set BRIDGE_TARGET_HOST in .steamdeck-bridge.env'
-      renderPanel()
-    }, 8000)
-  } catch (err) {
+  beaconSocket.bind(BEACON_PORT, () => {
+    beaconSocket.setBroadcast(true)
+  })
+
+  // Fallback: if no beacon within 15s, show actionable error
+  setTimeout(() => {
+    if (discovered) return
+    beaconSocket.close()
     panelState = 'ERROR'
-    panelDetail = `mDNS unavailable: ${err.message}. Set BRIDGE_TARGET_HOST in .steamdeck-bridge.env`
+    panelDetail = `No server found. Set BRIDGE_TARGET_HOST=<ip> in .steamdeck-bridge.env`
     renderPanel()
-  }
+  }, 15000)
 }
 
 function connectSocket() {
