@@ -27,6 +27,8 @@ for chunk_start in range(0xAF000000, 0xB3000000, 0x200000):
         sp2 = data[i + STRIDE]
         if sp2 not in RARE:
             continue
+        if sp1 == sp2:  # Same species in consecutive slots is likely a false positive
+            continue
         p1 = data[i + 2]
         p2 = data[i + STRIDE + 2]
         if p1 > 8 or p2 > 8:
