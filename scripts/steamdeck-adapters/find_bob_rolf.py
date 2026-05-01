@@ -38,7 +38,13 @@ except Exception as e:
     print(f"maps read error: {e}", flush=True)
     sys.exit(1)
 
-print(f"Candidate regions: {len(maps)}", flush=True)
+DRAM_START = dram
+DRAM_END   = dram + 0x100000000  # Switch has 4 GB DRAM
+
+# Filter to only DRAM-overlapping regions
+dram_maps = [(s, e, sz) for (s, e, sz) in maps if s < DRAM_END and e > DRAM_START]
+print(f"All readable regions: {len(maps)}  DRAM-overlapping: {len(dram_maps)}", flush=True)
+maps = dram_maps
 
 mem_fd = open(f"/proc/{pid}/mem", "rb")
 
