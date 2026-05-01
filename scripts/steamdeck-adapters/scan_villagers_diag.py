@@ -8,13 +8,13 @@ import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
 
 from acnh_memory_reader import (
-    _find_ryujinx_pid, _get_dram_base,
+    _find_ryujinx_pid, _find_dram_base,
     _VILLAGER2_SIZE, _VILLAGER_CATALOG,
     _score_villager_candidate, _read_switch_va,
 )
 
 pid   = _find_ryujinx_pid()
-dram  = _get_dram_base(pid)
+dram  = _find_dram_base(pid)
 print(f"PID={pid}  DRAM=0x{dram:x}", flush=True)
 
 scan_start = 0xAF000000
