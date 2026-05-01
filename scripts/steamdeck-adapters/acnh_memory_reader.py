@@ -1469,21 +1469,63 @@ def _friendship_tier(points):
     return 'Stranger'
 
 
+def _score_villager_candidate(pid, dram_base, base_va):
+    """
+    Score a candidate Villager2 array base VA.
+    Higher is better. Returns (score, species_list).
+    Penalises arrays where all occupied slots share the same species.
+    Rewards diversity and presence of Tiger (sp=33) or Cat (sp=4).
+    """
+    species_list = []
+    for slot in range(10):
+        slot_va = base_va + slot * _VILLAGER2_SIZE
+        try:
+            hdr = _read_switch_va(pid, dram_base, slot_va, 3)
+        except Exception:
+            species_list.append(None)
+            continue
+        sp, vr, p = hdr[0], hdr[1], hdr[2]
+        if sp >= 35 or vr > 20 or p > 8:
+            species_list.append(None)
+        else:
+            species_list.append((sp, vr))
+
+    occupied = [(sp, vr) for sp, vr in (x for x in species_list if x is not None)]
+    if not occupied:
+        return -1, species_list
+
+    catalog_hits   = sum(1 for sv in occupied if _VILLAGER_CATALOG.get(sv) is not None)
+    unique_species = len(set(sv[0] for sv in occupied))
+    has_tiger      = any(sv[0] == 33 for sv in occupied)
+    has_cat        = any(sv[0] == 4  for sv in occupied)
+    all_same       = (unique_species == 1 and len(occupied) > 1)
+
+    score = catalog_hits * 3 + unique_species * 5
+    if has_tiger: score += 20
+    if has_cat:   score += 20
+    if all_same:  score -= 50   # heavy penalty for repeated-species false positives
+    return score, species_list
+
+
 def _find_villager_array_procmem(pid, dram_base):
     """
     Dynamically locate the Villager2 array base VA by scanning live DRAM.
     Checks env override ACNH_VILLAGER_ARRAY_VA first.
+    Collects ALL candidates in the scan window, scores each on species
+    diversity + Tiger/Cat presence, and returns the best-scoring VA.
     Returns base VA of first villager slot, or None if not found.
     """
     override = os.environ.get('ACNH_VILLAGER_ARRAY_VA', '').strip()
     if override:
         return int(override, 16) if override.startswith('0x') else int(override)
 
-    # Scan 64MB around the known player area for consecutive villager slots.
+    # Scan 128MB around the known player area for consecutive villager slots.
     # Two consecutive villager2 structs must both start with valid species (0-34).
     scan_start = 0xAF000000
-    scan_size  = 0x4000000   # 64MB
+    scan_size  = 0x8000000   # 128MB
     chunk_size = 0x200000    # 2MB
+
+    candidates = []  # list of (chunk_va + i) for each passing candidate
 
     for chunk_off in range(0, scan_size, chunk_size):
         va = scan_start + chunk_off
@@ -1519,8 +1561,20 @@ def _find_villager_array_procmem(pid, dram_base):
             )
             if non_zero_species < 2:
                 continue
-            return va + i
-    return None
+            candidates.append(va + i)
+
+    if not candidates:
+        return None
+
+    # Score every candidate and return the best
+    best_va    = None
+    best_score = -1
+    for cva in candidates:
+        score, _ = _score_villager_candidate(pid, dram_base, cva)
+        if score > best_score:
+            best_score = score
+            best_va    = cva
+    return best_va
 
 
 def _read_one_villager(pid, dram_base, slot_va, slot_index):

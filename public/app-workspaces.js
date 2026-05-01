@@ -1511,8 +1511,17 @@ function renderVillagersPanel(villagers) {
     return;
   }
 
-  const occupied = villagers.filter(v => v && !v.empty).length;
-  if (badge) badge.textContent = `${occupied} / 10`;
+  // Detect false-positive scan results: if all occupied slots share the same name
+  // the scanner found a repeated-data region, not the real villager array.
+  const occupied = villagers.filter(v => v && !v.empty && v.name);
+  const uniqueNames = new Set(occupied.map(v => v.name));
+  if (occupied.length > 1 && uniqueNames.size === 1) {
+    roster.innerHTML = '<p class="villager-placeholder">Villager scan is calibrating — tap Refresh Villagers to retry.</p>';
+    if (badge) badge.textContent = '';
+    return;
+  }
+
+  if (badge) badge.textContent = `${occupied.length} / 10`;
 
   roster.innerHTML = '';
 
@@ -1573,7 +1582,8 @@ async function loadVillagersFromBridge() {
     const res = await fetch('/api/bridge/read-villagers');
     const data = await res.json();
     if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
-    renderVillagersPanel(data.villagers || []);
+    const villagers = (data.payload && data.payload.villagers) ? data.payload.villagers : (data.villagers || []);
+    renderVillagersPanel(villagers);
   } catch (err) {
     if (roster) roster.innerHTML = `<p class="villager-placeholder" style="color:rgba(255,120,80,0.8)">Error: ${escapeHtml(err.message)}</p>`;
   }
