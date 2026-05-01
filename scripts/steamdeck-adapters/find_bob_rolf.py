@@ -30,12 +30,8 @@ try:
             start_s, end_s = parts[0].split('-')
             start, end = int(start_s, 16), int(end_s, 16)
             size = end - start
-            # Only look at regions that could contain Switch VA 0xAF000000–0xD0000000
-            # The mapping is host_va = dram_base + (switch_va - 0x80000000)
-            # So switch_va range [0xAF000000, 0xD0000000] maps to host range:
-            host_start = dram + (0xAF000000 - 0x80000000)
-            host_end   = dram + (0xD0000000 - 0x80000000)
-            if end < host_start or start > host_end:
+            # Skip tiny regions (vdso/vsyscall noise)
+            if size < 0x10000:
                 continue
             maps.append((start, end, size))
 except Exception as e:
