@@ -12,6 +12,7 @@ COMMAND_ENV_BY_ACTION = {
     "write_inventory_slot": "RYUJINX_LIVE_WRITE_INVENTORY_CMD",
     "read_game_data": "RYUJINX_LIVE_READ_GAME_DATA_CMD",
     "write_game_data": "RYUJINX_LIVE_WRITE_GAME_DATA_CMD",
+    "read_villagers": "RYUJINX_LIVE_READ_VILLAGERS_CMD",
 }
 
 SAVE_SYNC_ENV_BY_ACTION = {
@@ -318,6 +319,29 @@ def cmd_write_game_data():
     }))
 
 
+def cmd_read_villagers():
+    command = resolve_live_command("read_villagers")
+    if not command:
+        raise ValueError("No live villager reader is configured")
+
+    output = run_json_command(command, {"command": "read_villagers"}, "RYUJINX_LIVE_READ_VILLAGERS_CMD")
+    if not isinstance(output, dict):
+        raise ValueError("RYUJINX_LIVE_READ_VILLAGERS_CMD must output a JSON object")
+
+    villagers = output.get("villagers")
+    if not isinstance(villagers, list):
+        villagers = []
+
+    print(json.dumps({
+        "ok": output.get("ok", True),
+        "villagers": villagers,
+        "arrayBaseVa": output.get("arrayBaseVa"),
+        "source": normalize_text(output.get("source")) or "live-memory",
+        "backend": normalize_text(output.get("backend")) or None,
+        "error": output.get("error"),
+    }))
+
+
 def print_help():
     sys.stdout.write(
         "Usage: bridge_memory_tool.py <command>\n"
@@ -351,6 +375,9 @@ def main():
         return 0
     if command == "write_game_data":
         cmd_write_game_data()
+        return 0
+    if command == "read_villagers":
+        cmd_read_villagers()
         return 0
 
     raise ValueError(f"unsupported command: {command}")

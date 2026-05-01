@@ -226,6 +226,7 @@ async function init() {
   renderAll();
   updateDataSnapshot();
   primeSelectedMusicSource();
+  if (typeof initVillagersTab === 'function') initVillagersTab();
   try {
     await refreshBridgeStatus('Boot live sync');
   } catch (error) {

@@ -1477,3 +1477,109 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 }
+
+// ─── Villager Roster ─────────────────────────────────────────────────────────
+
+const PERSONALITY_COLORS = {
+  Lazy:   '#74c97a',
+  Jock:   '#6ba3e8',
+  Cranky: '#e87070',
+  Smug:   '#a07ed4',
+  Normal: '#e8a0c0',
+  Peppy:  '#f0d060',
+  Snooty: '#50c8c0',
+  Uchi:   '#e8904a',
+};
+
+// Derive CDN image URL from villager's internalId (e.g. "cat00" → "Bob")
+// Primary: acnhcdn.com NpcIcon; fallback: show placeholder emoji
+function villagerImageUrl(v) {
+  if (!v || !v.name) return null;
+  // capitalize first letter of each word
+  const name = v.name.trim().replace(/\b\w/g, c => c.toUpperCase());
+  return `https://acnhcdn.com/latest/NpcIcon/${encodeURIComponent(name)}.png`;
+}
+
+function renderVillagersPanel(villagers) {
+  const roster = document.getElementById('villager-roster');
+  const badge  = document.getElementById('villager-count-badge');
+  if (!roster) return;
+
+  if (!Array.isArray(villagers) || villagers.length === 0) {
+    roster.innerHTML = '<p class="villager-placeholder">No villager data returned.</p>';
+    if (badge) badge.textContent = '';
+    return;
+  }
+
+  const occupied = villagers.filter(v => v && !v.empty).length;
+  if (badge) badge.textContent = `${occupied} / 10`;
+
+  roster.innerHTML = '';
+
+  villagers.forEach((v) => {
+    const card = document.createElement('article');
+    card.className = 'villager-card' + (v.empty ? ' is-empty' : '') + (v.movingOut ? ' is-moving-out' : '');
+
+    if (v.empty) {
+      card.innerHTML = `<span style="color:rgba(255,255,255,0.3);font-size:0.9rem">Slot ${v.slot || '?'} — Empty</span>`;
+      roster.appendChild(card);
+      return;
+    }
+
+    const imgUrl = villagerImageUrl(v);
+    const imgHtml = imgUrl
+      ? `<img class="villager-avatar" src="${escapeHtml(imgUrl)}" alt="${escapeHtml(v.name || '')}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+        + `<div class="villager-avatar-placeholder" style="display:none">🐾</div>`
+      : `<div class="villager-avatar-placeholder">🐾</div>`;
+
+    const pColor = PERSONALITY_COLORS[v.personalityName] || 'rgba(255,255,255,0.2)';
+    const genderIcon = v.gender === 'F' ? '♀' : '♂';
+
+    const friendshipPct = Math.round(((v.friendship || 0) / 255) * 100);
+    const tier = escapeHtml(v.friendshipTier || 'Stranger');
+    const catchphrase = v.catchphrase ? `"${escapeHtml(v.catchphrase)}"` : '';
+
+    const movingOutHtml = v.movingOut
+      ? `<span class="villager-moving-out-badge">Moving Out</span>`
+      : '';
+
+    card.innerHTML = `
+      ${movingOutHtml}
+      ${imgHtml}
+      <div class="villager-body">
+        <div class="villager-name-row">
+          <span class="villager-name">${escapeHtml(v.name || 'Unknown')}</span>
+          <span class="villager-gender">${genderIcon}</span>
+          <span class="villager-personality-badge" style="background:${pColor}">${escapeHtml(v.personalityName || '')}</span>
+        </div>
+        <div class="villager-species">${escapeHtml(v.speciesName || '')}</div>
+        ${catchphrase ? `<div class="villager-catchphrase">${catchphrase}</div>` : ''}
+        <div class="villager-friendship-row">
+          <div class="villager-friendship-bar-track">
+            <div class="villager-friendship-bar-fill" style="width:${friendshipPct}%"></div>
+          </div>
+          <span class="villager-friendship-tier">${tier}</span>
+        </div>
+      </div>
+    `;
+    roster.appendChild(card);
+  });
+}
+
+async function loadVillagersFromBridge() {
+  const roster = document.getElementById('villager-roster');
+  if (roster) roster.innerHTML = '<p class="villager-placeholder">Loading…</p>';
+  try {
+    const res = await fetch('/api/bridge/read-villagers');
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+    renderVillagersPanel(data.villagers || []);
+  } catch (err) {
+    if (roster) roster.innerHTML = `<p class="villager-placeholder" style="color:rgba(255,120,80,0.8)">Error: ${escapeHtml(err.message)}</p>`;
+  }
+}
+
+function initVillagersTab() {
+  const btn = document.getElementById('refresh-villagers-btn');
+  if (btn) btn.addEventListener('click', loadVillagersFromBridge);
+}

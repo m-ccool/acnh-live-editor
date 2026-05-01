@@ -1228,6 +1228,411 @@ def cmd_scan():
 
 
 # ---------------------------------------------------------------------------
+# Villager reader (procmem)
+# ---------------------------------------------------------------------------
+
+# NHSE Villager2 struct layout (v1.5+):
+#   +0x00  species        uint8  (VillagerSpecies enum: 0-34, see below)
+#   +0x01  variant        uint8  (0-based villager index within species)
+#   +0x02  personality    uint8  (VillagerPersonality enum: 0=Lazy,1=Jock,2=Cranky,3=Smug,4=Normal,5=Peppy,6=Snooty,7=Uchi)
+#   +0x04  GSaveMemory[0..7] each 0x5F0 bytes:
+#            +0x04  TownName  10x UTF-16LE
+#            +0x1C  PlayerID  uint32
+#            +0x20  PlayerName 10x UTF-16LE
+#            +0x42  Friendship uint8
+#   Catchphrase: +0x10794 (= 0x10768 + 0x2C), 12x UTF-16LE chars (24 bytes)
+#   MovingOut flag: +0x1267A bit 1
+#   BirthType: +0x12678
+#   SIZE = 0x13230
+
+_VILLAGER2_SIZE = 0x13230
+_VILLAGER2_CATCHPHRASE_OFF = 0x10768 + 0x2C   # 24 bytes (12 UTF-16LE)
+_VILLAGER2_MOVETYPE_OFF    = 0x1267A
+_VILLAGER2_BIRTHTYPE_OFF   = 0x12678
+_VILLAGER2_GSAVE0_OFF      = 0x4               # GSaveMemory[0] base
+_GSAVE_SIZE                = 0x5F0
+_GSAVE_TOWNNAME_OFF        = 0x04              # 10x UTF-16LE
+_GSAVE_PLAYERNAME_OFF      = 0x20              # 10x UTF-16LE
+_GSAVE_FRIENDSHIP_OFF      = 0x42             # uint8
+
+_VILLAGER_SPECIES_NAMES = {
+    0:  ('Anteater', 'ant'),   1:  ('Bear', 'bea'),       2:  ('Bird', 'brd'),
+    3:  ('Bull', 'bul'),       4:  ('Cat', 'cat'),         5:  ('Cub', 'cbr'),
+    6:  ('Chicken', 'chn'),    7:  ('Cow', 'cow'),         8:  ('Frog', 'crd'),
+    9:  ('Deer', 'der'),       10: ('Dog', 'dog'),         11: ('Duck', 'duk'),
+    12: ('Elephant', 'elp'),   13: ('Eagle', 'flg'),       14: ('Goat', 'goa'),
+    15: ('Gorilla', 'gor'),    16: ('Hamster', 'ham'),     17: ('Hippo', 'hip'),
+    18: ('Horse', 'hrs'),      19: ('Koala', 'kal'),       20: ('Kangaroo', 'kgr'),
+    21: ('Lion', 'lon'),       22: ('Monkey', 'mnk'),      23: ('Mouse', 'mus'),
+    24: ('Octopus', 'ocp'),    25: ('Ostrich', 'ost'),     26: ('Penguin', 'pbr'),
+    27: ('Pig', 'pgn'),        28: ('Pig', 'pig'),         29: ('Rabbit', 'rbt'),
+    30: ('Rhino', 'rhn'),      31: ('Sheep', 'shp'),       32: ('Squirrel', 'squ'),
+    33: ('Tiger', 'tig'),      34: ('Wolf', 'wol'),        35: ('None', 'non'),
+}
+
+_VILLAGER_PERSONALITY_NAMES = ['Lazy', 'Jock', 'Cranky', 'Smug', 'Normal', 'Peppy', 'Snooty', 'Uchi']
+
+# Canonical villager names indexed by (species_code, variant) for well-known villagers.
+# Source: NHSE VillagerUtil + Nookipedia. Only villagers present in NH are listed.
+_VILLAGER_CATALOG = {
+    # Cats (species 4)
+    (4,  0): ('Bob',       'cat00'), (4,  1): ('Tom',       'cat01'),
+    (4,  2): ('Mitzi',     'cat02'), (4,  3): ('Rosie',     'cat03'),
+    (4,  4): ('Olivia',    'cat04'), (4,  5): ('Kiki',      'cat05'),
+    (4,  6): ('Kabuki',    'cat06'), (4,  7): ('Kid Cat',   'cat07'),
+    (4,  8): ('Monique',   'cat08'), (4,  9): ('Tabby',     'cat09'),
+    (4, 10): ('Stinky',    'cat10'), (4, 11): ('Purrl',     'cat11'),
+    (4, 12): ('Merry',     'cat12'), (4, 13): ('Kitty',     'cat13'),
+    (4, 14): ('Tom',       'cat14'), (4, 15): ('Ankha',     'cat15'),
+    (4, 16): ('Lolly',     'cat16'), (4, 17): ('Felicity',  'cat17'),
+    (4, 18): ('Merry',     'cat18'), (4, 19): ('Tangy',     'cat19'),
+    # Tigers (species 33)
+    (33, 0): ('Rolf',      'tig00'), (33, 1): ('Tiger',     'tig01'),
+    (33, 2): ('Leonardo',  'tig02'), (33, 3): ('Claudia',   'tig03'),
+    (33, 4): ('Bianca',    'tig04'),
+    # Dogs (species 10)
+    (10, 0): ('Biskit',    'dog00'), (10, 1): ('Portia',    'dog01'),
+    (10, 2): ('Walker',    'dog02'), (10, 3): ('Butch',     'dog03'),
+    (10, 4): ('Maddie',    'dog04'), (10, 5): ('Bea',       'dog05'),
+    (10, 6): ('Lucky',     'dog06'), (10, 7): ('Shep',      'dog07'),
+    # Bears (species 1)
+    (1,  0): ('Nate',      'bea00'), (1,  1): ('Teddy',     'bea01'),
+    (1,  2): ('Pinky',     'bea02'), (1,  3): ('Pudge',     'bea03'),
+    (1,  4): ('Ursala',    'bea04'), (1,  5): ('Groucho',   'bea05'),
+    (1,  6): ('Tutu',      'bea06'), (1,  7): ('Vladimir',  'bea07'),
+    (1,  8): ('Charlise',  'bea08'), (1,  9): ('Olive',     'bea09'),
+    (1, 10): ('Beardo',    'bea10'),
+    # Cubs (species 5)
+    (5,  0): ('Pudge',     'cbr00'), (5,  1): ('Cub',       'cbr01'),
+    (5,  2): ('Kody',      'cbr02'), (5,  3): ('Pekoe',     'cbr03'),
+    (5,  4): ('Stitches',  'cbr04'), (5,  5): ('Murphy',    'cbr05'),
+    (5,  6): ('Poncho',    'cbr06'), (5,  7): ('Barold',    'cbr07'),
+    # Rabbits (species 29)
+    (29, 0): ('Bunnie',    'rbt00'), (29, 1): ('Dotty',     'rbt01'),
+    (29, 2): ('Carmen',    'rbt02'), (29, 3): ('Pippy',     'rbt03'),
+    (29, 4): ('Tiffany',   'rbt04'), (29, 5): ('Genji',     'rbt05'),
+    (29, 6): ('Ruby',      'rbt06'), (29, 7): ('Doc',       'rbt07'),
+    (29, 8): ('Claude',    'rbt08'), (29, 9): ('Gabi',      'rbt09'),
+    (29,10): ('Mira',      'rbt10'), (29,11): ('Toby',      'rbt11'),
+    # Frogs (species 8)
+    (8,  0): ('Cousteau',  'crd00'), (8,  1): ('Frobert',   'crd01'),
+    (8,  2): ('Camofrog',  'crd02'), (8,  3): ('Drift',     'crd03'),
+    (8,  4): ('Gigi',      'crd04'), (8,  5): ('Raddle',    'crd05'),
+    (8,  6): ('Lily',      'crd06'), (8,  7): ('Ribbot',    'crd07'),
+    (8,  8): ('Jeremiah',  'crd08'), (8,  9): ('Diva',      'crd09'),
+    (8, 10): ('Henry',     'crd10'),
+    # Penguins (species 26)
+    (26, 0): ('Roald',     'pbr00'), (26, 1): ('Cube',      'pbr01'),
+    (26, 2): ('Friga',     'pbr02'), (26, 3): ('Gwen',      'pbr03'),
+    (26, 4): ('Hopper',    'pbr04'), (26, 5): ('Aurora',    'pbr05'),
+    (26, 6): ('Boomer',    'pbr06'), (26, 7): ('Sprinkle',  'pbr07'),
+    # Squirrels (species 32)
+    (32, 0): ('Agent S',   'squ00'), (32, 1): ('Peanut',    'squ01'),
+    (32, 2): ('Static',    'squ02'), (32, 3): ('Mint',      'squ03'),
+    (32, 4): ('Filbert',   'squ04'), (32, 5): ('Hazel',     'squ05'),
+    (32, 6): ('Pecan',     'squ06'), (32, 7): ('Marshal',   'squ07'),
+    (32, 8): ('Nibbles',   'squ08'), (32, 9): ('Sally',     'squ09'),
+    # Wolves (species 34)
+    (34, 0): ('Fang',      'wol00'), (34, 1): ('Wolfgang',  'wol01'),
+    (34, 2): ('Whitney',   'wol02'), (34, 3): ('Freya',     'wol03'),
+    (34, 4): ('Skye',      'wol04'), (34, 5): ('Dobie',     'wol05'),
+    (34, 6): ('Kyle',      'wol06'),
+    # Ducks (species 11)
+    (11, 0): ('Bill',      'duk00'), (11, 1): ('Freckles',  'duk01'),
+    (11, 2): ('Mallary',   'duk02'), (11, 3): ('Weber',     'duk03'),
+    (11, 4): ('Miranda',   'duk04'), (11, 5): ('Pompom',    'duk05'),
+    (11, 6): ('Molly',     'duk06'), (11, 7): ('Derwin',    'duk07'),
+    # Horses (species 18)
+    (18, 0): ('Buck',      'hrs00'), (18, 1): ('Victoria',  'hrs01'),
+    (18, 2): ('Savannah',  'hrs02'), (18, 3): ('Elmer',     'hrs03'),
+    (18, 4): ('Roscoe',    'hrs04'), (18, 5): ('Winnie',    'hrs05'),
+    (18, 6): ('Ed',        'hrs06'), (18, 7): ('Cleo',      'hrs07'),
+    # Eagles (species 13)
+    (13, 0): ('Apollo',    'flg00'), (13, 1): ('Amelia',    'flg01'),
+    (13, 2): ('Keaton',    'flg02'), (13, 3): ('Buzz',      'flg03'),
+    # Elephants (species 12)
+    (12, 0): ('Dizzy',     'elp00'), (12, 1): ('Big Top',   'elp01'),
+    (12, 2): ('Eloise',    'elp02'), (12, 3): ('Axel',      'elp03'),
+    (12, 4): ('Opal',      'elp04'), (12, 5): ('Tucker',    'elp05'),
+    # Hamsters (species 16)
+    (16, 0): ('Hamphrey',  'ham00'), (16, 1): ('Apple',     'ham01'),
+    (16, 2): ('Clay',      'ham02'), (16, 3): ('Graham',    'ham03'),
+    (16, 4): ('Rodeo',     'ham04'),
+    # Deer (species 9)
+    (9,  0): ('Bam',       'der00'), (9,  1): ('Fauna',     'der01'),
+    (9,  2): ('Zell',      'der02'), (9,  3): ('Chelsea',   'der03'),
+    (9,  4): ('Bruce',     'der04'), (9,  5): ('Deirdre',   'der05'),
+    (9,  6): ('Diana',     'der06'), (9,  7): ('Erik',      'der07'),
+    # Monkeys (species 22)
+    (22, 0): ('Shari',     'mnk00'), (22, 1): ('Flip',      'mnk01'),
+    (22, 2): ('Deli',      'mnk02'), (22, 3): ('Louie',     'mnk03'),
+    # Octopus (species 24)
+    (24, 0): ('Octavian',  'ocp00'), (24, 1): ('Marina',    'ocp01'),
+    (24, 2): ('Zucker',    'ocp02'),
+    # Gorillas (species 15)
+    (15, 0): ('Peewee',    'gor00'), (15, 1): ('Boone',     'gor01'),
+    (15, 2): ('Violet',    'gor02'), (15, 3): ('Boyd',      'gor03'),
+    (15, 4): ('Caesar',    'gor04'), (15, 5): ('Hans',      'gor05'),
+    # Hippos (species 17)
+    (17, 0): ('Rocco',     'hip00'), (17, 1): ('Bubbles',   'hip01'),
+    (17, 2): ('Bertha',    'hip02'), (17, 3): ('Biff',      'hip03'),
+    (17, 4): ('Harry',     'hip04'), (17, 5): ('Bitty',     'hip05'),
+    # Sheep (species 31)
+    (31, 0): ('Baabara',   'shp00'), (31, 1): ('Eunice',    'shp01'),
+    (31, 2): ('Timbra',    'shp02'), (31, 3): ('Vesta',     'shp03'),
+    (31, 4): ('Wendy',     'shp04'), (31, 5): ('Frita',     'shp05'),
+    (31, 6): ('Stella',    'shp06'), (31, 7): ('Cashmere',  'shp07'),
+    # Mice (species 23)
+    (23, 0): ('Bettina',   'mus00'), (23, 1): ('Dora',      'mus01'),
+    (23, 2): ('Candi',     'mus02'), (23, 3): ('Broccolo',  'mus03'),
+    (23, 4): ('Moose',     'mus04'), (23, 5): ('Limberg',   'mus05'),
+    (23, 6): ('Samson',    'mus06'), (23, 7): ('Rod',       'mus07'),
+    # Birds (species 2)
+    (2,  0): ('Robin',     'brd00'), (2,  1): ('Jacques',   'brd01'),
+    (2,  2): ('Piper',     'brd02'), (2,  3): ('Anchovy',   'brd03'),
+    (2,  4): ('Twiggy',    'brd04'), (2,  5): ('Jitters',   'brd05'),
+    (2,  6): ('Peck',      'brd06'), (2,  7): ('Sparro',    'brd07'),
+    # Anteaters (species 0)
+    (0,  0): ('Anabelle',  'ant00'), (0,  1): ('Cyrano',    'ant01'),
+    (0,  2): ('Antonio',   'ant02'), (0,  3): ('Annalisa',  'ant03'),
+    (0,  4): ('Olaf',      'ant04'),
+    # Bulls (species 3)
+    (3,  0): ('Rodeo',     'bul00'), (3,  1): ('Stu',       'bul02'),
+    (3,  2): ('T-Bone',    'bul03'), (3,  3): ('Vic',       'bul04'),
+    # Chickens (species 6)
+    (6,  0): ('Ava',       'chn00'), (6,  1): ('Brenda',    'chn01'),
+    (6,  2): ('Goose',     'chn02'), (6,  3): ('Plucky',    'chn03'),
+    (6,  4): ('Knox',      'chn04'), (6,  5): ('Becky',     'chn05'),
+    # Cows (species 7)
+    (7,  0): ('Naomi',     'cow00'), (7,  1): ('Patty',     'cow01'),
+    (7,  2): ('Norma',     'cow02'), (7,  3): ('Tipper',    'cow03'),
+    # Goats (species 14)
+    (14, 0): ('Velma',     'goa00'), (14, 1): ('Chevre',    'goa01'),
+    (14, 2): ('Billy',     'goa02'), (14, 3): ('Gruff',     'goa03'),
+    (14, 4): ('Nan',       'goa04'), (14, 5): ('Pashmina',  'goa05'),
+    # Kangaroos (species 20)
+    (20, 0): ('Astrid',    'kgr00'), (20, 1): ('Mathilda',  'kgr01'),
+    (20, 2): ('Carrie',    'kgr02'), (20, 3): ('Marcy',     'kgr03'),
+    (20, 4): ('Kitt',      'kgr04'), (20, 5): ('Walt',      'kgr05'),
+    # Koalas (species 19)
+    (19, 0): ('Sydney',    'kal00'), (19, 1): ('Melba',     'kal01'),
+    (19, 2): ('Ozzie',     'kal02'), (19, 3): ('Yuka',      'kal03'),
+    (19, 4): ('Canberra',  'kal04'), (19, 5): ('Lyman',     'kal06'),
+    # Lions (species 21)
+    (21, 0): ('Mott',      'lon00'), (21, 1): ('Bud',       'lon01'),
+    (21, 2): ('Elvis',     'lon02'), (21, 3): ('Lionel',    'lon03'),
+    # Ostriches (species 25)
+    (25, 0): ('Blanche',   'ost00'), (25, 1): ('Julia',     'ost01'),
+    (25, 2): ('Gladys',    'ost02'), (25, 3): ('Phil',      'ost03'),
+    (25, 4): ('Phoebe',    'ost04'),
+    # Pigs (species 27 / 28)
+    (27, 0): ('Pancetti',  'pgn00'), (27, 1): ('Agnes',     'pgn01'),
+    (27, 2): ('Rasher',    'pgn02'), (27, 3): ('Curly',     'pgn03'),
+    (27, 4): ('Truffles',  'pgn04'), (27, 5): ('Chops',     'pgn05'),
+    (27, 6): ('Croque',    'pgn06'), (27, 7): ('Boris',     'pgn07'),
+    # Rhinos (species 30)
+    (30, 0): ('Tank',      'rhn00'), (30, 1): ('Spike',     'rhn01'),
+    (30, 2): ('Hornsby',   'rhn02'), (30, 3): ('Rhonda',    'rhn03'),
+    # Ostrich continued
+}
+
+# Friendship tier thresholds
+_FRIENDSHIP_TIERS = [
+    (200, 'BFF'),
+    (150, 'Close Friend'),
+    (100, 'Best Friend'),
+    (60,  'Good Friend'),
+    (30,  'Friend'),
+    (1,   'Acquaintance'),
+    (0,   'Stranger'),
+]
+
+
+def _read_utf16le(data, max_chars=16):
+    """Decode UTF-16LE bytes, stopping at null terminator."""
+    chars = []
+    for i in range(0, min(len(data) - 1, max_chars * 2), 2):
+        cp = struct.unpack_from('<H', data, i)[0]
+        if cp == 0:
+            break
+        try:
+            chars.append(chr(cp))
+        except (ValueError, OverflowError):
+            chars.append('?')
+    return ''.join(chars).strip()
+
+
+def _friendship_tier(points):
+    for threshold, label in _FRIENDSHIP_TIERS:
+        if points >= threshold:
+            return label
+    return 'Stranger'
+
+
+def _find_villager_array_procmem(pid, dram_base):
+    """
+    Dynamically locate the Villager2 array base VA by scanning live DRAM.
+    Checks env override ACNH_VILLAGER_ARRAY_VA first.
+    Returns base VA of first villager slot, or None if not found.
+    """
+    override = os.environ.get('ACNH_VILLAGER_ARRAY_VA', '').strip()
+    if override:
+        return int(override, 16) if override.startswith('0x') else int(override)
+
+    # Scan 64MB around the known player area for consecutive villager slots.
+    # Two consecutive villager2 structs must both start with valid species (0-34).
+    scan_start = 0xAF000000
+    scan_size  = 0x4000000   # 64MB
+    chunk_size = 0x200000    # 2MB
+
+    for chunk_off in range(0, scan_size, chunk_size):
+        va = scan_start + chunk_off
+        try:
+            data = _read_switch_va(pid, dram_base, va, chunk_size)
+        except Exception:
+            continue
+        for i in range(0, len(data) - _VILLAGER2_SIZE - 4, 4):
+            sp1 = data[i]
+            if sp1 > 35:
+                continue
+            j = i + _VILLAGER2_SIZE
+            if j + 3 >= len(data):
+                continue
+            sp2 = data[j]
+            if sp2 > 35:
+                continue
+            vr1 = data[i + 1]
+            vr2 = data[j + 1]
+            p1  = data[i + 2]
+            p2  = data[j + 2]
+            if vr1 > 20 or vr2 > 20:
+                continue
+            if (p1 > 8) or (p2 > 8):
+                continue
+            # Require at least one non-zero species to avoid null regions
+            if sp1 == 0 and sp2 == 0:
+                continue
+            return va + i
+    return None
+
+
+def _read_one_villager(pid, dram_base, slot_va, slot_index):
+    """Read a single Villager2 struct from live memory and return a dict."""
+    try:
+        hdr = _read_switch_va(pid, dram_base, slot_va, 4)
+    except Exception:
+        return {'slot': slot_index, 'empty': True, 'error': 'read_failed'}
+
+    species_id  = hdr[0]
+    variant     = hdr[1]
+    personality = hdr[2]
+
+    # Treat species 35 (non) or all-zero + all-zero personality 0 variant 0 with
+    # no readable catchphrase as an empty slot indicator.
+    if species_id == 35:
+        return {'slot': slot_index, 'empty': True}
+
+    # Resolve name from catalog
+    catalog_entry = _VILLAGER_CATALOG.get((species_id, variant))
+    display_name = catalog_entry[0] if catalog_entry else None
+    internal_id  = catalog_entry[1] if catalog_entry else f'sp{species_id}v{variant}'
+
+    species_label = _VILLAGER_SPECIES_NAMES.get(species_id, ('Unknown', 'unk'))[0]
+    personality_label = _VILLAGER_PERSONALITY_NAMES[personality] if personality < len(_VILLAGER_PERSONALITY_NAMES) else f'?{personality}'
+    # Gender: personalities 0-3 = Male, 4-7 = Female  (NHSE: (personality/4)&1)
+    gender = 'F' if personality >= 4 else 'M'
+
+    # Catchphrase
+    try:
+        cp_raw = _read_switch_va(pid, dram_base, slot_va + _VILLAGER2_CATCHPHRASE_OFF, 24)
+        catchphrase = _read_utf16le(cp_raw, 12)
+    except Exception:
+        catchphrase = ''
+
+    # Friendship from GSaveMemory[0]
+    gsave0_base = slot_va + _VILLAGER2_GSAVE0_OFF
+    try:
+        friendship_raw = _read_switch_va(pid, dram_base, gsave0_base + _GSAVE_FRIENDSHIP_OFF, 1)
+        friendship = friendship_raw[0]
+    except Exception:
+        friendship = 0
+
+    # Player/town name from GSaveMemory[0]
+    try:
+        tname_raw = _read_switch_va(pid, dram_base, gsave0_base + _GSAVE_TOWNNAME_OFF, 20)
+        town_name = _read_utf16le(tname_raw, 10)
+    except Exception:
+        town_name = ''
+
+    try:
+        pname_raw = _read_switch_va(pid, dram_base, gsave0_base + _GSAVE_PLAYERNAME_OFF, 20)
+        player_name = _read_utf16le(pname_raw, 10)
+    except Exception:
+        player_name = ''
+
+    # Moving out
+    try:
+        mt_raw = _read_switch_va(pid, dram_base, slot_va + _VILLAGER2_MOVETYPE_OFF, 1)
+        moving_out = bool(mt_raw[0] & 0x02)
+    except Exception:
+        moving_out = False
+
+    # Image URL: try Nookipedia CDN pattern
+    img_url = f'https://api.nookipedia.com/nh/villagers/{internal_id}/image' if internal_id else None
+
+    return {
+        'slot':         slot_index,
+        'empty':        False,
+        'name':         display_name,
+        'internalId':   internal_id,
+        'species':      species_id,
+        'speciesName':  species_label,
+        'variant':      variant,
+        'personality':  personality,
+        'personalityName': personality_label,
+        'gender':       gender,
+        'catchphrase':  catchphrase,
+        'friendship':   friendship,
+        'friendshipTier': _friendship_tier(friendship),
+        'playerName':   player_name,
+        'townName':     town_name,
+        'movingOut':    moving_out,
+        'imageUrl':     img_url,
+    }
+
+
+def read_villagers_procmem():
+    """Read all 10 villager slots from live Ryujinx memory."""
+    _check_ptrace_scope()
+    pid = _find_ryujinx_pid()
+    dram_base = _find_dram_base(pid)
+
+    array_base = _find_villager_array_procmem(pid, dram_base)
+    if array_base is None:
+        print(json.dumps({
+            'ok': False,
+            'error': 'Villager array not found in DRAM. Game may not be fully loaded.',
+            'villagers': [],
+            'source': 'live-memory',
+        }))
+        return
+
+    villagers = []
+    for i in range(10):
+        slot_va = array_base + i * _VILLAGER2_SIZE
+        villagers.append(_read_one_villager(pid, dram_base, slot_va, i + 1))
+
+    print(json.dumps({
+        'ok': True,
+        'villagers': villagers,
+        'arrayBaseVa': hex(array_base),
+        'source': 'live-memory',
+        'backend': 'procmem',
+        'ryujinxPid': pid,
+    }))
+
+
+# ---------------------------------------------------------------------------
 # Botbase fallback (socket protocol)
 # ---------------------------------------------------------------------------
 
@@ -1378,6 +1783,9 @@ def main():
         if command == "write_game_data":
             request = json.loads(sys.stdin.read().strip() or "{}")
             write_game_data_procmem(request)
+            return 0
+        if command == "read_villagers":
+            read_villagers_procmem()
             return 0
         raise RuntimeError(f"Unsupported command: {command}")
     else:

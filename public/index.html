@@ -468,54 +468,27 @@
 
           </div>
         </section>
-              <h3>Villagers Workbench</h3>
-              <p>The villager-specific editor is still queued, but the session shell now tracks the live player profile and what is already wired.</p>
+
+        <section
+          id="tab-panel-villagers"
+          class="tab-panel"
+          role="tabpanel"
+          aria-labelledby="tab-villagers"
+          hidden
+        >
+          <div class="tab-layout">
+            <div class="tab-panel-copy">
+              <h3>Villagers <span id="villager-count-badge" class="villager-count-badge"></span></h3>
+              <p>Live island residents read from memory. Tap a card to view details.</p>
+              <button id="refresh-villagers-btn" type="button" class="action-btn">Refresh Villagers</button>
             </div>
-
-            <div class="tab-dual-grid">
-              <article class="tab-card">
-                <h4>Player Snapshot</h4>
-                <div class="tab-kv-list">
-                  <div class="tab-kv-row">
-                    <span>Name</span>
-                    <strong id="tab-player-summary-name">Barbara</strong>
-                  </div>
-                  <div class="tab-kv-row">
-                    <span>Town</span>
-                    <strong id="tab-player-summary-town">Okemos</strong>
-                  </div>
-                  <div class="tab-kv-row">
-                    <span>Wallet</span>
-                    <strong id="tab-player-summary-wallet">1,246</strong>
-                  </div>
-                  <div class="tab-kv-row">
-                    <span>Nook Miles</span>
-                    <strong id="tab-player-summary-miles">9,999,999</strong>
-                  </div>
-                </div>
-              </article>
-
-              <article class="tab-card">
-                <h4>Editor Queue</h4>
-                <div class="tab-bullet-list">
-                  <div class="tab-bullet-row">
-                    <span class="status-dot is-live"></span>
-                    <span>Pocket item assignment is live</span>
-                  </div>
-                  <div class="tab-bullet-row">
-                    <span class="status-dot is-live"></span>
-                    <span>Player values persist locally</span>
-                  </div>
-                  <div class="tab-bullet-row">
-                    <span class="status-dot"></span>
-                    <span>Villager roster editing is next in line</span>
-                  </div>
-                </div>
-              </article>
+            <div id="villager-roster" class="villager-grid">
+              <p class="villager-placeholder">Connect the bridge and click Refresh Villagers to load.</p>
             </div>
-
           </div>
         </section>
+
+
 
         <section
           id="tab-panel-map"
@@ -1076,9 +1049,9 @@
   <script defer src="./react/components/ModalResultsList.js?v=47"></script>
   <script defer src="./react/components/MusicLibraryOptions.js?v=47"></script>
   <script defer src="./react/renderers.js?v=47"></script>
-  <script defer src="./app-core.js?v=53"></script>
+  <script defer src="./app-core.js?v=54"></script>
   <script defer src="./app-music.js?v=47"></script>
-  <script defer src="./app-workspaces.js?v=53"></script>
-  <script defer src="./app.js?v=53"></script>
+  <script defer src="./app-workspaces.js?v=54"></script>
+  <script defer src="./app.js?v=54"></script>
 </body>
 </html>

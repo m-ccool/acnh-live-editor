@@ -490,6 +490,10 @@ function updateBackupLabel(id, label) {
   return sendCommand('update_label', { id, label }, { timeoutMs: 10000 })
 }
 
+function readVillagers() {
+  return sendCommand('read_villagers', {}, { timeoutMs: 20000 })
+}
+
 function inferReadGameDataSupport(capabilities) {
   if (!Array.isArray(capabilities) || capabilities.length === 0) {
     return null
@@ -521,6 +525,7 @@ module.exports = {
   listBackups,
   readGameData,
   readInventory,
+  readVillagers,
   readStatus,
   restoreBackup,
   sendCommand,

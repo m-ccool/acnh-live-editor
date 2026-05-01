@@ -7,6 +7,7 @@
         "/^node -e \"const fs=require\\('fs'\\);const path=require\\('path'\\);const file=path\\.resolve\\('scripts/steamdeck-adapters/ryujinx-save\\.js'\\);const text=fs\\.readFileSync\\(file,'utf8'\\);console\\.log\\(text\\.includes\\('internal_id: i'\\)\\);console\\.log\\(text\\.includes\\('\\.replace\\(/_/g, \\\\' \\\\\\\\'\\)\\)'\\);\"$/": {
             "approve": true,
             "matchCommandLine": true
-        }
+        },
+        "ssh": true
     }
 }

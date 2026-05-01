@@ -81,6 +81,14 @@ function createApiRouter(options = {}) {
     }
   })
 
+  router.get('/api/bridge/read-villagers', async (req, res) => {
+    try {
+      res.json(await bridgeService.readVillagers())
+    } catch (error) {
+      res.status(resolveBridgeErrorStatus(error)).json({ error: error.message })
+    }
+  })
+
   router.post('/api/bridge/write-inventory-slot', async (req, res) => {
     const slot = Number(req.body && req.body.slot)
     const itemPayload = req.body && req.body.item && typeof req.body.item === 'object'
