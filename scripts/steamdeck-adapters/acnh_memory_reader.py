@@ -1534,9 +1534,8 @@ def _read_one_villager(pid, dram_base, slot_va, slot_index):
     variant     = hdr[1]
     personality = hdr[2]
 
-    # Treat species 35 (non) or all-zero + all-zero personality 0 variant 0 with
-    # no readable catchphrase as an empty slot indicator.
-    if species_id == 35:
+    # Treat species >= 35 as empty/invalid (35='Non', 0xFE/0xFF = uninitialized)
+    if species_id >= 35:
         return {'slot': slot_index, 'empty': True}
 
     # Resolve name from catalog
