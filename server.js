@@ -5,6 +5,7 @@ require('dotenv').config({
   quiet: true
 })
 
+const { Bonjour } = require('bonjour-service')
 const bridgeService = require('./modules/bridgeService')
 const {
   BRIDGE_HOST,
@@ -41,6 +42,15 @@ app.listen(PORT, async () => {
   }
 
   console.log(`Bridge listener ${BRIDGE_HOST}:${BRIDGE_PORT}`)
+
+  // Advertise bridge via mDNS so Deck clients discover us automatically
+  try {
+    const bonjour = new Bonjour()
+    bonjour.publish({ name: 'acnh-live-editor', type: 'acnh-bridge', protocol: 'tcp', port: BRIDGE_PORT })
+    console.log(`mDNS: advertising _acnh-bridge._tcp on port ${BRIDGE_PORT}`)
+  } catch (err) {
+    console.warn(`mDNS advertisement failed (non-fatal): ${err.message}`)
+  }
 
   refreshCatalogInBackground()
 })

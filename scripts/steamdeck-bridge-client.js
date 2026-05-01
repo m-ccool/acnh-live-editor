@@ -2,8 +2,12 @@ const net = require('net')
 const os = require('os')
 const { execFile } = require('child_process')
 
-const host = process.env.BRIDGE_TARGET_HOST || '127.0.0.1'
+const configuredHost = (process.env.BRIDGE_TARGET_HOST || 'auto').trim()
 const port = Number(process.env.BRIDGE_TARGET_PORT || 32840)
+
+// If host is 'auto', discover via mDNS; otherwise use configured value directly.
+// resolvedHost is set before connectSocket() is called.
+let host = configuredHost === 'auto' ? null : configuredHost
 const deviceName = process.env.BRIDGE_DEVICE_NAME || 'steamdeck-bridge-client'
 const heartbeatMs = Number(process.env.BRIDGE_HEARTBEAT_MS || 5000)
 const reconnectDelayMs = Number(process.env.BRIDGE_RECONNECT_DELAY_MS || 3000)
@@ -35,11 +39,56 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
   process.exit(0)
 }
 
-renderPanel()
-connectSocket()
-
 process.on('SIGINT', shutdown)
 process.on('SIGTERM', shutdown)
+
+if (host) {
+  // Host explicitly configured — connect immediately
+  renderPanel()
+  connectSocket()
+} else {
+  // Auto-discover server via mDNS (_acnh-bridge._tcp)
+  panelState = 'CONNECTING'
+  panelDetail = 'Discovering server via mDNS...'
+  renderPanel()
+
+  let discovered = false
+  let discoveryTimeout = null
+
+  try {
+    const { Bonjour } = require('bonjour-service')
+    const bonjour = new Bonjour()
+    const browser = bonjour.find({ type: 'acnh-bridge', protocol: 'tcp' }, (service) => {
+      if (discovered) return
+      const addr = (service.addresses || []).find(a => /^\d+\.\d+\.\d+\.\d+$/.test(a)) || service.host
+      if (!addr) return
+      discovered = true
+      clearTimeout(discoveryTimeout)
+      browser.stop()
+      bonjour.destroy()
+      host = addr
+      panelDetail = `Discovered ${host}:${port} via mDNS`
+      renderPanel()
+      connectSocket()
+    })
+
+    // Fallback after 8s: try hostname.local (avahi resolves Windows .local names)
+    discoveryTimeout = setTimeout(() => {
+      if (discovered) return
+      browser.stop()
+      bonjour.destroy()
+      const os = require('os')
+      // Last resort: prompt user or use localhost
+      panelState = 'ERROR'
+      panelDetail = 'mDNS discovery timed out. Set BRIDGE_TARGET_HOST in .steamdeck-bridge.env'
+      renderPanel()
+    }, 8000)
+  } catch (err) {
+    panelState = 'ERROR'
+    panelDetail = `mDNS unavailable: ${err.message}. Set BRIDGE_TARGET_HOST in .steamdeck-bridge.env`
+    renderPanel()
+  }
+}
 
 function connectSocket() {
   if (isShuttingDown) {
