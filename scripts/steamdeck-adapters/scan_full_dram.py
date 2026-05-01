@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-Inline scan: for every [4,0] (Bob/Cat) at 4-byte alignment, immediately
-read at +STRIDE and -STRIDE to check for [33,0] (Rolf/Tiger).
-No hit lists — O(1) memory, fast, no false-positive explosion.
-Also checks the reverse: every [33,0] → look at +/-STRIDE for [4,0].
+Inline scan: for every [4,0,0] (Bob: Cat sp=4, var=0, personality=Lazy=0)
+at 4-byte alignment, immediately read at +STRIDE and -STRIDE to check for
+[33,0,2] (Rolf: Tiger sp=33, var=0, personality=Cranky=2).
+Personality byte filters eliminate the vast majority of false positives.
+No hit lists — O(1) memory.
 """
 import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
@@ -60,7 +61,7 @@ while cur < DRAM_END:
                     rbytes = read_at(mem_fd, rolf_host, 4)
                 except Exception:
                     continue
-                if rbytes[0] == 33 and rbytes[1] == 0:
+                if rbytes[0] == 33 and rbytes[1] == 0 and rbytes[2] == 2:
                     slot = -1 if delta < 0 else 0
                     rolf_slot = 0 if delta < 0 else 1
                     base = min(bob_host, rolf_host)
