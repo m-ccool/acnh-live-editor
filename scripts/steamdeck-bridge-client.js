@@ -1,6 +1,7 @@
 const net = require('net')
 const dgram = require('dgram')
 const os = require('os')
+const path = require('path')
 const { execFile } = require('child_process')
 
 const configuredHost = (process.env.BRIDGE_TARGET_HOST || 'auto').trim()
@@ -23,6 +24,7 @@ const customWriteInventoryCommand = String(process.env.RYUJINX_WRITE_INVENTORY_C
 const customReadGameDataCommand = String(process.env.RYUJINX_READ_GAME_DATA_CMD || '').trim()
 const customWriteGameDataCommand = String(process.env.RYUJINX_WRITE_GAME_DATA_CMD || '').trim()
 const customBackupManagerCommand = String(process.env.RYUJINX_BACKUP_MANAGER_CMD || '').trim()
+const customReadVillagersCommand = String(process.env.RYUJINX_READ_VILLAGERS_CMD || '').trim()
 const startedAt = new Date().toISOString()
 
 const supportedCommands = buildSupportedCommands()
@@ -230,6 +232,9 @@ function buildSupportedCommands() {
     commands.push('update_label')
   }
 
+  // Villager read is always available via procmem (bridge_memory_tool auto-discovers reader)
+  commands.push('read_villagers')
+
   return commands
 }
 
@@ -291,6 +296,11 @@ function handleMessage(message) {
 
   if (command === 'list_backups' || command === 'create_backup' || command === 'restore_backup' || command === 'delete_backup' || command === 'update_label') {
     handleBackupCommand(requestId, command, message && message.payload)
+    return
+  }
+
+  if (command === 'read_villagers') {
+    handleReadVillagers(requestId, command)
     return
   }
 
@@ -492,6 +502,33 @@ async function handleBackupCommand(requestId, command, payload) {
     }
 
     sendResponse(requestId, command, output)
+  } catch (error) {
+    sendError(requestId, command, error.message)
+  }
+}
+
+async function handleReadVillagers(requestId, command) {
+  // Resolve command: explicit env > auto-discover via bridge_memory_tool.py
+  const scriptDir = path.join(__dirname, 'steamdeck-adapters')
+  const memToolPath = path.join(scriptDir, 'bridge_memory_tool.py')
+  const resolvedCmd = customReadVillagersCommand ||
+    `python3 ${JSON.stringify(memToolPath)} read_villagers`
+
+  try {
+    const output = await runJsonCommand(resolvedCmd, { command: 'read_villagers' }, 'read_villagers', 20000)
+
+    if (!output || typeof output !== 'object') {
+      throw new Error('read_villagers must output a JSON object')
+    }
+
+    sendResponse(requestId, command, {
+      ok: output.ok !== false,
+      villagers: Array.isArray(output.villagers) ? output.villagers : [],
+      arrayBaseVa: output.arrayBaseVa || null,
+      source: output.source || 'live-memory',
+      backend: output.backend || null,
+      error: output.error || null
+    })
   } catch (error) {
     sendError(requestId, command, error.message)
   }
