@@ -1506,12 +1506,18 @@ def _find_villager_array_procmem(pid, dram_base):
                 valid_count += 1
             if valid_count < 3:
                 continue
-            # Require at least 2 of the 3 to be known catalog entries (not just valid bytes)
+            # Require at least 2 of the 3 to be known catalog entries
             catalog_hits = sum(
                 1 for s in range(3)
                 if _VILLAGER_CATALOG.get((data[i + s * _VILLAGER2_SIZE], data[i + s * _VILLAGER2_SIZE + 1])) is not None
             )
             if catalog_hits < 2:
+                continue
+            # Require at least 2 of the 3 to have non-zero species (excludes null memory)
+            non_zero_species = sum(
+                1 for s in range(3) if data[i + s * _VILLAGER2_SIZE] > 0
+            )
+            if non_zero_species < 2:
                 continue
             return va + i
     return None
