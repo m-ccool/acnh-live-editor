@@ -1526,6 +1526,9 @@ def _find_villager_array_procmem(pid, dram_base):
     chunk_size = 0x200000    # 2MB
 
     candidates = []  # list of (chunk_va + i) for each passing candidate
+    # If we find a candidate containing both Tiger (sp=33) AND Cat (sp=4) we can
+    # stop immediately — that is the real villager array.
+    _EARLY_EXIT_SPECIES = {4, 33}  # Cat, Tiger
 
     for chunk_off in range(0, scan_size, chunk_size):
         va = scan_start + chunk_off
@@ -1561,7 +1564,17 @@ def _find_villager_array_procmem(pid, dram_base):
             )
             if non_zero_species < 2:
                 continue
-            candidates.append(va + i)
+            candidate_va = va + i
+            candidates.append(candidate_va)
+            # Early exit: if this candidate already contains both Tiger (sp=33)
+            # and Cat (sp=4) across its 10 slots, it's the real villager array.
+            slot_species = set()
+            for s in range(10):
+                slot_off = candidate_va - va + s * _VILLAGER2_SIZE
+                if slot_off + 1 < len(data):
+                    slot_species.add(data[slot_off])
+            if _EARLY_EXIT_SPECIES.issubset(slot_species):
+                return candidate_va
 
     if not candidates:
         return None

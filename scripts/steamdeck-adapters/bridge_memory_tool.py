@@ -108,7 +108,7 @@ def run_json_command(command: str, payload: dict, label: str):
         if timeout_ms_raw:
             timeout_seconds = max(1, int(timeout_ms_raw) // 1000)
         else:
-            timeout_seconds = 12
+            timeout_seconds = 45
 
     proc = subprocess.run(
         ["sh", "-lc", command],
