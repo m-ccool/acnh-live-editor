@@ -1491,26 +1491,24 @@ def _find_villager_array_procmem(pid, dram_base):
             data = _read_switch_va(pid, dram_base, va, chunk_size)
         except Exception:
             continue
-        for i in range(0, len(data) - _VILLAGER2_SIZE - 4, 4):
-            sp1 = data[i]
-            if sp1 > 35:
+        for i in range(0, len(data) - _VILLAGER2_SIZE * 3 - 4, 4):
+            # Require 3 consecutive valid slots to reduce false positives
+            valid_count = 0
+            for s in range(3):
+                off = i + s * _VILLAGER2_SIZE
+                if off + 3 >= len(data):
+                    break
+                sp  = data[off]
+                vr  = data[off + 1]
+                p   = data[off + 2]
+                if sp > 35 or vr > 20 or p > 8:
+                    break
+                valid_count += 1
+            if valid_count < 3:
                 continue
-            j = i + _VILLAGER2_SIZE
-            if j + 3 >= len(data):
-                continue
-            sp2 = data[j]
-            if sp2 > 35:
-                continue
-            vr1 = data[i + 1]
-            vr2 = data[j + 1]
-            p1  = data[i + 2]
-            p2  = data[j + 2]
-            if vr1 > 20 or vr2 > 20:
-                continue
-            if (p1 > 8) or (p2 > 8):
-                continue
-            # Require at least one non-zero species to avoid null regions
-            if sp1 == 0 and sp2 == 0:
+            # At least two of the three must be non-zero species (not all empty)
+            species_vals = [data[i + s * _VILLAGER2_SIZE] for s in range(3)]
+            if species_vals.count(0) >= 3:
                 continue
             return va + i
     return None
