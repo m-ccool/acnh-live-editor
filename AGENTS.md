@@ -3,7 +3,7 @@
 
 Current Agent Tasks in Chat:
 
-- (chat agents will assign task here) | progress: 50%
+- Read villagers from decrypted main.dat save file (Rolf+Bob confirmed) | progress: 100% DONE
 
 
 
