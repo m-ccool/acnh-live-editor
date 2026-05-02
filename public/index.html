@@ -14,7 +14,7 @@
   <link rel="icon" type="image/png" href="/assets/icons/Apple_NL_Icon.png" />
   <link rel="manifest" href="./manifest.webmanifest" />
   <meta name="theme-color" content="#09090b" />
-  <link rel="stylesheet" href="./styles.css?v=59" />
+  <link rel="stylesheet" href="./styles.css?v=63" />
 </head>
 <body>
   <div id="loading-screen" class="loading-screen" aria-hidden="true">
@@ -322,7 +322,7 @@
               id="player-avatar"
               class="player-avatar"
               alt="Player avatar"
-              src="/assets/items/Bob_NH.png"
+              src="/assets/icons/player-silhouette.svg"
             />
             <span class="avatar-edit-chip" aria-hidden="true">
               <img
@@ -785,7 +785,7 @@
                 id="player-modal-bust"
                 class="player-modal-bust-image"
                 alt="Player bust preview"
-                src="/assets/items/Bob_NH.png"
+                src="/assets/icons/player-silhouette.svg"
               />
             </div>
 
@@ -956,15 +956,7 @@
         <button class="icon-button modal-close" type="button" data-close-modal="villager-modal">×</button>
       </div>
 
-      <div class="villager-modal-shell">
-        <aside class="villager-modal-aside">
-          <div class="villager-modal-art-frame"></div>
-        </aside>
-        <div class="villager-modal-info"></div>
-      </div>
-      <div class="modal-actions villager-modal-footer">
-        <button id="villager-save-btn" type="button" class="action-btn action-btn-solid">Save</button>
-      </div>
+      <div id="villager-modal-body"></div>
     </div>
   </div>
 
@@ -1074,11 +1066,12 @@
   <script defer src="./react/components/ModalFilterButtons.js?v=47"></script>
   <script defer src="./react/components/ModalResultsList.js?v=47"></script>
   <script defer src="./react/components/MusicLibraryOptions.js?v=47"></script>
+  <script defer src="./react/components/VillagerModal.js?v=63"></script>
   <script defer src="./react/renderers.js?v=47"></script>
-  <script defer src="./app-core.js?v=59"></script>
+  <script defer src="./app-core.js?v=63"></script>
   <script defer src="./app-music.js?v=47"></script>
-  <script defer src="./app-workspaces.js?v=59"></script>
-  <script defer src="./app.js?v=59"></script>
+  <script defer src="./app-workspaces.js?v=63"></script>
+  <script defer src="./app.js?v=63"></script>
 </body>
 </html>
 

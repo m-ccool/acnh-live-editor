@@ -1058,7 +1058,7 @@ def read_game_data_procmem():
             "wallet": wallet,
             "bank":   bank,
             "miles":  miles,
-            "avatar": os.environ.get("ACNH_PLAYER_AVATAR", "/assets/items/Bob_NH.png"),
+            "avatar": os.environ.get("ACNH_PLAYER_AVATAR", ""),
         },
         "slots": _read_all_slots_procmem(pid, dram_base),
         "source": "live-memory",
@@ -1144,7 +1144,7 @@ def write_game_data_procmem(request):
             "wallet": refreshed["wallet"],
             "bank": refreshed["bank"],
             "miles": refreshed["miles"],
-            "avatar": os.environ.get("ACNH_PLAYER_AVATAR", "/assets/items/Bob_NH.png"),
+            "avatar": os.environ.get("ACNH_PLAYER_AVATAR", ""),
         },
         "slots": _read_all_slots_procmem(pid, dram_base),
         "source": "live-memory",
@@ -1256,10 +1256,31 @@ _GSAVE_SIZE                = 0x5F0
 _GSAVE_TOWNNAME_OFF        = 0x04              # 10x UTF-16LE
 _GSAVE_PLAYERNAME_OFF      = 0x20              # 10x UTF-16LE
 _GSAVE_FRIENDSHIP_OFF      = 0x42             # uint8
+# EventFlagsSave (NnpcMemoryFlags) — confirmed from NHSE Villager2.cs GetEventFlagsSave()
+_VILLAGER2_FLAGS_OFF       = 0x1267C          # ushort[256] array; first 18 are UI-exposed
+_VILLAGER2_FLAGS_COUNT     = 18
 
 # Offset of the 10-slot villager array within decrypted main.dat
 # Confirmed via ryujinx-save Node.js decrypt + "cha"/"cardio" catchphrase search.
 _VILLAGER2_ARRAY_FILE_OFFSET = 0x120
+
+# VillagerHouse2 array offset in decrypted main.dat
+# Confirmed from NHSE MainSaveOffsets20.cs: NpcHouseList = GSaveLandStart(0x110) + 0x44F7FC
+_NPC_HOUSE_LIST_OFF        = 0x44F90C
+_VH2_SIZE                  = 0x12E8           # VillagerHouse2.SIZE
+# VillagerHouse1 field offsets (embedded in VillagerHouse2, from NHSE VillagerHouse1.cs)
+_VH_HOUSE_LEVEL_OFF        = 0x00  # uint32
+_VH_HOUSE_STATUS_OFF       = 0x04  # uint32
+_VH_WALL_UID_OFF           = 0x08  # uint16
+_VH_ROOF_UID_OFF           = 0x0A  # uint16
+_VH_DOOR_UID_OFF           = 0x0C  # uint16
+_VH_ORDER_WALL_UID_OFF     = 0x0E  # uint16
+_VH_ORDER_ROOF_UID_OFF     = 0x10  # uint16
+_VH_ORDER_DOOR_UID_OFF     = 0x12  # uint16
+_VH_NPC1_OFF               = 0x1C4  # sbyte
+_VH_NPC2_OFF               = 0x1C5  # sbyte
+_VH_DOOR_DECO_OFF          = 0x1C8  # Item (8 bytes)
+_VH_BUILD_PLAYER_OFF       = 0x1D0  # sbyte
 
 # ---------------------------------------------------------------------------
 # Save-file decryption helpers (Ryujinx XorShift128 + AES-CTR via openssl)
@@ -1840,6 +1861,13 @@ def _read_one_villager(pid, dram_base, slot_va, slot_index):
     except Exception:
         moving_out = False
 
+    # Flags (EventFlagsSave) — ushort[18] at Villager2+0x1267C
+    try:
+        flags_raw = _read_switch_va(pid, dram_base, slot_va + _VILLAGER2_FLAGS_OFF, _VILLAGER2_FLAGS_COUNT * 2)
+        flags = list(struct.unpack_from(f'<{_VILLAGER2_FLAGS_COUNT}H', flags_raw))
+    except Exception:
+        flags = []
+
     # Image URL: acnhcdn.com public CDN — no auth required
     img_url = f'https://acnhcdn.com/latest/NpcIcon/{display_name}.png' if display_name else None
 
@@ -1860,6 +1888,8 @@ def _read_one_villager(pid, dram_base, slot_va, slot_index):
         'playerName':   player_name,
         'townName':     town_name,
         'movingOut':    moving_out,
+        'flags':        flags,
+        'house':        {},
         'imageUrl':     img_url,
     }
 
@@ -1889,6 +1919,35 @@ def _read_one_villager_from_save(data: bytes, slot_index: int) -> dict:
     cp_off      = off + _VILLAGER2_CATCHPHRASE_OFF
     catchphrase = _read_utf16le(data[cp_off: cp_off + 24], 12)
 
+    # Flags (EventFlagsSave) — ushort[18] at Villager2+0x1267C
+    flags_base = off + _VILLAGER2_FLAGS_OFF
+    flags = list(struct.unpack_from(f'<{_VILLAGER2_FLAGS_COUNT}H', data, flags_base))
+
+    # House data (VillagerHouse2) — separate block in decrypted main.dat
+    # Confirmed offsets: MainSaveOffsets20.cs NpcHouseList + VillagerHouse1.cs field layout
+    house_off = _NPC_HOUSE_LIST_OFF + slot_index * _VH2_SIZE
+    try:
+        house = {
+            'extension':         'nhvh2',
+            'houseLevel':        struct.unpack_from('<I', data, house_off + _VH_HOUSE_LEVEL_OFF)[0],
+            'houseStatus':       struct.unpack_from('<I', data, house_off + _VH_HOUSE_STATUS_OFF)[0],
+            'wallUniqueId':      struct.unpack_from('<H', data, house_off + _VH_WALL_UID_OFF)[0],
+            'roofUniqueId':      struct.unpack_from('<H', data, house_off + _VH_ROOF_UID_OFF)[0],
+            'doorUniqueId':      struct.unpack_from('<H', data, house_off + _VH_DOOR_UID_OFF)[0],
+            'orderWallUniqueId': struct.unpack_from('<H', data, house_off + _VH_ORDER_WALL_UID_OFF)[0],
+            'orderRoofUniqueId': struct.unpack_from('<H', data, house_off + _VH_ORDER_ROOF_UID_OFF)[0],
+            'orderDoorUniqueId': struct.unpack_from('<H', data, house_off + _VH_ORDER_DOOR_UID_OFF)[0],
+            'npc1':              struct.unpack_from('<b', data, house_off + _VH_NPC1_OFF)[0],
+            'npc2':              struct.unpack_from('<b', data, house_off + _VH_NPC2_OFF)[0],
+            'buildPlayer':       struct.unpack_from('<b', data, house_off + _VH_BUILD_PLAYER_OFF)[0],
+            'doorDecoItemName':  '0x{:04X}:0x{:04X}'.format(
+                struct.unpack_from('<H', data, house_off + _VH_DOOR_DECO_OFF)[0],
+                struct.unpack_from('<H', data, house_off + _VH_DOOR_DECO_OFF + 4)[0],
+            ),
+        }
+    except Exception:
+        house = {}
+
     img_url = f'https://acnhcdn.com/latest/NpcIcon/{display_name}.png' if display_name else None
 
     return {
@@ -1908,6 +1967,8 @@ def _read_one_villager_from_save(data: bytes, slot_index: int) -> dict:
         'playerName':      '',
         'townName':        '',
         'movingOut':       False,
+        'flags':           flags,
+        'house':           house,
         'imageUrl':        img_url,
     }
 
@@ -2060,7 +2121,7 @@ def read_game_data_botbase(sock):
             "wallet": to_int(wallet_raw),
             "bank":   to_int(bank_raw),
             "miles":  to_int(miles_raw),
-            "avatar": os.environ.get("ACNH_PLAYER_AVATAR", "/assets/items/Bob_NH.png"),
+            "avatar": os.environ.get("ACNH_PLAYER_AVATAR", ""),
         },
         "slots": [],
         "source": "live-memory",

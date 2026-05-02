@@ -3,7 +3,7 @@
 const TOTAL_SLOTS = 40;
 const STORAGE_KEY = 'acnh-live-editor-state-v5';
 const REPO_URL = 'https://github.com/m-ccool/acnh-live-editor';
-const SERVICE_WORKER_VERSION = '59';
+const SERVICE_WORKER_VERSION = '63';
 const PLAY_ICON_PATH = '/assets/icons/line-md--pause-to-play-filled-transition.svg';
 const PAUSE_ICON_PATH = '/assets/icons/line-md--pause.svg';
 const CONSOLE_CONNECTED_ICON_PATH = '/assets/icons/codicon--debug-connect.svg';
@@ -579,8 +579,13 @@ function bindEvents() {
 
   document.querySelectorAll('[data-close-modal]').forEach((button) => {
     button.addEventListener('click', () => {
-      const modal = document.getElementById(button.getAttribute('data-close-modal'));
-      closeModal(modal);
+      const modalId = button.getAttribute('data-close-modal');
+      if (modalId === 'villager-modal' && typeof closeVillagerModal === 'function') {
+        closeVillagerModal();
+      } else {
+        const modal = document.getElementById(modalId);
+        closeModal(modal);
+      }
     });
   });
 
@@ -591,12 +596,21 @@ function bindEvents() {
     });
   });
 
+  if (el.villagerModal) {
+    el.villagerModal.addEventListener('click', (event) => {
+      if (event.target === el.villagerModal && typeof closeVillagerModal === 'function') closeVillagerModal();
+    });
+  }
+
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
       closeModal(el.settingsModal);
       closeModal(el.playerModal);
       closeModal(el.itemModal);
       closeModal(el.backupsModal);
+      if (el.villagerModal && !el.villagerModal.classList.contains('hidden') && typeof closeVillagerModal === 'function') {
+        closeVillagerModal();
+      }
     }
   });
 
@@ -685,7 +699,7 @@ function handlePageDragEnd(event) {
 }
 
 function hasOpenModal() {
-  return [el.settingsModal, el.playerModal, el.itemModal, el.backupsModal].some((modal) => {
+  return [el.settingsModal, el.playerModal, el.itemModal, el.backupsModal, el.villagerModal].some((modal) => {
     return modal && !modal.classList.contains('hidden');
   });
 }

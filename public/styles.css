@@ -673,6 +673,79 @@ body[data-theme='night'] .star--bright {
   to { transform: rotate(360deg); }
 }
 
+/* ── Shimmer skeleton animation ─────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+
+.skeleton-line,
+.skeleton-block {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.04) 0%,
+    rgba(255,255,255,0.11) 40%,
+    rgba(255,255,255,0.04) 80%
+  );
+  background-size: 200% auto;
+  animation: shimmer 1.5s linear infinite;
+  border-radius: 6px;
+}
+
+.skeleton-block {
+  border-radius: 12px;
+}
+
+/* Villager modal skeleton layout */
+.vmod-skeleton {
+  display: flex;
+  gap: 20px;
+  padding: 0 20px;
+  flex: 1;
+}
+
+.vmod-skeleton-aside {
+  flex-shrink: 0;
+  width: clamp(110px, 18vw, 150px);
+}
+
+.vmod-skeleton-art {
+  width: 100%;
+  height: clamp(160px, 26vh, 220px);
+}
+
+.vmod-skeleton-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.vmod-skeleton-name {
+  height: 28px;
+  width: 50%;
+}
+
+.vmod-skeleton-btns {
+  display: flex;
+  gap: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.vmod-skeleton-btn {
+  height: 28px;
+  width: 60px;
+  border-radius: 8px;
+}
+
+.vmod-skeleton-row {
+  height: 34px;
+  width: 100%;
+  border-radius: 0;
+}
+
 .app-shell {
   position: relative;
   z-index: 1;
@@ -682,7 +755,7 @@ body[data-theme='night'] .star--bright {
   opacity: 1;
   transform: translateY(0);
   filter: none;
-  transition: opacity 0.35s var(--ease), transform 0.35s var(--ease), filter 0.35s var(--ease);
+  transition: opacity 0.24s var(--ease), transform 0.24s var(--ease), filter 0.24s var(--ease);
 }
 
 .app-hidden {
@@ -2429,6 +2502,14 @@ body[data-theme='night'] .avatar-box {
   object-fit: contain;
 }
 
+/* Silhouette placeholder fills less space and centers cleanly */
+.player-avatar[src*="player-silhouette"] {
+  width: 64px;
+  height: 64px;
+  opacity: 0.3;
+  margin: auto;
+}
+
 .inventory-area {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 148px;
@@ -2906,9 +2987,14 @@ body[data-theme='night'] .footer-watermark {
   inset: 0;
   z-index: 90;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   padding: clamp(12px, 2.2vw, 20px);
+  /* Safe-area insets for iPhone notch / home indicator */
+  padding-top: max(clamp(12px, 2.2vw, 20px), env(safe-area-inset-top, 0px));
+  padding-bottom: max(clamp(12px, 2.2vw, 20px), env(safe-area-inset-bottom, 0px));
+  padding-left: max(clamp(12px, 2.2vw, 20px), env(safe-area-inset-left, 0px));
+  padding-right: max(clamp(12px, 2.2vw, 20px), env(safe-area-inset-right, 0px));
   background: transparent;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -2916,9 +3002,8 @@ body[data-theme='night'] .footer-watermark {
   visibility: hidden;
   pointer-events: none;
   transition:
-    opacity 0.28s var(--ease),
-    visibility 0s linear 0.28s,
-    background 0.42s var(--ease);
+    opacity 0.24s var(--ease),
+    visibility 0s linear 0.24s;
 }
 
 .modal.hidden {
@@ -2929,9 +3014,8 @@ body[data-theme='night'] .footer-watermark {
 .modal.is-closing {
   visibility: visible;
   transition:
-    opacity 0.28s var(--ease),
-    visibility 0s linear 0s,
-    background 0.42s var(--ease);
+    opacity 0.24s var(--ease),
+    visibility 0s linear 0s;
 }
 
 .modal.is-visible {
@@ -2946,6 +3030,7 @@ body[data-theme='night'] .footer-watermark {
 
 .modal-card {
   width: min(900px, 100%);
+  margin: auto;
   position: relative;
   overflow: hidden;
   isolation: isolate;
@@ -2963,20 +3048,15 @@ body[data-theme='night'] .footer-watermark {
     inset 0 -1px 0 rgba(255,255,255,0.015);
   backdrop-filter: blur(28px) saturate(150%) contrast(1.02);
   -webkit-backdrop-filter: blur(28px) saturate(150%) contrast(1.02);
+  /* Only animate opacity + transform — never animate backdrop-filter or background
+     as they force expensive composite layer rebuilds that cause jank */
   transition:
-    opacity 0.28s var(--ease),
-    transform 0.28s var(--ease),
-    filter 0.28s var(--ease),
-    border-color 0.82s cubic-bezier(.16,.84,.28,1),
-    background 0.82s cubic-bezier(.16,.84,.28,1),
-    box-shadow 0.82s cubic-bezier(.16,.84,.28,1),
-    backdrop-filter 0.82s cubic-bezier(.16,.84,.28,1),
-    -webkit-backdrop-filter 0.82s cubic-bezier(.16,.84,.28,1);
+    opacity 0.24s var(--ease),
+    transform 0.24s var(--ease);
   overflow-y: auto;
   scrollbar-gutter: stable both-edges;
   opacity: 0;
-  transform: translateY(18px) scale(0.985);
-  filter: blur(8px);
+  transform: translateY(14px) scale(0.988);
 }
 
 body:not([data-theme='night']) .modal-card {
@@ -3019,13 +3099,11 @@ body:not([data-theme='night']) .modal-filter-btn {
 .modal.is-visible .modal-card {
   opacity: 1;
   transform: translateY(0) scale(1);
-  filter: blur(0);
 }
 
 .modal.is-closing .modal-card {
   opacity: 0;
-  transform: translateY(14px) scale(0.987);
-  filter: blur(6px);
+  transform: translateY(10px) scale(0.99);
 }
 
 .modal-card-settings {
@@ -3040,24 +3118,49 @@ body:not([data-theme='night']) .modal-filter-btn {
 /* ── Villager edit modal ───────────────────────────── */
 .modal-card-villager {
   width: min(580px, 100%);
+  overflow: hidden;
+}
+
+/* React body mount fills the card below the modal-head */
+#villager-modal-body,
+.villager-modal-body-inner {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .villager-modal-shell {
   display: flex;
+  flex: 1;
   gap: 20px;
-  padding: 0 20px 16px;
-  align-items: flex-start;
+  padding: 0 20px 0;
+  align-items: stretch;
   min-height: 0;
+  overflow: hidden;
+}
+
+/* Full-width sub-views (house/flags/edit) — no art aside */
+.villager-modal-shell.vmod-fullwidth {
+  padding-top: 8px;
+}
+.villager-modal-shell.vmod-fullwidth .villager-modal-info {
+  padding-left: 0;
 }
 
 .villager-modal-aside {
   flex-shrink: 0;
-  width: clamp(110px, 18vw, 160px);
+  width: clamp(140px, 22vw, 200px);
+  display: flex;
+  flex-direction: column;
 }
 
 .villager-modal-art-frame {
-  width: clamp(110px, 18vw, 160px);
-  height: clamp(190px, 32vh, 280px);
+  position: relative;
+  width: 100%;
+  flex: 1;
+  max-height: clamp(200px, 46vh, 260px);
   border-radius: 16px;
   overflow: hidden;
   background: rgba(255,255,255,0.04);
@@ -3065,13 +3168,25 @@ body:not([data-theme='night']) .modal-filter-btn {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 10px;
 }
 
 .villager-modal-art {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  object-position: center bottom;
+  object-position: center center;
+  transition: opacity 0.2s ease;
+}
+
+.villager-modal-art.art-pending {
+  opacity: 0;
+}
+
+.villager-modal-art-shimmer {
+  position: absolute;
+  inset: 0;
+  border-radius: 0;
 }
 
 .villager-modal-art-placeholder {
@@ -3087,11 +3202,12 @@ body:not([data-theme='night']) .modal-filter-btn {
 .villager-modal-info {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding-top: 4px;
-  overflow-y: auto;
+  padding: 4px 0 0;
+  overflow: hidden;
 }
 
 .villager-modal-name-row {
@@ -3127,8 +3243,8 @@ body:not([data-theme='night']) .modal-filter-btn {
 .vmod-field-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 7px 12px;
+  gap: 8px;
+  padding: 6px 12px;
   border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 
@@ -3138,12 +3254,12 @@ body:not([data-theme='night']) .modal-filter-btn {
 
 .vmod-label {
   flex-shrink: 0;
-  width: 88px;
-  font-size: 0.78rem;
-  color: rgba(255,255,255,0.45);
+  width: 94px;
+  font-size: 0.73rem;
+  color: rgba(255,255,255,0.42);
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
 }
 
 .vmod-value {
@@ -3197,8 +3313,10 @@ body:not([data-theme='night']) .modal-filter-btn {
 }
 
 .vmod-btn-sm {
-  padding: 4px 10px;
-  font-size: 0.78rem;
+  min-height: 28px;
+  min-width: unset;
+  padding: 2px 9px;
+  font-size: 0.75rem;
   flex-shrink: 0;
 }
 
@@ -3275,33 +3393,326 @@ body:not([data-theme='night']) .modal-filter-btn {
   color: rgba(255,255,255,0.3);
 }
 
+/* Main view wrapper */
+.vmod-main-view {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Action button bar (Backup / Load / House / Flags / Edit) */
+.vmod-action-bar {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 4px 0 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+
+.vmod-action-btn {
+  min-height: 28px;
+  min-width: unset;
+  padding: 2px 10px;
+  font-size: 0.75rem;
+}
+
+/* Footer (main + sub-views) */
 .villager-modal-footer {
   border-top: 1px solid rgba(255,255,255,0.08);
-  padding: 14px 20px 18px;
+  padding: 12px 20px max(16px, env(safe-area-inset-bottom, 0px));
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* Sub-view footer: left cluster + right Save */
+.vmod-subview-footer {
+  justify-content: space-between;
+  padding: 12px 20px 16px;
+}
+
+.vmod-footer-left {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+/* Sub-view shared layout */
+.vmod-house-view,
+.vmod-flags-view,
+.vmod-edit-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 8px;
+}
+
+.vmod-subview-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.7);
+  padding: 0 20px 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  flex-shrink: 0;
+}
+
+/* House fields */
+.vmod-house-fields {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  margin: 0 20px;
+}
+
+.vmod-house-input {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Flags view */
+.vmod-flags-shell {
+  display: flex;
+  gap: 10px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 20px;
+}
+
+.vmod-flags-list {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-family: monospace;
+}
+
+.vmod-flag-item {
+  padding: 6px 10px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: rgba(255,255,255,0.65);
+  user-select: none;
+  transition: background 0.1s;
+}
+
+.vmod-flag-item:last-child {
+  border-bottom: none;
+}
+
+.vmod-flag-item:hover {
+  background: rgba(255,255,255,0.05);
+}
+
+.vmod-flag-item.is-selected {
+  background: rgba(80, 100, 220, 0.3);
+  color: rgba(255,255,255,0.95);
+  font-weight: 600;
+}
+
+.vmod-flags-editor {
+  width: 120px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  align-self: flex-start;
+}
+
+.vmod-flags-selected-name {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.75);
+  word-break: break-all;
+  min-height: 1.6em;
+}
+
+.vmod-flags-value-label {
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.45);
+  display: block;
+  margin-top: 4px;
+}
+
+.vmod-flags-value-input {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Edit view */
+.vmod-edit-wrapper {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 0 20px;
+}
+
+.vmod-edit-tabs {
+  flex-shrink: 0;
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px 0;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  scrollbar-width: none;
+  background: rgba(255,255,255,0.02);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  /* Smooth momentum scroll on iOS */
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+}
+
+.vmod-edit-tabs::-webkit-scrollbar { display: none; }
+
+.vmod-edit-tab-btn {
+  font-size: 0.75rem;
+  padding: 4px 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: unset;
+}
+
+/* Edit subview title with icon */
+.vmod-edit-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vmod-edit-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.vmod-edit-panel {
+  flex: 1;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80px;
+}
+
+.vmod-edit-stub {
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.3);
+  text-align: center;
+  margin: 0;
 }
 
 @media (max-width: 480px) {
+  /* Shell: stack art above info */
   .villager-modal-shell {
     flex-direction: column;
     align-items: center;
+    padding: 0 10px 0;
   }
   .villager-modal-aside {
-    width: clamp(100px, 40vw, 130px);
+    width: clamp(90px, 36vw, 120px);
   }
   .villager-modal-art-frame {
-    width: clamp(100px, 40vw, 130px);
-    height: clamp(170px, 28vh, 228px);
+    width: clamp(90px, 36vw, 120px);
+    height: clamp(130px, 22vh, 190px);
+    max-height: 180px;
+  }
+
+  /* Sub-view chrome: tighter side margins */
+  .vmod-house-fields,
+  .vmod-edit-wrapper {
+    margin-left: 8px;
+    margin-right: 8px;
+  }
+  .vmod-subview-title {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  /* Flags: stack list + editor vertically on narrow screens */
+  .vmod-flags-shell {
+    flex-direction: column;
+    padding: 0 8px;
+    overflow-y: auto;
+    min-height: 0;
+  }
+  .vmod-flags-list {
+    flex: none;
+    min-height: 120px;
+    max-height: 200px;
+  }
+  .vmod-flags-editor {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    align-self: stretch;
+    gap: 6px 10px;
+  }
+  .vmod-flags-selected-name {
+    flex: 1 1 100%;
+  }
+  .vmod-flags-value-label {
+    flex-shrink: 0;
+    margin-top: 0;
+  }
+  .vmod-flags-value-input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Edit tabs: larger touch targets */
+  .vmod-edit-tab-btn {
+    min-height: 44px;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+  }
+
+  /* Action bar: wrap and fill width */
+  .vmod-action-btn {
+    flex: 1;
+    min-width: 58px;
+    min-height: 38px;
+    text-align: center;
+  }
+
+  /* Footer: wrap buttons on small screens */
+  .vmod-subview-footer {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px 14px max(14px, env(safe-area-inset-bottom, 0px));
+  }
+  .vmod-footer-left {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .villager-modal-footer {
+    padding: 10px 14px max(14px, env(safe-area-inset-bottom, 0px));
   }
 }
 
 @media (max-height: 600px) {
   .villager-modal-art-frame {
-    height: clamp(150px, 28vh, 200px);
-  }
-  .villager-modal-shell {
-    padding-bottom: 8px;
+    height: clamp(100px, 22vh, 170px);
+    max-height: 160px;
   }
 }
 
@@ -4531,11 +4942,8 @@ body:not([data-theme='night']) .action-btn-solid {
   }
 
   .player-avatar-wrap {
-    height: 176px;
+    height: auto;
   }
-
-  .player-card {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .player-actions {
@@ -4727,8 +5135,8 @@ body:not([data-theme='night']) .action-btn-solid {
 }
 
 .villager-avatar {
-  width: 72px;
-  height: 72px;
+  width: 68px;
+  height: 68px;
   flex-shrink: 0;
   border-radius: 50%;
   background: rgba(255,255,255,0.05);
@@ -4737,8 +5145,8 @@ body:not([data-theme='night']) .action-btn-solid {
 }
 
 .villager-avatar-placeholder {
-  width: 72px;
-  height: 72px;
+  width: 68px;
+  height: 68px;
   flex-shrink: 0;
   border-radius: 50%;
   background: rgba(255,255,255,0.07);
@@ -4746,8 +5154,33 @@ body:not([data-theme='night']) .action-btn-solid {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.8rem;
+  font-size: 1.7rem;
   color: rgba(255,255,255,0.3);
+}
+
+/* Mobile: stack icon on top, info below */
+@media (max-width: 540px) {
+  .villager-card {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.6rem;
+    padding: 0.85rem;
+  }
+  .villager-avatar,
+  .villager-avatar-placeholder {
+    width: 80px;
+    height: 80px;
+  }
+  .villager-body {
+    width: 100%;
+  }
+  .villager-name-row {
+    justify-content: center;
+  }
+  .villager-friendship-row {
+    justify-content: center;
+  }
 }
 
 .villager-body {
