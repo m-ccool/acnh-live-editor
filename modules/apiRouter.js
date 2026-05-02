@@ -248,22 +248,49 @@ function createApiRouter(options = {}) {
   })
 
   // Proxy villager head icons from acnhcdn.com (used in list view).
-  // acnhcdn.com (via Cloudflare) returns 404 status with PNG body — check content-type, not status code.
+  // Looks up the internal game id (e.g. "cat00") from Nookipedia, then proxies
+  // acnhcdn.com/latest/NpcIcon/{id}.png — display names like "Bob" return a placeholder.
   router.get('/api/villager-icon/:name', (req, res) => {
-    const name = req.params.name.replace(/[^a-zA-Z0-9_\-]/g, '')
+    const name = req.params.name.replace(/[^a-zA-Z0-9 _'\-]/g, '').trim()
     if (!name) return res.status(400).end()
     const https = require('https')
-    const url = `https://acnhcdn.com/latest/NpcIcon/${name}.png`
-    https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (upstream) => {
-      const ct = upstream.headers['content-type'] || ''
-      if (!ct.startsWith('image/')) {
-        upstream.resume()
-        return res.status(404).end()
+    const apiKey = String(process.env.NOOKIPEDIA_API_KEY || '').trim()
+    if (!apiKey) return res.status(503).end()
+
+    const metaUrl = `https://api.nookipedia.com/villagers?name=${encodeURIComponent(name)}`
+    const metaReq = https.get(metaUrl, {
+      headers: {
+        'X-API-KEY': apiKey,
+        'Accept-Version': '1.7.0',
+        'User-Agent': 'acnh-live-editor/1.0'
       }
-      res.setHeader('Content-Type', ct)
-      res.setHeader('Cache-Control', 'public, max-age=86400')
-      upstream.pipe(res)
-    }).on('error', () => res.status(502).end())
+    }, (metaRes) => {
+      let body = ''
+      metaRes.on('data', (chunk) => { body += chunk })
+      metaRes.on('end', () => {
+        let internalId
+        try {
+          const data = JSON.parse(body)
+          const villager = Array.isArray(data) ? data[0] : data
+          internalId = villager && villager.id
+        } catch (_) {}
+
+        if (!internalId) return res.status(404).end()
+
+        const iconUrl = `https://acnhcdn.com/latest/NpcIcon/${internalId}.png`
+        https.get(iconUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (upstream) => {
+          const ct = upstream.headers['content-type'] || ''
+          if (!ct.startsWith('image/')) {
+            upstream.resume()
+            return res.status(404).end()
+          }
+          res.setHeader('Content-Type', ct)
+          res.setHeader('Cache-Control', 'public, max-age=86400')
+          upstream.pipe(res)
+        }).on('error', () => res.status(502).end())
+      })
+    })
+    metaReq.on('error', () => res.status(502).end())
   })
 
   // Proxy villager full-body art via Nookipedia API (used in edit modal).
