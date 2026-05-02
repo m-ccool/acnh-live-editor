@@ -255,11 +255,14 @@ function createApiRouter(options = {}) {
     const https = require('https')
     const url = `https://acnhcdn.com/latest/NpcIcon/${name}.png`
     https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (upstream) => {
-      if (upstream.statusCode !== 200) {
+      // acnhcdn.com (via Cloudflare) may return 404 status while still sending
+      // the image body — check content-type rather than status code.
+      const ct = upstream.headers['content-type'] || ''
+      if (!ct.startsWith('image/')) {
         upstream.resume()
-        return res.status(upstream.statusCode).end()
+        return res.status(404).end()
       }
-      res.setHeader('Content-Type', 'image/png')
+      res.setHeader('Content-Type', ct)
       res.setHeader('Cache-Control', 'public, max-age=86400')
       upstream.pipe(res)
     }).on('error', () => res.status(502).end())
