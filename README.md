@@ -424,3 +424,8 @@ Pinned bug:
 7. After backend readback is confirmed, refresh the existing UI and confirm the player and inventory panels render that returned live payload without UI code changes.
 8. Keep both repos on `dev` while validating new work. Before any `master` commit or promotion, ensure local `dev` is up to date with `origin/dev`.
 9. Switch both repos to `master` only after the validated promotion is explicitly requested and pushed.
+
+## Framework References
+
+- [SysBot.ACNHOrders](https://github.com/berichan/SysBot.ACNHOrders) — ACNH live memory layout reference (runtime pointer chains and live Switch VA offsets)
+- [NHSE](https://github.com/kwsch/NHSE) — ACNH save file format reference (Villager2 struct layout, field offsets)
