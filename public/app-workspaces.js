@@ -1491,11 +1491,11 @@ const PERSONALITY_COLORS = {
   Uchi:   '#e8904a',
 };
 
-// Derive CDN image URL from villager's name, proxied through our server to avoid hotlink blocking.
+// Derive full-body art URL from villager's name, proxied through Nookipedia API.
 function villagerImageUrl(v) {
   if (!v || !v.name) return null;
-  const name = v.name.trim().replace(/[^a-zA-Z0-9_\-]/g, '');
-  return `/api/villager-icon/${encodeURIComponent(name)}`;
+  const name = v.name.trim().replace(/[^a-zA-Z0-9 _'\-]/g, '');
+  return `/api/villager-art/${encodeURIComponent(name)}`;
 }
 
 function renderVillagersPanel(villagers) {

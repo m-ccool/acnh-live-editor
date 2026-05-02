@@ -247,25 +247,48 @@ function createApiRouter(options = {}) {
     }
   })
 
-  // Proxy villager portrait images from acnhcdn.com to avoid hotlink blocking.
-  // The browser never sends a Referer to the CDN; the server fetches on its behalf.
-  router.get('/api/villager-icon/:name', (req, res) => {
-    const name = req.params.name.replace(/[^a-zA-Z0-9_\-]/g, '')
+  // Proxy villager full-body art via Nookipedia API.
+  // Looks up image_url from /villagers?name=<name>, then proxies the image.
+  router.get('/api/villager-art/:name', (req, res) => {
+    const name = req.params.name.replace(/[^a-zA-Z0-9 _'\-]/g, '').trim()
     if (!name) return res.status(400).end()
     const https = require('https')
-    const url = `https://acnhcdn.com/latest/NpcIcon/${name}.png`
-    https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (upstream) => {
-      // acnhcdn.com (via Cloudflare) may return 404 status while still sending
-      // the image body — check content-type rather than status code.
-      const ct = upstream.headers['content-type'] || ''
-      if (!ct.startsWith('image/')) {
-        upstream.resume()
-        return res.status(404).end()
+    const apiKey = String(process.env.NOOKIPEDIA_API_KEY || '').trim()
+    if (!apiKey) return res.status(503).json({ error: 'Nookipedia API key not configured' })
+
+    const metaUrl = `https://api.nookipedia.com/villagers?name=${encodeURIComponent(name)}`
+    const metaReq = https.get(metaUrl, {
+      headers: {
+        'X-API-KEY': apiKey,
+        'Accept-Version': '1.7.0',
+        'User-Agent': 'acnh-live-editor/1.0'
       }
-      res.setHeader('Content-Type', ct)
-      res.setHeader('Cache-Control', 'public, max-age=86400')
-      upstream.pipe(res)
-    }).on('error', () => res.status(502).end())
+    }, (metaRes) => {
+      let body = ''
+      metaRes.on('data', (chunk) => { body += chunk })
+      metaRes.on('end', () => {
+        let imageUrl
+        try {
+          const data = JSON.parse(body)
+          const villager = Array.isArray(data) ? data[0] : data
+          imageUrl = villager && villager.image_url
+        } catch (_) {}
+
+        if (!imageUrl) return res.status(404).end()
+
+        https.get(imageUrl, { headers: { 'User-Agent': 'acnh-live-editor/1.0' } }, (imgRes) => {
+          const ct = imgRes.headers['content-type'] || ''
+          if (!ct.startsWith('image/')) {
+            imgRes.resume()
+            return res.status(404).end()
+          }
+          res.setHeader('Content-Type', ct)
+          res.setHeader('Cache-Control', 'public, max-age=86400')
+          imgRes.pipe(res)
+        }).on('error', () => res.status(502).end())
+      })
+    })
+    metaReq.on('error', () => res.status(502).end())
   })
 
   return router
