@@ -1491,11 +1491,72 @@ const PERSONALITY_COLORS = {
   Uchi:   '#e8904a',
 };
 
-// Derive full-body art URL from villager's name, proxied through Nookipedia API.
+// Derive head-icon URL from villager's name for the list view (acnhcdn.com NpcIcon).
 function villagerImageUrl(v) {
+  if (!v || !v.name) return null;
+  const name = v.name.trim().replace(/[^a-zA-Z0-9_\-]/g, '');
+  return `/api/villager-icon/${encodeURIComponent(name)}`;
+}
+
+// Derive full-body art URL from villager's name for the edit modal (Nookipedia).
+function villagerArtUrl(v) {
   if (!v || !v.name) return null;
   const name = v.name.trim().replace(/[^a-zA-Z0-9 _'\-]/g, '');
   return `/api/villager-art/${encodeURIComponent(name)}`;
+}
+
+function openVillagerModal(v) {
+  if (!el.villagerModal) return;
+
+  const artUrl = villagerArtUrl(v);
+  const pColor = PERSONALITY_COLORS[v.personalityName] || 'rgba(255,255,255,0.2)';
+  const genderLabel = v.gender === 'F' ? 'Female' : 'Male';
+  const friendshipPct = Math.round(((v.friendship || 0) / 255) * 100);
+  const tier = escapeHtml(v.friendshipTier || 'Stranger');
+  const movingOutBadge = v.movingOut
+    ? `<span class="villager-moving-out-badge">Moving Out</span>`
+    : '';
+
+  const artImg = artUrl
+    ? `<img class="villager-modal-art" src="${escapeHtml(artUrl)}" alt="${escapeHtml(v.name || '')}"
+         onerror="this.style.display='none';document.getElementById('villager-modal-art-placeholder').style.display='flex'">`
+    : '';
+
+  el.villagerModal.querySelector('.villager-modal-title').textContent = v.name || 'Villager';
+
+  el.villagerModal.querySelector('.villager-modal-art-frame').innerHTML = `
+    ${artImg}
+    <div id="villager-modal-art-placeholder" class="villager-modal-art-placeholder" style="display:${artUrl ? 'none' : 'flex'}">🐾</div>
+  `;
+
+  el.villagerModal.querySelector('.villager-modal-info').innerHTML = `
+    ${movingOutBadge}
+    <div class="villager-modal-name-row">
+      <span class="villager-modal-name">${escapeHtml(v.name || 'Unknown')}</span>
+      <span class="villager-personality-badge" style="background:${pColor}">${escapeHtml(v.personalityName || '')}</span>
+    </div>
+    <div class="villager-modal-meta-row">
+      <span class="villager-modal-species">${escapeHtml(v.speciesName || '')}</span>
+      <span class="villager-modal-gender">${genderLabel}</span>
+    </div>
+    ${v.catchphrase ? `<div class="villager-modal-catchphrase">&ldquo;${escapeHtml(v.catchphrase)}&rdquo;</div>` : ''}
+    <div class="villager-modal-friendship">
+      <div class="villager-modal-friendship-label">
+        <span>Friendship</span>
+        <span class="villager-friendship-tier">${tier}</span>
+      </div>
+      <div class="villager-friendship-bar-track">
+        <div class="villager-friendship-bar-fill" style="width:${friendshipPct}%"></div>
+      </div>
+    </div>
+    ${v.slot != null ? `<div class="villager-modal-slot">Island slot ${v.slot}</div>` : ''}
+  `;
+
+  openModal(el.villagerModal);
+}
+
+function closeVillagerModal() {
+  closeModal(el.villagerModal);
 }
 
 function renderVillagersPanel(villagers) {
@@ -1532,6 +1593,9 @@ function renderVillagersPanel(villagers) {
       roster.appendChild(card);
       return;
     }
+
+    card.style.cursor = 'pointer';
+    card.addEventListener('click', () => openVillagerModal(v));
 
     const imgUrl = villagerImageUrl(v);
     const imgHtml = imgUrl

@@ -3,7 +3,7 @@
 const TOTAL_SLOTS = 40;
 const STORAGE_KEY = 'acnh-live-editor-state-v5';
 const REPO_URL = 'https://github.com/m-ccool/acnh-live-editor';
-const SERVICE_WORKER_VERSION = '57';
+const SERVICE_WORKER_VERSION = '58';
 const PLAY_ICON_PATH = '/assets/icons/line-md--pause-to-play-filled-transition.svg';
 const PAUSE_ICON_PATH = '/assets/icons/line-md--pause.svg';
 const CONSOLE_CONNECTED_ICON_PATH = '/assets/icons/codicon--debug-connect.svg';
@@ -328,6 +328,8 @@ function cacheDom() {
   el.playerFlagsTabButtons = Array.from(document.querySelectorAll('[data-player-flags-tab]'));
   el.playerFlagsPanels = Array.from(document.querySelectorAll('.player-flags-panel'));
   el.playerInputName = document.getElementById('player-input-name');
+
+  el.villagerModal = document.getElementById('villager-modal');
   el.playerInputTown = document.getElementById('player-input-town');
   el.playerInputWallet = document.getElementById('player-input-wallet');
   el.playerInputBank = document.getElementById('player-input-bank');
@@ -1134,4 +1136,5 @@ function renderBridge() {
 
   el.bridgeStatus.textContent = JSON.stringify(block, null, 2);
 }
+
 

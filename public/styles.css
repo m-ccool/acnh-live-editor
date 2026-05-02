@@ -3037,6 +3037,123 @@ body:not([data-theme='night']) .modal-filter-btn {
   width: min(680px, 100%);
 }
 
+/* ── Villager edit modal ───────────────────────────── */
+.modal-card-villager {
+  width: min(560px, 100%);
+}
+
+.villager-modal-shell {
+  display: flex;
+  gap: 24px;
+  padding: 0 20px 24px;
+  align-items: flex-start;
+}
+
+.villager-modal-aside {
+  flex-shrink: 0;
+  width: 160px;
+}
+
+.villager-modal-art-frame {
+  width: 160px;
+  height: 280px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.villager-modal-art {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+}
+
+.villager-modal-art-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  opacity: 0.4;
+}
+
+.villager-modal-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.villager-modal-name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.villager-modal-name {
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text-primary, rgba(255,255,255,0.92));
+}
+
+.villager-modal-meta-row {
+  display: flex;
+  gap: 10px;
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.55);
+}
+
+.villager-modal-catchphrase {
+  font-size: 0.9rem;
+  font-style: italic;
+  color: rgba(255,255,255,0.6);
+}
+
+.villager-modal-friendship {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.villager-modal-friendship-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.5);
+}
+
+.villager-modal-slot {
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.35);
+  margin-top: 4px;
+}
+
+@media (max-width: 480px) {
+  .villager-modal-shell {
+    flex-direction: column;
+    align-items: center;
+  }
+  .villager-modal-aside {
+    width: 130px;
+  }
+  .villager-modal-art-frame {
+    width: 130px;
+    height: 228px;
+  }
+}
+
+
+
 .backups-shell {
   padding: 14px 18px 18px;
   display: flex;
@@ -4458,20 +4575,19 @@ body:not([data-theme='night']) .action-btn-solid {
 
 .villager-avatar {
   width: 72px;
-  height: 96px;
+  height: 72px;
   flex-shrink: 0;
-  border-radius: 12px;
+  border-radius: 50%;
   background: rgba(255,255,255,0.05);
   object-fit: cover;
-  object-position: top center;
   border: 2px solid rgba(255,255,255,0.12);
 }
 
 .villager-avatar-placeholder {
   width: 72px;
-  height: 96px;
+  height: 72px;
   flex-shrink: 0;
-  border-radius: 12px;
+  border-radius: 50%;
   background: rgba(255,255,255,0.07);
   border: 2px dashed rgba(255,255,255,0.15);
   display: flex;

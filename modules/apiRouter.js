@@ -247,7 +247,26 @@ function createApiRouter(options = {}) {
     }
   })
 
-  // Proxy villager full-body art via Nookipedia API.
+  // Proxy villager head icons from acnhcdn.com (used in list view).
+  // acnhcdn.com (via Cloudflare) returns 404 status with PNG body — check content-type, not status code.
+  router.get('/api/villager-icon/:name', (req, res) => {
+    const name = req.params.name.replace(/[^a-zA-Z0-9_\-]/g, '')
+    if (!name) return res.status(400).end()
+    const https = require('https')
+    const url = `https://acnhcdn.com/latest/NpcIcon/${name}.png`
+    https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (upstream) => {
+      const ct = upstream.headers['content-type'] || ''
+      if (!ct.startsWith('image/')) {
+        upstream.resume()
+        return res.status(404).end()
+      }
+      res.setHeader('Content-Type', ct)
+      res.setHeader('Cache-Control', 'public, max-age=86400')
+      upstream.pipe(res)
+    }).on('error', () => res.status(502).end())
+  })
+
+  // Proxy villager full-body art via Nookipedia API (used in edit modal).
   // Looks up image_url from /villagers?name=<name>, then proxies the image.
   router.get('/api/villager-art/:name', (req, res) => {
     const name = req.params.name.replace(/[^a-zA-Z0-9 _'\-]/g, '').trim()
