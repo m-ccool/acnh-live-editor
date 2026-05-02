@@ -2016,6 +2016,9 @@ def main():
             write_game_data_procmem(request)
             return 0
         if command == "read_villagers":
+            read_villagers_from_save()
+            return 0
+        if command == "read_villagers_procmem":
             read_villagers_procmem()
             return 0
         if command == "read_villagers_save":
