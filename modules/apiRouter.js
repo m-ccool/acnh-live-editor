@@ -18,6 +18,42 @@ const {
   getMusicLibrary
 } = require('./musicLibrary')
 
+// Server-side cache for Nookipedia villager metadata (keyed by lowercase display name).
+// Avoids a Nookipedia API call on every page load; TTL = 24 h.
+const _nookCache = new Map() // name → { id, image_url, expiry }
+const _NOOK_TTL_MS = 24 * 60 * 60 * 1000
+
+function _fetchNookVillager(name) {
+  const key = name.toLowerCase()
+  const cached = _nookCache.get(key)
+  if (cached && cached.expiry > Date.now()) return Promise.resolve(cached)
+
+  const https = require('https')
+  const apiKey = String(process.env.NOOKIPEDIA_API_KEY || '').trim()
+  if (!apiKey) return Promise.reject(new Error('no api key'))
+
+  return new Promise((resolve, reject) => {
+    const url = `https://api.nookipedia.com/villagers?name=${encodeURIComponent(name)}`
+    const req = https.get(url, {
+      headers: { 'X-API-KEY': apiKey, 'Accept-Version': '1.7.0', 'User-Agent': 'acnh-live-editor/1.0' }
+    }, (res) => {
+      let body = ''
+      res.on('data', (c) => { body += c })
+      res.on('end', () => {
+        try {
+          const data = JSON.parse(body)
+          const v = Array.isArray(data) ? data[0] : data
+          if (!v || !v.id) return reject(new Error('not found'))
+          const entry = { id: v.id, image_url: v.image_url || null, expiry: Date.now() + _NOOK_TTL_MS }
+          _nookCache.set(key, entry)
+          resolve(entry)
+        } catch (e) { reject(e) }
+      })
+    })
+    req.on('error', reject)
+  })
+}
+
 function createApiRouter(options = {}) {
   const getPreferredLocalIp = typeof options.getPreferredLocalIp === 'function'
     ? options.getPreferredLocalIp
@@ -248,93 +284,41 @@ function createApiRouter(options = {}) {
   })
 
   // Proxy villager head icons from acnhcdn.com (used in list view).
-  // Looks up the internal game id (e.g. "cat00") from Nookipedia, then proxies
-  // acnhcdn.com/latest/NpcIcon/{id}.png — display names like "Bob" return a placeholder.
+  // Uses Nookipedia to resolve display name → internal id (e.g. "Bob" → "cat00").
+  // Cache-Control: no-store prevents browsers from caching a stale placeholder PNG.
   router.get('/api/villager-icon/:name', (req, res) => {
     const name = req.params.name.replace(/[^a-zA-Z0-9 _'\-]/g, '').trim()
     if (!name) return res.status(400).end()
     const https = require('https')
-    const apiKey = String(process.env.NOOKIPEDIA_API_KEY || '').trim()
-    if (!apiKey) return res.status(503).end()
 
-    const metaUrl = `https://api.nookipedia.com/villagers?name=${encodeURIComponent(name)}`
-    const metaReq = https.get(metaUrl, {
-      headers: {
-        'X-API-KEY': apiKey,
-        'Accept-Version': '1.7.0',
-        'User-Agent': 'acnh-live-editor/1.0'
-      }
-    }, (metaRes) => {
-      let body = ''
-      metaRes.on('data', (chunk) => { body += chunk })
-      metaRes.on('end', () => {
-        let internalId
-        try {
-          const data = JSON.parse(body)
-          const villager = Array.isArray(data) ? data[0] : data
-          internalId = villager && villager.id
-        } catch (_) {}
-
-        if (!internalId) return res.status(404).end()
-
-        const iconUrl = `https://acnhcdn.com/latest/NpcIcon/${internalId}.png`
-        https.get(iconUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (upstream) => {
-          const ct = upstream.headers['content-type'] || ''
-          if (!ct.startsWith('image/')) {
-            upstream.resume()
-            return res.status(404).end()
-          }
-          res.setHeader('Content-Type', ct)
-          res.setHeader('Cache-Control', 'public, max-age=86400')
-          upstream.pipe(res)
-        }).on('error', () => res.status(502).end())
-      })
-    })
-    metaReq.on('error', () => res.status(502).end())
+    _fetchNookVillager(name).then(({ id }) => {
+      const iconUrl = `https://acnhcdn.com/latest/NpcIcon/${id}.png`
+      https.get(iconUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (upstream) => {
+        const ct = upstream.headers['content-type'] || ''
+        if (!ct.startsWith('image/')) { upstream.resume(); return res.status(404).end() }
+        res.setHeader('Content-Type', ct)
+        res.setHeader('Cache-Control', 'no-store')
+        upstream.pipe(res)
+      }).on('error', () => res.status(502).end())
+    }).catch(() => res.status(404).end())
   })
 
   // Proxy villager full-body art via Nookipedia API (used in edit modal).
-  // Looks up image_url from /villagers?name=<name>, then proxies the image.
   router.get('/api/villager-art/:name', (req, res) => {
     const name = req.params.name.replace(/[^a-zA-Z0-9 _'\-]/g, '').trim()
     if (!name) return res.status(400).end()
     const https = require('https')
-    const apiKey = String(process.env.NOOKIPEDIA_API_KEY || '').trim()
-    if (!apiKey) return res.status(503).json({ error: 'Nookipedia API key not configured' })
 
-    const metaUrl = `https://api.nookipedia.com/villagers?name=${encodeURIComponent(name)}`
-    const metaReq = https.get(metaUrl, {
-      headers: {
-        'X-API-KEY': apiKey,
-        'Accept-Version': '1.7.0',
-        'User-Agent': 'acnh-live-editor/1.0'
-      }
-    }, (metaRes) => {
-      let body = ''
-      metaRes.on('data', (chunk) => { body += chunk })
-      metaRes.on('end', () => {
-        let imageUrl
-        try {
-          const data = JSON.parse(body)
-          const villager = Array.isArray(data) ? data[0] : data
-          imageUrl = villager && villager.image_url
-        } catch (_) {}
-
-        if (!imageUrl) return res.status(404).end()
-
-        https.get(imageUrl, { headers: { 'User-Agent': 'acnh-live-editor/1.0' } }, (imgRes) => {
-          const ct = imgRes.headers['content-type'] || ''
-          if (!ct.startsWith('image/')) {
-            imgRes.resume()
-            return res.status(404).end()
-          }
-          res.setHeader('Content-Type', ct)
-          res.setHeader('Cache-Control', 'public, max-age=86400')
-          imgRes.pipe(res)
-        }).on('error', () => res.status(502).end())
-      })
-    })
-    metaReq.on('error', () => res.status(502).end())
+    _fetchNookVillager(name).then(({ image_url }) => {
+      if (!image_url) return res.status(404).end()
+      https.get(image_url, { headers: { 'User-Agent': 'acnh-live-editor/1.0' } }, (upstream) => {
+        const ct = upstream.headers['content-type'] || ''
+        if (!ct.startsWith('image/')) { upstream.resume(); return res.status(404).end() }
+        res.setHeader('Content-Type', ct)
+        res.setHeader('Cache-Control', 'public, max-age=86400')
+        upstream.pipe(res)
+      }).on('error', () => res.status(502).end())
+    }).catch(() => res.status(404).end())
   })
 
   return router

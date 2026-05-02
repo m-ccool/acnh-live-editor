@@ -1508,14 +1508,15 @@ function villagerArtUrl(v) {
 function openVillagerModal(v) {
   if (!el.villagerModal) return;
 
+  // Store original catchphrase for "Original" button reset
+  el.villagerModal._villagerData = v;
+
   const artUrl = villagerArtUrl(v);
   const pColor = PERSONALITY_COLORS[v.personalityName] || 'rgba(255,255,255,0.2)';
   const genderLabel = v.gender === 'F' ? 'Female' : 'Male';
-  const friendshipPct = Math.round(((v.friendship || 0) / 255) * 100);
+  const friendshipVal = v.friendship || 0;
+  const friendshipPct = Math.round((friendshipVal / 255) * 100);
   const tier = escapeHtml(v.friendshipTier || 'Stranger');
-  const movingOutBadge = v.movingOut
-    ? `<span class="villager-moving-out-badge">Moving Out</span>`
-    : '';
 
   const artImg = artUrl
     ? `<img class="villager-modal-art" src="${escapeHtml(artUrl)}" alt="${escapeHtml(v.name || '')}"
@@ -1530,19 +1531,55 @@ function openVillagerModal(v) {
   `;
 
   el.villagerModal.querySelector('.villager-modal-info').innerHTML = `
-    ${movingOutBadge}
     <div class="villager-modal-name-row">
       <span class="villager-modal-name">${escapeHtml(v.name || 'Unknown')}</span>
-      <span class="villager-personality-badge" style="background:${pColor}">${escapeHtml(v.personalityName || '')}</span>
+      <span class="villager-modal-gender-label">${genderLabel}</span>
     </div>
-    <div class="villager-modal-meta-row">
-      <span class="villager-modal-species">${escapeHtml(v.speciesName || '')}</span>
-      <span class="villager-modal-gender">${genderLabel}</span>
+
+    <div class="vmod-fields">
+      <div class="vmod-field-row">
+        <span class="vmod-label">Species</span>
+        <span class="vmod-value vmod-id-pair">
+          <span class="vmod-num">${v.species != null ? v.species : '—'}</span>
+          <span class="vmod-name">${escapeHtml(v.speciesName || '')}</span>
+        </span>
+      </div>
+      <div class="vmod-field-row">
+        <span class="vmod-label">Variant</span>
+        <span class="vmod-value vmod-id-pair">
+          <span class="vmod-num">${v.variant != null ? v.variant : '—'}</span>
+          <span class="vmod-name">${escapeHtml(v.internalId || '')}</span>
+        </span>
+      </div>
+      <div class="vmod-field-row">
+        <span class="vmod-label">Personality</span>
+        <span class="vmod-value">
+          <span class="villager-personality-badge" style="background:${pColor}">${escapeHtml(v.personalityName || '')}</span>
+        </span>
+      </div>
+      <div class="vmod-field-row vmod-field-catchphrase">
+        <span class="vmod-label">Catchphrase</span>
+        <span class="vmod-value vmod-catchphrase-wrap">
+          <input id="vmod-input-catchphrase" class="vmod-input" type="text"
+            maxlength="12" value="${escapeHtml(v.catchphrase || '')}" />
+          <button id="vmod-btn-original" type="button" class="action-btn vmod-btn-sm">Original</button>
+        </span>
+      </div>
+      <div class="vmod-field-row">
+        <span class="vmod-label">Moving Out</span>
+        <span class="vmod-value">
+          <label class="vmod-checkbox-label">
+            <input id="vmod-check-movingout" type="checkbox" ${v.movingOut ? 'checked' : ''} />
+            <span class="vmod-checkbox-track"></span>
+          </label>
+        </span>
+      </div>
     </div>
-    ${v.catchphrase ? `<div class="villager-modal-catchphrase">&ldquo;${escapeHtml(v.catchphrase)}&rdquo;</div>` : ''}
+
     <div class="villager-modal-friendship">
       <div class="villager-modal-friendship-label">
         <span>Friendship</span>
+        <span class="vmod-friendship-value">${friendshipVal} / 255</span>
         <span class="villager-friendship-tier">${tier}</span>
       </div>
       <div class="villager-friendship-bar-track">
@@ -1551,6 +1588,15 @@ function openVillagerModal(v) {
     </div>
     ${v.slot != null ? `<div class="villager-modal-slot">Island slot ${v.slot}</div>` : ''}
   `;
+
+  // Wire "Original" button to reset catchphrase to the value read from memory
+  const origBtn = el.villagerModal.querySelector('#vmod-btn-original');
+  const cpInput = el.villagerModal.querySelector('#vmod-input-catchphrase');
+  if (origBtn && cpInput) {
+    origBtn.addEventListener('click', () => {
+      cpInput.value = escapeHtml(v.catchphrase || '');
+    });
+  }
 
   openModal(el.villagerModal);
 }
