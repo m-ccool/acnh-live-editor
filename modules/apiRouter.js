@@ -247,6 +247,24 @@ function createApiRouter(options = {}) {
     }
   })
 
+  // Proxy villager portrait images from acnhcdn.com to avoid hotlink blocking.
+  // The browser never sends a Referer to the CDN; the server fetches on its behalf.
+  router.get('/api/villager-icon/:name', (req, res) => {
+    const name = req.params.name.replace(/[^a-zA-Z0-9_\-]/g, '')
+    if (!name) return res.status(400).end()
+    const https = require('https')
+    const url = `https://acnhcdn.com/latest/NpcIcon/${name}.png`
+    https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (upstream) => {
+      if (upstream.statusCode !== 200) {
+        upstream.resume()
+        return res.status(upstream.statusCode).end()
+      }
+      res.setHeader('Content-Type', 'image/png')
+      res.setHeader('Cache-Control', 'public, max-age=86400')
+      upstream.pipe(res)
+    }).on('error', () => res.status(502).end())
+  })
+
   return router
 }
 

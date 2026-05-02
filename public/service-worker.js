@@ -1,4 +1,4 @@
-const CACHE_NAME = 'acnh-live-editor-v55'
+const CACHE_NAME = 'acnh-live-editor-v56'
 const ASSETS = [
   '/',
   '/index.html',

@@ -1491,13 +1491,11 @@ const PERSONALITY_COLORS = {
   Uchi:   '#e8904a',
 };
 
-// Derive CDN image URL from villager's internalId (e.g. "cat00" → "Bob")
-// Primary: acnhcdn.com NpcIcon; fallback: show placeholder emoji
+// Derive CDN image URL from villager's name, proxied through our server to avoid hotlink blocking.
 function villagerImageUrl(v) {
   if (!v || !v.name) return null;
-  // capitalize first letter of each word
-  const name = v.name.trim().replace(/\b\w/g, c => c.toUpperCase());
-  return `https://acnhcdn.com/latest/NpcIcon/${encodeURIComponent(name)}.png`;
+  const name = v.name.trim().replace(/[^a-zA-Z0-9_\-]/g, '');
+  return `/api/villager-icon/${encodeURIComponent(name)}`;
 }
 
 function renderVillagersPanel(villagers) {
