@@ -297,7 +297,7 @@ function createApiRouter(options = {}) {
         const ct = upstream.headers['content-type'] || ''
         if (!ct.startsWith('image/')) { upstream.resume(); return res.status(404).end() }
         res.setHeader('Content-Type', ct)
-        res.setHeader('Cache-Control', 'no-store')
+        res.setHeader('Cache-Control', 'public, max-age=3600')
         upstream.pipe(res)
       }).on('error', () => res.status(502).end())
     }).catch(() => res.status(404).end())

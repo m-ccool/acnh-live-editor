@@ -1492,10 +1492,11 @@ const PERSONALITY_COLORS = {
 };
 
 // Derive head-icon URL from villager's name for the list view (acnhcdn.com NpcIcon).
+// ?v=2 busts any browser cache entry from when the endpoint used max-age=86400.
 function villagerImageUrl(v) {
   if (!v || !v.name) return null;
   const name = v.name.trim().replace(/[^a-zA-Z0-9_\-]/g, '');
-  return `/api/villager-icon/${encodeURIComponent(name)}`;
+  return `/api/villager-icon/${encodeURIComponent(name)}?v=2`;
 }
 
 // Derive full-body art URL from villager's name for the edit modal (Nookipedia).
@@ -1507,6 +1508,9 @@ function villagerArtUrl(v) {
 
 function openVillagerModal(v) {
   if (!el.villagerModal) return;
+
+  // Pause bridge polling while editing
+  pauseBridgePoll();
 
   // Store original catchphrase for "Original" button reset
   el.villagerModal._villagerData = v;
@@ -1594,14 +1598,42 @@ function openVillagerModal(v) {
   const cpInput = el.villagerModal.querySelector('#vmod-input-catchphrase');
   if (origBtn && cpInput) {
     origBtn.addEventListener('click', () => {
-      cpInput.value = escapeHtml(v.catchphrase || '');
+      cpInput.value = v.catchphrase || '';
     });
   }
+
+  // Wire Save button for this villager
+  const saveBtn = el.villagerModal.querySelector('#villager-save-btn');
+  if (saveBtn) saveBtn.onclick = saveVillagerChanges;
 
   openModal(el.villagerModal);
 }
 
+async function saveVillagerChanges() {
+  const v = el.villagerModal && el.villagerModal._villagerData;
+  if (!v) { closeVillagerModal(); return; }
+
+  const cpInput = el.villagerModal.querySelector('#vmod-input-catchphrase');
+  const moCheck = el.villagerModal.querySelector('#vmod-check-movingout');
+
+  const edits = {
+    slot: v.slot,
+    catchphrase: cpInput ? cpInput.value.trim().slice(0, 12) : v.catchphrase,
+    movingOut: moCheck ? moCheck.checked : v.movingOut,
+  };
+
+  console.log('[villager-save] edits staged:', edits);
+  // TODO: call /api/bridge/write-villager when bridge write support is added
+  if (state && state.bridge) {
+    state.bridge.lastAction = 'Villager write pending bridge support';
+    renderBridge();
+  }
+
+  closeVillagerModal();
+}
+
 function closeVillagerModal() {
+  resumeBridgePoll();
   closeModal(el.villagerModal);
 }
 
