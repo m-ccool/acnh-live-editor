@@ -1257,8 +1257,8 @@ _GSAVE_TOWNNAME_OFF        = 0x04              # 10x UTF-16LE
 _GSAVE_PLAYERNAME_OFF      = 0x20              # 10x UTF-16LE
 _GSAVE_FRIENDSHIP_OFF      = 0x42             # uint8
 # EventFlagsSave (NnpcMemoryFlags) — confirmed from NHSE Villager2.cs GetEventFlagsSave()
-_VILLAGER2_FLAGS_OFF       = 0x1267C          # ushort[256] array; first 18 are UI-exposed
-_VILLAGER2_FLAGS_COUNT     = 18
+_VILLAGER2_FLAGS_OFF       = 0x1267C          # ushort[256] array; NHSE defines 81 named entries (0x050 max)
+_VILLAGER2_FLAGS_COUNT     = 81               # Covers all NHSE-named flags (index 0..80)
 
 # Offset of the 10-slot villager array within decrypted main.dat
 # Confirmed via ryujinx-save Node.js decrypt + "cha"/"cardio" catchphrase search.
