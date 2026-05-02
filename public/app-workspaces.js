@@ -1537,7 +1537,7 @@ function renderVillagersPanel(villagers) {
 
     const imgUrl = villagerImageUrl(v);
     const imgHtml = imgUrl
-      ? `<img class="villager-avatar" src="${escapeHtml(imgUrl)}" alt="${escapeHtml(v.name || '')}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+      ? `<img class="villager-avatar" src="${escapeHtml(imgUrl)}" alt="${escapeHtml(v.name || '')}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
         + `<div class="villager-avatar-placeholder" style="display:none">🐾</div>`
       : `<div class="villager-avatar-placeholder">🐾</div>`;
 
@@ -1591,9 +1591,18 @@ async function loadVillagersFromBridge() {
 
 function initVillagersTab() {
   const btn = document.getElementById('refresh-villagers-btn');
-  if (btn) btn.addEventListener('click', loadVillagersFromBridge);
+  if (btn) {
+    btn.addEventListener('click', loadVillagersFromBridge);
+    btn.style.display = 'none';
+  }
   loadVillagersFromBridge();
   setInterval(() => {
     if (state.activeTab === 'villagers') loadVillagersFromBridge();
+  }, 30000);
+  setInterval(() => {
+    if (state.activeTab === 'village') refreshBridgeGameData();
+  }, 30000);
+  setInterval(() => {
+    if (state.activeTab === 'map') refreshBridgeStatus('Map tab auto-refresh');
   }, 30000);
 }

@@ -2278,6 +2278,7 @@ body[data-theme='night'] .selected-item-artbox {
   align-items: flex-start;
   position: relative;
   width: 172px;
+  height: 186px;
 }
 
 .avatar-mailbox-btn {
@@ -4256,6 +4257,10 @@ body:not([data-theme='night']) .action-btn-solid {
 
   .selected-item-artbox {
     width: min(100%, 176px);
+    height: 176px;
+  }
+
+  .player-avatar-wrap {
     height: 176px;
   }
 
