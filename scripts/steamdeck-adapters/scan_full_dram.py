@@ -1,110 +1,90 @@
 #!/usr/bin/env python3
 """
-Search DRAM for villager name strings in UTF-16LE.
-Bob  = 42 00 6F 00 62 00 [00 00]
-Rolf = 52 00 6F 00 6C 00 66 00 [00 00]
-For each Rolf hit, print 32 bytes of context and check for Bob
-at offsets 0x13230 (NHSE stride) in both directions.
+Narrow scan ±32MB around the confirmed inventory VA (0xAFB1E6E0).
+Finds every [4,0] (Cat/Bob) + [33,0] (Tiger/Rolf) pair at STRIDE offset
+WITHOUT personality filter — then dumps 32 bytes of context so we can
+read the actual struct layout from live memory.
 """
 import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
-from acnh_memory_reader import _find_ryujinx_pid, _find_dram_base
+from acnh_memory_reader import _find_ryujinx_pid, _find_dram_base, _VILLAGER2_SIZE
 
 pid    = _find_ryujinx_pid()
 dram   = _find_dram_base(pid)
-STRIDE = 0x13230
-DRAM_END = dram + 0x100000000
+STRIDE = _VILLAGER2_SIZE  # 0x13230
 print(f"PID={pid}  DRAM=0x{dram:x}  STRIDE=0x{STRIDE:x}", flush=True)
 
-BOB_UTF16  = b'B\x00o\x00b\x00\x00\x00'          # "Bob\0"
-ROLF_UTF16 = b'R\x00o\x00l\x00f\x00\x00\x00'     # "Rolf\0"
-# Also search for just the name without null terminator in case it's not null-terminated
-BOB_BASE   = b'B\x00o\x00b\x00'
-ROLF_BASE  = b'R\x00o\x00l\x00f\x00'
-
-CHUNK    = 0x400000  # 4 MB
-OVERLAP  = max(len(ROLF_UTF16), STRIDE + 4)  # keep overlap for cross-boundary + stride check
+# Known good landmark: inventory is confirmed at Switch VA 0xAFB1E6E0
+INVENTORY_SVA = 0xAFB1E6E0
+WINDOW        = 0x2000000   # ±32MB
+SCAN_START    = INVENTORY_SVA - WINDOW
+SCAN_END      = INVENTORY_SVA + WINDOW
+DRAM_END      = dram + 0x100000000
+CHUNK         = 0x400000    # 4MB
 
 def to_sva(h):
     return h - dram + 0x80000000
 
+def host(sva):
+    return dram + (sva - 0x80000000)
+
 mem_fd  = open(f"/proc/{pid}/mem", "rb")
-rolf_hits  = []
-bob_hits   = []
-scanned = 0
+matches = 0
 failed  = 0
 
-cur = dram
-while cur < DRAM_END:
-    read_end  = min(cur + CHUNK + len(ROLF_BASE), DRAM_END)
-    read_size = read_end - cur
+def read_at(fd, host_va, size):
+    fd.seek(host_va)
+    return fd.read(size)
+
+print(f"Scanning 0x{SCAN_START:x} - 0x{SCAN_END:x}  ({(SCAN_END-SCAN_START)//0x100000}MB)", flush=True)
+
+cur_sva = SCAN_START
+while cur_sva < SCAN_END:
+    chunk_host = host(cur_sva)
+    read_size  = min(CHUNK, host(SCAN_END) - chunk_host)
     try:
-        mem_fd.seek(cur)
+        mem_fd.seek(chunk_host)
         data = mem_fd.read(read_size)
-        scanned += 1
     except Exception as ex:
         failed += 1
         if failed <= 5:
-            print(f"  READ FAIL 0x{cur:x}: {ex}", flush=True)
-        cur += CHUNK
+            print(f"  READ FAIL sva=0x{cur_sva:x}: {ex}", flush=True)
+        cur_sva += CHUNK
         continue
 
-    # Search for Rolf
-    off = 0
-    while True:
-        idx = data.find(ROLF_BASE, off)
-        if idx < 0:
-            break
-        host_va = cur + idx
-        sva     = to_sva(host_va)
-        # Read 32 bytes context around the hit
-        try:
-            mem_fd.seek(host_va - 16)
-            ctx = mem_fd.read(64)
-            ctx_hex = ctx.hex()
-        except Exception:
-            ctx_hex = "?"
-        print(f"ROLF_NAME  sva=0x{sva:x}  ctx[-16..+48]={ctx_hex}", flush=True)
-        rolf_hits.append(host_va)
-        off = idx + 1
+    dlen = len(data)
+    for i in range(0, dlen - 3, 4):
+        sp = data[i]
+        vr = data[i + 1]
+        if sp == 4 and vr == 0:
+            bob_host = chunk_host + i
+            for delta in (STRIDE, -STRIDE):
+                rolf_host = bob_host + delta
+                rolf_sva  = to_sva(rolf_host)
+                if rolf_sva < SCAN_START or rolf_sva >= SCAN_END:
+                    continue
+                try:
+                    rbytes = read_at(mem_fd, rolf_host, 4)
+                except Exception:
+                    continue
+                if rbytes[0] == 33 and rbytes[1] == 0:
+                    # Dump 32 bytes of context for both Bob and Rolf structs
+                    try:
+                        bob_ctx  = read_at(mem_fd, bob_host,  32).hex()
+                        rolf_ctx = read_at(mem_fd, rolf_host, 32).hex()
+                    except Exception:
+                        bob_ctx = rolf_ctx = "?"
+                    d = '+1' if delta > 0 else '-1'
+                    print(
+                        f"MATCH delta={d}  bob_sva=0x{to_sva(bob_host):x}  rolf_sva=0x{rolf_sva:x}",
+                        flush=True
+                    )
+                    print(f"  bob_ctx[0..32]:  {bob_ctx}", flush=True)
+                    print(f"  rolf_ctx[0..32]: {rolf_ctx}", flush=True)
+                    matches += 1
 
-    # Search for Bob
-    off = 0
-    while True:
-        idx = data.find(BOB_BASE, off)
-        if idx < 0:
-            break
-        host_va = cur + idx
-        sva     = to_sva(host_va)
-        bob_hits.append(host_va)
-        off = idx + 1
-
-    cur += CHUNK
-    if scanned % 64 == 0:
-        pct = (cur - dram) * 100 // 0x100000000
-        print(f"  progress: {pct}%  rolf_hits={len(rolf_hits)}  bob_hits={len(bob_hits)}  failed={failed}", flush=True)
+    cur_sva += CHUNK
 
 mem_fd.close()
-print(f"\nDone. chunks={scanned} failed={failed}", flush=True)
-print(f"Rolf name hits: {len(rolf_hits)}", flush=True)
-print(f"Bob  name hits: {len(bob_hits)}", flush=True)
-
-# Cross-check: for each Rolf hit, is there a Bob hit at ±STRIDE?
-print("\n--- Stride-pair candidates ---", flush=True)
-bob_set = set(bob_hits)
-for rh in rolf_hits:
-    for delta in (STRIDE, -STRIDE):
-        bh = rh + delta
-        # Check within 32 bytes (name may not align exactly with struct start)
-        found = False
-        for off in range(-32, 33):
-            if bh + off in bob_set:
-                print(f"PAIR  rolf_sva=0x{to_sva(rh):x}  bob_sva=0x{to_sva(bh+off):x}  name_offset_diff={off}", flush=True)
-                found = True
-                break
-        if not found:
-            # Check approximate: bob within ±256 bytes of stride position
-            near = [b for b in bob_hits if abs(b - bh) < 256]
-            if near:
-                print(f"NEAR  rolf_sva=0x{to_sva(rh):x}  nearest_bob_sva=0x{to_sva(near[0]):x}  diff={near[0]-bh:+d}", flush=True)
+print(f"\nDone. matches={matches}  failed={failed}", flush=True)
 
