@@ -1523,6 +1523,109 @@ _VILLAGER_CATALOG = {
     # Ostrich continued
 }
 
+# Fixed personality per internalId, sourced from NHSE VillagerUtil + Nookipedia.
+# The personality byte at save-file offset +0x02 does not map to VillagerPersonality enum;
+# use this table instead when reading from main.dat.
+# 0=Lazy 1=Jock 2=Cranky 3=Smug 4=Normal 5=Peppy 6=Snooty 7=Uchi
+_VILLAGER_FIXED_PERSONALITY = {
+    # Cats
+    'cat00': 0,  'cat01': 2,  'cat02': 4,  'cat03': 5,  'cat04': 6,
+    'cat05': 4,  'cat06': 2,  'cat07': 1,  'cat08': 6,  'cat09': 5,
+    'cat10': 1,  'cat11': 6,  'cat12': 5,  'cat13': 6,  'cat14': 2,
+    'cat15': 6,  'cat16': 4,  'cat17': 5,  'cat18': 5,  'cat19': 5,
+    # Tigers
+    'tig00': 2,  'tig01': 1,  'tig02': 3,  'tig03': 6,  'tig04': 4,
+    # Dogs
+    'dog00': 0,  'dog01': 6,  'dog02': 0,  'dog03': 2,  'dog04': 4,
+    'dog05': 4,  'dog06': 0,  'dog07': 3,
+    # Bears
+    'bea00': 0,  'bea01': 1,  'bea02': 4,  'bea03': 0,  'bea04': 7,
+    'bea05': 2,  'bea06': 5,  'bea07': 2,  'bea08': 7,  'bea09': 4,
+    'bea10': 3,
+    # Cubs
+    'cbr00': 0,  'cbr01': 0,  'cbr02': 1,  'cbr03': 4,  'cbr04': 0,
+    'cbr05': 2,  'cbr06': 1,  'cbr07': 2,
+    # Rabbits
+    'rbt00': 5,  'rbt01': 5,  'rbt02': 5,  'rbt03': 5,  'rbt04': 6,
+    'rbt05': 1,  'rbt06': 5,  'rbt07': 0,  'rbt08': 0,  'rbt09': 5,
+    'rbt10': 7,  'rbt11': 3,
+    # Frogs
+    'crd00': 1,  'crd01': 1,  'crd02': 2,  'crd03': 1,  'crd04': 6,
+    'crd05': 0,  'crd06': 4,  'crd07': 1,  'crd08': 0,  'crd09': 7,
+    'crd10': 3,
+    # Penguins
+    'pbr00': 1,  'pbr01': 0,  'pbr02': 6,  'pbr03': 6,  'pbr04': 2,
+    'pbr05': 4,  'pbr06': 0,  'pbr07': 4,
+    # Squirrels
+    'squ00': 5,  'squ01': 5,  'squ02': 2,  'squ03': 4,  'squ04': 0,
+    'squ05': 7,  'squ06': 6,  'squ07': 3,  'squ08': 5,  'squ09': 4,
+    # Wolves
+    'wol00': 2,  'wol01': 2,  'wol02': 6,  'wol03': 6,  'wol04': 4,
+    'wol05': 2,  'wol06': 3,
+    # Ducks
+    'duk00': 1,  'duk01': 5,  'duk02': 6,  'duk03': 0,  'duk04': 6,
+    'duk05': 5,  'duk06': 4,  'duk07': 0,
+    # Horses
+    'hrs00': 1,  'hrs01': 5,  'hrs02': 4,  'hrs03': 0,  'hrs04': 2,
+    'hrs05': 5,  'hrs06': 3,  'hrs07': 6,
+    # Eagles
+    'flg00': 2,  'flg01': 6,  'flg02': 3,  'flg03': 2,
+    # Elephants
+    'elp00': 0,  'elp01': 1,  'elp02': 6,  'elp03': 1,  'elp04': 6,
+    'elp05': 0,
+    # Hamsters
+    'ham00': 2,  'ham01': 5,  'ham02': 0,  'ham03': 3,  'ham04': 1,
+    # Deer
+    'der00': 1,  'der01': 4,  'der02': 3,  'der03': 4,  'der04': 2,
+    'der05': 7,  'der06': 6,  'der07': 0,
+    # Monkeys
+    'mnk00': 7,  'mnk01': 1,  'mnk02': 0,  'mnk03': 1,
+    # Octopus
+    'ocp00': 2,  'ocp01': 4,  'ocp02': 0,
+    # Gorillas
+    'gor00': 2,  'gor01': 1,  'gor02': 6,  'gor03': 2,  'gor04': 3,
+    'gor05': 3,
+    # Hippos
+    'hip00': 2,  'hip01': 5,  'hip02': 4,  'hip03': 1,  'hip04': 2,
+    'hip05': 6,
+    # Sheep
+    'shp00': 6,  'shp01': 4,  'shp02': 6,  'shp03': 4,  'shp04': 5,
+    'shp05': 7,  'shp06': 4,  'shp07': 6,
+    # Mice
+    'mus00': 4,  'mus01': 4,  'mus02': 5,  'mus03': 2,  'mus04': 1,
+    'mus05': 2,  'mus06': 1,  'mus07': 1,
+    # Birds
+    'brd00': 4,  'brd01': 3,  'brd02': 5,  'brd03': 0,  'brd04': 5,
+    'brd05': 1,  'brd06': 1,  'brd07': 1,
+    # Anteaters
+    'ant00': 5,  'ant01': 2,  'ant02': 1,  'ant03': 4,  'ant04': 3,
+    # Bulls
+    'bul00': 1,  'bul02': 0,  'bul03': 2,  'bul04': 2,
+    # Chickens
+    'chn00': 4,  'chn01': 4,  'chn02': 1,  'chn03': 5,  'chn04': 2,
+    'chn05': 6,
+    # Cows
+    'cow00': 6,  'cow01': 5,  'cow02': 4,  'cow03': 6,
+    # Goats
+    'goa00': 4,  'goa01': 4,  'goa02': 1,  'goa03': 2,  'goa04': 4,
+    'goa05': 4,
+    # Kangaroos
+    'kgr00': 6,  'kgr01': 7,  'kgr02': 4,  'kgr03': 4,  'kgr04': 4,
+    'kgr05': 2,
+    # Koalas
+    'kal00': 4,  'kal01': 4,  'kal02': 0,  'kal03': 6,  'kal04': 7,
+    'kal06': 1,
+    # Lions
+    'lon00': 1,  'lon01': 1,  'lon02': 2,  'lon03': 3,
+    # Ostriches
+    'ost00': 6,  'ost01': 6,  'ost02': 4,  'ost03': 3,  'ost04': 5,
+    # Pigs
+    'pgn00': 6,  'pgn01': 7,  'pgn02': 2,  'pgn03': 1,  'pgn04': 5,
+    'pgn05': 3,  'pgn06': 2,  'pgn07': 2,
+    # Rhinos
+    'rhn00': 1,  'rhn01': 2,  'rhn02': 0,  'rhn03': 4,
+}
+
 # Friendship tier thresholds
 _FRIENDSHIP_TIERS = [
     (200, 'BFF'),
@@ -1766,7 +1869,6 @@ def _read_one_villager_from_save(data: bytes, slot_index: int) -> dict:
     off = _VILLAGER2_ARRAY_FILE_OFFSET + slot_index * _VILLAGER2_SIZE
     species_id = data[off]
     variant    = data[off + 1]
-    personality = data[off + 2]
 
     if species_id >= 35:
         return {'slot': slot_index + 1, 'empty': True}
@@ -1775,10 +1877,16 @@ def _read_one_villager_from_save(data: bytes, slot_index: int) -> dict:
     display_name    = catalog_entry[0] if catalog_entry else None
     internal_id     = catalog_entry[1] if catalog_entry else f'sp{species_id}v{variant}'
     species_label   = _VILLAGER_SPECIES_NAMES.get(species_id, ('Unknown', 'unk'))[0]
+
+    # Use the fixed-personality catalog; the byte at save offset +0x02 is not the
+    # VillagerPersonality enum in the main.dat format.
+    personality = _VILLAGER_FIXED_PERSONALITY.get(internal_id)
+    if personality is None:
+        personality = data[off + 2]   # fall back to raw byte if villager not in catalog
     personality_label = _VILLAGER_PERSONALITY_NAMES[personality] if personality < len(_VILLAGER_PERSONALITY_NAMES) else f'?{personality}'
     gender = 'F' if personality >= 4 else 'M'
 
-    cp_off     = off + _VILLAGER2_CATCHPHRASE_OFF
+    cp_off      = off + _VILLAGER2_CATCHPHRASE_OFF
     catchphrase = _read_utf16le(data[cp_off: cp_off + 24], 12)
 
     img_url = f'https://acnhcdn.com/latest/NpcIcon/{display_name}.png' if display_name else None
@@ -1796,7 +1904,7 @@ def _read_one_villager_from_save(data: bytes, slot_index: int) -> dict:
         'gender':          gender,
         'catchphrase':     catchphrase,
         'friendship':      0,
-        'friendshipTier':  'friend',
+        'friendshipTier':  'Live only',
         'playerName':      '',
         'townName':        '',
         'movingOut':       False,
