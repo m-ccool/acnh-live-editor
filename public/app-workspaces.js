@@ -1593,5 +1593,7 @@ function initVillagersTab() {
   const btn = document.getElementById('refresh-villagers-btn');
   if (btn) btn.addEventListener('click', loadVillagersFromBridge);
   loadVillagersFromBridge();
-  setInterval(loadVillagersFromBridge, 30000);
+  setInterval(() => {
+    if (state.activeTab === 'villagers') loadVillagersFromBridge();
+  }, 30000);
 }
