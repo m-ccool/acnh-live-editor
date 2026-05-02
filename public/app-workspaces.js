@@ -1,7 +1,7 @@
 'use strict';
 
 let itemModalAutoApplyTimeoutId = 0;
-const MODAL_CLOSE_TRANSITION_MS = 280;
+const MODAL_CLOSE_TRANSITION_MS = 240;
 const INVENTORY_TOUCH_HOLD_MS = 320;
 const INVENTORY_TOUCH_HOLD_MOVE_PX = 12;
 let inventoryTouchHoldTimeoutId = 0;
@@ -116,9 +116,9 @@ function renderPlayer() {
   el.walletValue.value = formatNumber(state.player.wallet);
   el.bankValue.value = formatNumber(state.player.bank);
   el.milesValue.value = formatNumber(state.player.miles);
-  el.playerAvatar.src = (!state.bridge.connected || !state.player.avatar)
-    ? '/assets/items/Bob_NH.png'
-    : state.player.avatar;
+  el.playerAvatar.src = state.player.avatar
+    ? state.player.avatar
+    : '/assets/icons/player-silhouette.svg';
 }
 
 function renderSelectedPreview() {
@@ -1507,129 +1507,32 @@ function villagerArtUrl(v) {
 }
 
 function openVillagerModal(v) {
-  if (!el.villagerModal) return;
+  if (!el.villagerModal) { console.error('[villager-modal] #villager-modal not found'); return; }
+  if (!window.ACNHReactRuntime) { console.error('[villager-modal] ACNHReactRuntime not loaded'); return; }
 
-  // Pause bridge polling while editing
+  // Pause live bridge reads while editing
   pauseBridgePoll();
-
-  // Store original catchphrase for "Original" button reset
   el.villagerModal._villagerData = v;
 
-  const artUrl = villagerArtUrl(v);
-  const pColor = PERSONALITY_COLORS[v.personalityName] || 'rgba(255,255,255,0.2)';
-  const genderLabel = v.gender === 'F' ? 'Female' : 'Male';
-  const friendshipVal = v.friendship || 0;
-  const friendshipPct = Math.round((friendshipVal / 255) * 100);
-  const tier = escapeHtml(v.friendshipTier || 'Stranger');
+  const body = el.villagerModal.querySelector('#villager-modal-body');
+  if (!body) { console.error('[villager-modal] #villager-modal-body not found'); return; }
 
-  const artImg = artUrl
-    ? `<img class="villager-modal-art" src="${escapeHtml(artUrl)}" alt="${escapeHtml(v.name || '')}"
-         onerror="this.style.display='none';document.getElementById('villager-modal-art-placeholder').style.display='flex'">`
-    : '';
+  window.ACNHReactRuntime.renderComponent('VillagerModal', body, {
+    villager: v,
+    artUrl: villagerArtUrl(v),
+    onSave(edits) {
+      console.log('[villager-save] edits staged:', edits);
+      if (state && state.bridge) {
+        state.bridge.lastAction = 'Villager edits staged — write pending bridge support';
+        renderBridge();
+      }
+    },
+  });
 
-  el.villagerModal.querySelector('.villager-modal-title').textContent = v.name || 'Villager';
-
-  el.villagerModal.querySelector('.villager-modal-art-frame').innerHTML = `
-    ${artImg}
-    <div id="villager-modal-art-placeholder" class="villager-modal-art-placeholder" style="display:${artUrl ? 'none' : 'flex'}">🐾</div>
-  `;
-
-  el.villagerModal.querySelector('.villager-modal-info').innerHTML = `
-    <div class="villager-modal-name-row">
-      <span class="villager-modal-name">${escapeHtml(v.name || 'Unknown')}</span>
-      <span class="villager-modal-gender-label">${genderLabel}</span>
-    </div>
-
-    <div class="vmod-fields">
-      <div class="vmod-field-row">
-        <span class="vmod-label">Species</span>
-        <span class="vmod-value vmod-id-pair">
-          <span class="vmod-num">${v.species != null ? v.species : '—'}</span>
-          <span class="vmod-name">${escapeHtml(v.speciesName || '')}</span>
-        </span>
-      </div>
-      <div class="vmod-field-row">
-        <span class="vmod-label">Variant</span>
-        <span class="vmod-value vmod-id-pair">
-          <span class="vmod-num">${v.variant != null ? v.variant : '—'}</span>
-          <span class="vmod-name">${escapeHtml(v.internalId || '')}</span>
-        </span>
-      </div>
-      <div class="vmod-field-row">
-        <span class="vmod-label">Personality</span>
-        <span class="vmod-value">
-          <span class="villager-personality-badge" style="background:${pColor}">${escapeHtml(v.personalityName || '')}</span>
-        </span>
-      </div>
-      <div class="vmod-field-row vmod-field-catchphrase">
-        <span class="vmod-label">Catchphrase</span>
-        <span class="vmod-value vmod-catchphrase-wrap">
-          <input id="vmod-input-catchphrase" class="vmod-input" type="text"
-            maxlength="12" value="${escapeHtml(v.catchphrase || '')}" />
-          <button id="vmod-btn-original" type="button" class="action-btn vmod-btn-sm">Original</button>
-        </span>
-      </div>
-      <div class="vmod-field-row">
-        <span class="vmod-label">Moving Out</span>
-        <span class="vmod-value">
-          <label class="vmod-checkbox-label">
-            <input id="vmod-check-movingout" type="checkbox" ${v.movingOut ? 'checked' : ''} />
-            <span class="vmod-checkbox-track"></span>
-          </label>
-        </span>
-      </div>
-    </div>
-
-    <div class="villager-modal-friendship">
-      <div class="villager-modal-friendship-label">
-        <span>Friendship</span>
-        <span class="vmod-friendship-value">${friendshipVal} / 255</span>
-        <span class="villager-friendship-tier">${tier}</span>
-      </div>
-      <div class="villager-friendship-bar-track">
-        <div class="villager-friendship-bar-fill" style="width:${friendshipPct}%"></div>
-      </div>
-    </div>
-    ${v.slot != null ? `<div class="villager-modal-slot">Island slot ${v.slot}</div>` : ''}
-  `;
-
-  // Wire "Original" button to reset catchphrase to the value read from memory
-  const origBtn = el.villagerModal.querySelector('#vmod-btn-original');
-  const cpInput = el.villagerModal.querySelector('#vmod-input-catchphrase');
-  if (origBtn && cpInput) {
-    origBtn.addEventListener('click', () => {
-      cpInput.value = v.catchphrase || '';
-    });
-  }
-
-  // Wire Save button for this villager
-  const saveBtn = el.villagerModal.querySelector('#villager-save-btn');
-  if (saveBtn) saveBtn.onclick = saveVillagerChanges;
+  const titleEl = el.villagerModal.querySelector('.villager-modal-title');
+  if (titleEl) titleEl.textContent = v.name || 'Villager';
 
   openModal(el.villagerModal);
-}
-
-async function saveVillagerChanges() {
-  const v = el.villagerModal && el.villagerModal._villagerData;
-  if (!v) { closeVillagerModal(); return; }
-
-  const cpInput = el.villagerModal.querySelector('#vmod-input-catchphrase');
-  const moCheck = el.villagerModal.querySelector('#vmod-check-movingout');
-
-  const edits = {
-    slot: v.slot,
-    catchphrase: cpInput ? cpInput.value.trim().slice(0, 12) : v.catchphrase,
-    movingOut: moCheck ? moCheck.checked : v.movingOut,
-  };
-
-  console.log('[villager-save] edits staged:', edits);
-  // TODO: call /api/bridge/write-villager when bridge write support is added
-  if (state && state.bridge) {
-    state.bridge.lastAction = 'Villager write pending bridge support';
-    renderBridge();
-  }
-
-  closeVillagerModal();
 }
 
 function closeVillagerModal() {
@@ -1737,7 +1640,7 @@ function initVillagersTab() {
   }
   loadVillagersFromBridge();
   setInterval(() => {
-    if (state.activeTab === 'villagers') loadVillagersFromBridge();
+    if (state.activeTab === 'villagers' && !hasOpenModal()) loadVillagersFromBridge();
   }, 30000);
   setInterval(() => {
     if (state.activeTab === 'village') refreshBridgeGameData();

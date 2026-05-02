@@ -81,13 +81,15 @@ async function pollBridgeStatus() {
       renderBridge();
       renderDerivedPanels();
       
-      if (playerChanged) {
-        const playerCard = document.querySelector('.player-panel');
-        if (playerCard) applyUpdateFade(playerCard);
-      }
-      if (inventoryChanged) {
-        const inventoryCard = document.querySelector('.inventory-area');
-        if (inventoryCard) applyUpdateFade(inventoryCard);
+      if (!hasOpenModal()) {
+        if (playerChanged) {
+          const playerCard = document.querySelector('.player-panel');
+          if (playerCard) applyUpdateFade(playerCard);
+        }
+        if (inventoryChanged) {
+          const inventoryCard = document.querySelector('.inventory-area');
+          if (inventoryCard) applyUpdateFade(inventoryCard);
+        }
       }
       
       updateDataSnapshot();
@@ -1313,7 +1315,7 @@ function getSelectedPreviewItem() {
 
 function renderPlayerModal() {
   if (el.playerModalBust) {
-    el.playerModalBust.src = state.player.avatar || '/assets/items/Bob_NH.png';
+    el.playerModalBust.src = state.player.avatar || '/assets/icons/player-silhouette.svg';
   }
 
   if (el.playerModalBustName) {

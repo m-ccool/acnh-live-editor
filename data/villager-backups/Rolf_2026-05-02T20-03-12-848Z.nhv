@@ -1,0 +1,19 @@
+{
+  "slot": 1,
+  "empty": false,
+  "name": "Rolf",
+  "internalId": "tig00",
+  "species": 33,
+  "speciesName": "Tiger",
+  "variant": 0,
+  "personality": 2,
+  "personalityName": "Cranky",
+  "gender": "M",
+  "catchphrase": "cha",
+  "friendship": 0,
+  "friendshipTier": "Live only",
+  "playerName": "",
+  "townName": "",
+  "movingOut": false,
+  "imageUrl": "https://acnhcdn.com/latest/NpcIcon/Rolf.png"
+}

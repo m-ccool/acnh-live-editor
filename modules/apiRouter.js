@@ -321,6 +321,31 @@ function createApiRouter(options = {}) {
     }).catch(() => res.status(404).end())
   })
 
+  // Save villager data as an .nhv backup file in data/villager-backups/
+  router.post('/api/villager/backup', (req, res) => {
+    const { villager } = req.body || {}
+    if (!villager || !villager.name) return res.status(400).json({ ok: false, error: 'no villager data' })
+    const fs = require('fs')
+    const path = require('path')
+    const dir = path.join(__dirname, '..', 'data', 'villager-backups')
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+    const ts = new Date().toISOString().replace(/[:.]/g, '-')
+    const filename = `${villager.name}_${ts}.nhv`
+    fs.writeFileSync(path.join(dir, filename), JSON.stringify(villager, null, 2), 'utf8')
+    res.json({ ok: true, filename })
+  })
+
+  // Open the villager-backups folder in Windows Explorer
+  router.post('/api/villager/open-backups', (req, res) => {
+    const path = require('path')
+    const fs = require('fs')
+    const { exec } = require('child_process')
+    const dir = path.join(__dirname, '..', 'data', 'villager-backups')
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+    exec(`explorer "${dir}"`, () => {}) // fire-and-forget; non-Windows is a no-op
+    res.json({ ok: true, path: dir })
+  })
+
   return router
 }
 
