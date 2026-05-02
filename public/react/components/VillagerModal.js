@@ -377,7 +377,7 @@
       ),
       h('div', { className: 'vmod-flags-shell' },
         h('div', { className: 'vmod-flags-list', role: 'listbox', 'aria-label': 'Villager flags' },
-          VILLAGER_FLAGS.map(f =>
+          VILLAGER_FLAGS.filter(f => f.name !== '???').map(f =>
             h('div', {
               key: f.index,
               className: `vmod-flag-item${selectedIdx === f.index ? ' is-selected' : ''}`,
