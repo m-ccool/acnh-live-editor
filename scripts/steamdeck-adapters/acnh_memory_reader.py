@@ -21,9 +21,11 @@ Key env vars (proc_mem mode):
     ACNH_PLAYER_MILES_OFFSET      — absolute Switch VA for nook miles (hex)
     ACNH_PLAYER_AVATAR            — avatar image path returned in payload
 """
+import glob
 import json
 import os
 import struct
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -1255,6 +1257,91 @@ _GSAVE_TOWNNAME_OFF        = 0x04              # 10x UTF-16LE
 _GSAVE_PLAYERNAME_OFF      = 0x20              # 10x UTF-16LE
 _GSAVE_FRIENDSHIP_OFF      = 0x42             # uint8
 
+# Offset of the 10-slot villager array within decrypted main.dat
+# Confirmed via ryujinx-save Node.js decrypt + "cha"/"cardio" catchphrase search.
+_VILLAGER2_ARRAY_FILE_OFFSET = 0x120
+
+# ---------------------------------------------------------------------------
+# Save-file decryption helpers (Ryujinx XorShift128 + AES-CTR via openssl)
+# ---------------------------------------------------------------------------
+
+_XS_MERSENNE = 0x6C078965
+
+
+def _xs128_init(seed: int):
+    """Initialise XorShift128 state from a single 32-bit seed (Mersenne init)."""
+    a = (_XS_MERSENNE * ((seed ^ (seed >> 30)) & 0xFFFFFFFF) + 1) & 0xFFFFFFFF
+    b = (_XS_MERSENNE * ((a ^ (a >> 30)) & 0xFFFFFFFF) + 2) & 0xFFFFFFFF
+    c = (_XS_MERSENNE * ((b ^ (b >> 30)) & 0xFFFFFFFF) + 3) & 0xFFFFFFFF
+    d = (_XS_MERSENNE * ((c ^ (c >> 30)) & 0xFFFFFFFF) + 4) & 0xFFFFFFFF
+    return [a, b, c, d]
+
+
+def _xs128_next(s: list) -> int:
+    a, b, c, d = s
+    t = a
+    a = b; b = c; c = d
+    t ^= (t << 11) & 0xFFFFFFFF
+    t ^= (t >> 8) & 0xFFFFFFFF
+    d = (t ^ d ^ (d >> 19)) & 0xFFFFFFFF
+    s[:] = [a, b, c, d]
+    return d
+
+
+def _derive_save_key_counter(header_bytes: bytes):
+    """Derive AES key and initial counter from a Ryujinx save header (0x300 bytes)."""
+    imp = [struct.unpack_from('<I', header_bytes, o)[0] for o in range(0x100, 0x300, 4)]
+
+    def get_param(idx: int) -> bytes:
+        state = _xs128_init(imp[imp[idx] & 0x7F])
+        params = imp[imp[idx + 1] & 0x7F] & 0x7F
+        roll_count = (params & 0xF) + 1
+        for _ in range(roll_count):
+            _xs128_next(state)
+            _xs128_next(state)
+        result = bytearray(16)
+        for i in range(16):
+            result[i] = (_xs128_next(state) >> 24) & 0xFF
+        return bytes(result)
+
+    return get_param(0), get_param(2)   # (key, counter)
+
+
+def _aes_ctr_decrypt(data: bytes, key: bytes, counter: bytes) -> bytes:
+    """Decrypt *data* with AES-128-CTR using the openssl CLI (no Python crypto lib needed)."""
+    result = subprocess.run(
+        ['openssl', 'enc', '-aes-128-ctr', '-nosalt', '-nopad',
+         '-K', key.hex(), '-iv', counter.hex()],
+        input=data, capture_output=True, timeout=60,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f'openssl AES-CTR decrypt failed: {result.stderr.decode()}')
+    return result.stdout
+
+
+def _find_main_save_file():
+    """Return (main_dat_path, header_path, mtime) for the newest ACNH main.dat, or None."""
+    home = os.path.expanduser('~')
+    xdg = os.environ.get('XDG_CONFIG_HOME')
+    config_home = os.path.realpath(xdg) if xdg else os.path.join(home, '.config')
+    search_roots = [
+        os.path.join(config_home, 'Ryujinx', 'bis', 'user', 'save'),
+        os.path.join(home, '.var', 'app', 'org.ryujinx.Ryujinx', 'config',
+                     'Ryujinx', 'bis', 'user', 'save'),
+    ]
+    best = None
+    for root in search_roots:
+        if not os.path.isdir(root):
+            continue
+        for main_dat in glob.glob(os.path.join(root, '**', 'main.dat'), recursive=True):
+            hdr = os.path.join(os.path.dirname(main_dat), 'mainHeader.dat')
+            if not os.path.exists(hdr):
+                continue
+            mtime = os.path.getmtime(main_dat)
+            if best is None or mtime > best[2]:
+                best = (main_dat, hdr, mtime)
+    return best
+
 _VILLAGER_SPECIES_NAMES = {
     0:  ('Anteater', 'ant'),   1:  ('Bear', 'bea'),       2:  ('Bird', 'brd'),
     3:  ('Bull', 'bul'),       4:  ('Cat', 'cat'),         5:  ('Cub', 'cbr'),
@@ -1674,20 +1761,91 @@ def _read_one_villager(pid, dram_base, slot_va, slot_index):
     }
 
 
+def _read_one_villager_from_save(data: bytes, slot_index: int) -> dict:
+    """Read one villager slot from decrypted main.dat bytes."""
+    off = _VILLAGER2_ARRAY_FILE_OFFSET + slot_index * _VILLAGER2_SIZE
+    species_id = data[off]
+    variant    = data[off + 1]
+    personality = data[off + 2]
+
+    if species_id >= 35:
+        return {'slot': slot_index + 1, 'empty': True}
+
+    catalog_entry   = _VILLAGER_CATALOG.get((species_id, variant))
+    display_name    = catalog_entry[0] if catalog_entry else None
+    internal_id     = catalog_entry[1] if catalog_entry else f'sp{species_id}v{variant}'
+    species_label   = _VILLAGER_SPECIES_NAMES.get(species_id, ('Unknown', 'unk'))[0]
+    personality_label = _VILLAGER_PERSONALITY_NAMES[personality] if personality < len(_VILLAGER_PERSONALITY_NAMES) else f'?{personality}'
+    gender = 'F' if personality >= 4 else 'M'
+
+    cp_off     = off + _VILLAGER2_CATCHPHRASE_OFF
+    catchphrase = _read_utf16le(data[cp_off: cp_off + 24], 12)
+
+    img_url = f'https://acnhcdn.com/latest/NpcIcon/{display_name}.png' if display_name else None
+
+    return {
+        'slot':            slot_index + 1,
+        'empty':           False,
+        'name':            display_name,
+        'internalId':      internal_id,
+        'species':         species_id,
+        'speciesName':     species_label,
+        'variant':         variant,
+        'personality':     personality,
+        'personalityName': personality_label,
+        'gender':          gender,
+        'catchphrase':     catchphrase,
+        'friendship':      0,
+        'friendshipTier':  'friend',
+        'playerName':      '',
+        'townName':        '',
+        'movingOut':       False,
+        'imageUrl':        img_url,
+    }
+
+
+def read_villagers_from_save():
+    """Read all 10 villager slots from the decrypted Ryujinx main.dat save file."""
+    save_info = _find_main_save_file()
+    if not save_info:
+        print(json.dumps({
+            'ok': False,
+            'error': 'main.dat save file not found in Ryujinx save directories.',
+            'villagers': [],
+            'source': 'save-file',
+        }))
+        return
+
+    main_dat_path, header_path, mtime = save_info
+    with open(header_path, 'rb') as f:
+        header_bytes = f.read()
+    with open(main_dat_path, 'rb') as f:
+        encrypted_data = f.read()
+
+    key, counter = _derive_save_key_counter(header_bytes)
+    decrypted = _aes_ctr_decrypt(encrypted_data, key, counter)
+
+    villagers = [_read_one_villager_from_save(decrypted, i) for i in range(10)]
+
+    print(json.dumps({
+        'ok': True,
+        'villagers': villagers,
+        'source': 'save-file',
+        'saveFile': main_dat_path,
+        'savedAt': datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat(),
+    }))
+
+
 def read_villagers_procmem():
-    """Read all 10 villager slots from live Ryujinx memory."""
+    """Read all 10 villager slots from live Ryujinx memory, falling back to save file."""
     _check_ptrace_scope()
     pid = _find_ryujinx_pid()
     dram_base = _find_dram_base(pid)
 
     array_base = _find_villager_array_procmem(pid, dram_base)
     if array_base is None:
-        print(json.dumps({
-            'ok': False,
-            'error': 'Villager array not found in DRAM. Game may not be fully loaded.',
-            'villagers': [],
-            'source': 'live-memory',
-        }))
+        # DRAM scan failed — fall back to the on-disk save file.
+        read_villagers_from_save()
         return
 
     villagers = []
@@ -1859,6 +2017,9 @@ def main():
             return 0
         if command == "read_villagers":
             read_villagers_procmem()
+            return 0
+        if command == "read_villagers_save":
+            read_villagers_from_save()
             return 0
         raise RuntimeError(f"Unsupported command: {command}")
     else:
