@@ -1496,7 +1496,7 @@ const PERSONALITY_COLORS = {
 function villagerImageUrl(v) {
   if (!v || !v.name) return null;
   const name = v.name.trim().replace(/[^a-zA-Z0-9_\-]/g, '');
-  return `/api/villager-icon/${encodeURIComponent(name)}?v=2`;
+  return `/api/villager-icon/${encodeURIComponent(name)}?v=3`;
 }
 
 // Derive full-body art URL from villager's name for the edit modal (Nookipedia).
