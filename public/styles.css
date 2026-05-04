@@ -3767,6 +3767,24 @@ body:not([data-theme='night']) .modal-filter-btn {
 
 .vedit-inv-slot.is-selected .vedit-inv-img { opacity: 0.72; }
 
+.vedit-inv-slot.is-empty-slot {
+  opacity: 0.35;
+}
+
+.vedit-inv-slot-label {
+  font-size: 0.52rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.85);
+  text-align: center;
+  line-height: 1.2;
+  padding: 2px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  pointer-events: none;
+}
+
 .vedit-inv-left-actions {
   display: flex;
   gap: 6px;

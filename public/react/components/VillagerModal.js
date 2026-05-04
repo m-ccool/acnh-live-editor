@@ -466,18 +466,21 @@
           className: 'vedit-inv-grid',
           style: { gridTemplateColumns: `repeat(${INV_COLS}, minmax(0, 1fr))` },
         },
-          slots.map((slot, i) =>
-            h('div', {
+          slots.map((slot, i) => {
+            const isEmpty = !slot || slot.itemId === '0xFFFE' || slot.itemId === '0xFFFF';
+            return h('div', {
               key: i,
-              className: `vedit-inv-slot${selectedSlot === i ? ' is-selected' : ''}`,
+              className: `vedit-inv-slot${selectedSlot === i ? ' is-selected' : ''}${isEmpty ? ' is-empty-slot' : ''}`,
               onClick: () => setSelectedSlot(i),
             },
-              slot && (slot.count > 1) ? h('span', { className: 'vedit-inv-count' }, String(slot.count)) : null,
-              slot && slot.imageUrl
+              slot && !isEmpty && (slot.count > 1) ? h('span', { className: 'vedit-inv-count' }, String(slot.count)) : null,
+              slot && !isEmpty && slot.imageUrl
                 ? h('img', { className: 'vedit-inv-img', src: slot.imageUrl, alt: slot.name || '' })
-                : null
-            )
-          )
+                : slot && !isEmpty
+                  ? h('span', { className: 'vedit-inv-slot-label' }, slot.name || slot.itemId || '')
+                  : null
+            );
+          })
         ),
         h('div', { className: 'vedit-inv-left-actions' },
           h('button', { type: 'button', className: 'action-btn vmod-btn-sm' }, 'Clear'),
@@ -487,7 +490,7 @@
       h('div', { className: 'vedit-inv-detail' },
         h('div', { className: 'vedit-inv-preview' }),
         h('div', { className: 'vedit-inv-name-row' },
-          h('span', { className: 'vedit-inv-name-text' }, sel ? (sel.name || '(None)') : '(None)')
+          h('span', { className: 'vedit-inv-name-text' }, sel ? (sel.name || sel.itemId || '(None)') : '(None)')
         ),
         [['Count', count, setCount], ['Uses', uses, setUses], ['Flag0', flag0, setFlag0], ['Flag1', flag1, setFlag1]].map(([label, val, setter]) =>
           h('div', { key: label, className: 'vedit-inv-field-row' },

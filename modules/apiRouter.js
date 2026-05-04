@@ -1,4 +1,6 @@
 const express = require('express')
+const fs = require('fs')
+const path = require('path')
 
 const bridgeService = require('./bridgeService')
 const {
@@ -17,6 +19,51 @@ const {
 const {
   getMusicLibrary
 } = require('./musicLibrary')
+
+// Item-names-en.txt index: loaded once, keyed by hex itemId string (e.g. "0x059A" → "Sleeping bag")
+let _itemNamesIndex = null
+function getItemNamesIndex() {
+  if (_itemNamesIndex) return _itemNamesIndex
+  const namesPath = path.join(__dirname, '..', 'data', 'item-names-en.txt')
+  _itemNamesIndex = {}
+  try {
+    const lines = fs.readFileSync(namesPath, 'utf8').split('\n')
+    lines.forEach((line, i) => {
+      const name = line.trim()
+      if (name) {
+        const hex = '0x' + i.toString(16).toUpperCase().padStart(4, '0')
+        _itemNamesIndex[hex] = name
+      }
+    })
+  } catch (_) {}
+  return _itemNamesIndex
+}
+
+function enrichVillagerItems(items) {
+  if (!Array.isArray(items)) return items
+  const index = getItemNamesIndex()
+  return items.map(slot => {
+    if (!slot || typeof slot !== 'object') return slot
+    const rawId = String(slot.itemId || '')
+    const hexKey = rawId.match(/^0x([0-9a-f]+)$/i)
+      ? '0x' + rawId.slice(2).toUpperCase().padStart(4, '0')
+      : rawId
+    const name = index[hexKey] || null
+    return name ? { ...slot, name } : slot
+  })
+}
+
+function enrichVillagers(villagers) {
+  if (!Array.isArray(villagers)) return villagers
+  return villagers.map(v => {
+    if (!v || v.empty) return v
+    return {
+      ...v,
+      furniture: enrichVillagerItems(v.furniture),
+      clothes:   enrichVillagerItems(v.clothes),
+    }
+  })
+}
 
 // Server-side cache for Nookipedia villager metadata (keyed by lowercase display name).
 // Avoids a Nookipedia API call on every page load; TTL = 24 h.
@@ -119,7 +166,11 @@ function createApiRouter(options = {}) {
 
   router.get('/api/bridge/read-villagers', async (req, res) => {
     try {
-      res.json(await bridgeService.readVillagers())
+      const result = await bridgeService.readVillagers()
+      if (result && result.payload && Array.isArray(result.payload.villagers)) {
+        result.payload.villagers = enrichVillagers(result.payload.villagers)
+      }
+      res.json(result)
     } catch (error) {
       res.status(resolveBridgeErrorStatus(error)).json({ error: error.message })
     }
