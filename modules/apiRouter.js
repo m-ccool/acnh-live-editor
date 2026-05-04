@@ -347,19 +347,20 @@ function createApiRouter(options = {}) {
   })
 
   // Push local commits, pull to Steam Deck, restart bridge
-  // Simplified bridge-only connect (no git push/pull)
+  // Connect Bridge: git pull on Deck + bridge restart (catch-all reconnect)
   router.post('/api/connect-bridge', (req, res) => {
     const { execFile } = require('child_process')
     const path = require('path')
     const repoRoot = path.join(__dirname, '..')
+    const SSH_EXE   = process.env.SSH_PATH || 'C:\\Windows\\System32\\OpenSSH\\ssh.exe'
     const SSH_KEY   = process.env.STEAMDECK_SSH_KEY || 'C:/Users/mccoo/.ssh/id_ed25519_steamdeck'
     const DECK_HOST = process.env.STEAMDECK_HOST    || 'deck@10.0.0.233'
-    const SSH_OPTS  = ['-i', SSH_KEY, '-o', 'ConnectTimeout=10', '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=no']
+    const SSH_OPTS  = ['-i', SSH_KEY, '-o', 'ConnectTimeout=15', '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=no']
 
     const steps = []
-    function runStep(file, args) {
+    function runStep(file, args, timeoutMs = 35000) {
       return new Promise(resolve => {
-        execFile(file, args, { cwd: repoRoot, timeout: 30000 }, (err, stdout, stderr) => {
+        execFile(file, args, { cwd: repoRoot, timeout: timeoutMs }, (err, stdout, stderr) => {
           const out = ((stdout || '') + (stderr || '')).trim().slice(0, 800)
           resolve({ ok: !err, out, code: err ? (err.code || 1) : 0 })
         })
@@ -367,14 +368,23 @@ function createApiRouter(options = {}) {
     }
 
     ;(async () => {
-      const restart = await runStep('ssh', [
+      // Step 1: pull latest code on Deck
+      const pull = await runStep(SSH_EXE, [
+        ...SSH_OPTS, DECK_HOST,
+        'cd ~/acnh-live-editor && git pull --ff-only origin dev 2>&1 || echo "pull skipped"'
+      ])
+      steps.push({ step: 'deck pull', ...pull })
+
+      // Step 2: restart bridge (systemd preferred, nohup fallback)
+      const restart = await runStep(SSH_EXE, [
         ...SSH_OPTS, DECK_HOST,
         'systemctl --user restart acnh-live-bridge 2>/dev/null || ' +
         '(pkill -f steamdeck-bridge-client 2>/dev/null; ' +
         'nohup bash ~/acnh-live-editor/scripts/steamdeck-run-bridge.sh >/tmp/bridge.log 2>&1 </dev/null & disown; ' +
-        'sleep 3; grep -q "connected\\|Connected\\|CONNECTED\\|listening\\|Listening" /tmp/bridge.log && echo "bridge started" || tail -5 /tmp/bridge.log)'
+        'sleep 4; grep -q "connected\\|Connected\\|CONNECTED\\|listening\\|Listening" /tmp/bridge.log && echo "bridge started" || tail -5 /tmp/bridge.log)'
       ])
       steps.push({ step: 'bridge restart', ...restart })
+
       res.json({ ok: restart.ok, steps })
     })().catch(err => res.status(500).json({ ok: false, error: err.message, steps }))
   })
@@ -383,9 +393,10 @@ function createApiRouter(options = {}) {
     const path = require('path')
     const { execFile } = require('child_process')
     const repoRoot = path.join(__dirname, '..')
+    const SSH_EXE   = process.env.SSH_PATH || 'C:\\Windows\\System32\\OpenSSH\\ssh.exe'
     const SSH_KEY  = process.env.STEAMDECK_SSH_KEY  || 'C:/Users/mccoo/.ssh/id_ed25519_steamdeck'
     const DECK_HOST = process.env.STEAMDECK_HOST    || 'deck@10.0.0.233'
-    const SSH_OPTS  = ['-i', SSH_KEY, '-o', 'ConnectTimeout=10', '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=no']
+    const SSH_OPTS  = ['-i', SSH_KEY, '-o', 'ConnectTimeout=15', '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=no']
 
     const steps = []
     function runStep(file, args, opts = {}) {

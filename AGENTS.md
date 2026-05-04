@@ -210,6 +210,14 @@ This response gate is required in every technical answer.
 - These questions must help the user reply quickly with the next troubleshooting or implementation direction.
 - Keep the questions concise and action-oriented so the user can answer by number when iterating on prompts.
 
+## Bug/Issue Confirmation Gate
+
+- **Do NOT prompt the user to proceed to the next task until the bug or issue from the prior request is confirmed resolved.**
+- Confirm resolution by directly running the test yourself (via terminal, browser tool, or API call) and verifying correct output before declaring it fixed.
+- If the prior bug cannot be self-tested (requires live hardware not accessible from this machine), explicitly state that and ask the user to confirm before moving on.
+- Never assume a fix worked just because code was committed. Execute the test. Observe the result. Report the result.
+- If a test fails: fix it, re-test, and only then proceed.
+
 ## Fail-Closed Live Data Policy
 
 - No synthetic, temporary, substitute, or fake data in UI/debug/runtime responses.

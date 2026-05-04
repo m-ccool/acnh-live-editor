@@ -3,7 +3,7 @@
 const TOTAL_SLOTS = 40;
 const STORAGE_KEY = 'acnh-live-editor-state-v5';
 const REPO_URL = 'https://github.com/m-ccool/acnh-live-editor';
-const SERVICE_WORKER_VERSION = '76';
+const SERVICE_WORKER_VERSION = '77';
 const PLAY_ICON_PATH = '/assets/icons/line-md--pause-to-play-filled-transition.svg';
 const PAUSE_ICON_PATH = '/assets/icons/line-md--pause.svg';
 const CONSOLE_CONNECTED_ICON_PATH = '/assets/icons/codicon--debug-connect.svg';
@@ -218,17 +218,22 @@ async function handleConnectBridgeClick() {
   el.deployButton.disabled = true;
   el.deployButton.classList.add('is-busy');
   if (label) label.textContent = '⏳ Connecting…';
+  let data = null;
   try {
     const res = await fetch('/api/connect-bridge', { method: 'POST', cache: 'no-store' });
-    const data = await res.json();
+    data = await res.json();
     if (label) label.textContent = data.ok ? '✓ Connected' : '✗ Failed';
-    showDeployToast(data);
   } catch (err) {
+    data = { ok: false, error: err.message };
     if (label) label.textContent = '✗ Error';
-    showDeployToast({ ok: false, error: err.message });
     console.error('[connect-bridge]', err);
   }
+  showDeployToast(data);
   el.deployButton.classList.remove('is-busy');
+  // Refresh bridge status so dot + status chips update immediately
+  if (typeof refreshBridgeStatus === 'function') {
+    setTimeout(() => refreshBridgeStatus('Bridge reconnect').catch(() => {}), 800);
+  }
   setTimeout(() => {
     if (label) label.textContent = '⚡ Connect Bridge';
     if (el.deployButton) el.deployButton.disabled = false;
@@ -238,13 +243,22 @@ async function handleConnectBridgeClick() {
 function showDeployToast(data) {
   if (!el.deployToast) return;
   const lines = [];
-  if (data.steps) data.steps.forEach(s => lines.push(`${s.ok ? '✓' : '✗'} ${s.step}: ${(s.out || '').slice(0, 70)}`));
-  else if (data.error) lines.push(`✗ ${String(data.error).slice(0, 90)}`);
-  if (!lines.length) return;
+  if (data && data.steps) {
+    data.steps.forEach(s => {
+      const out = (s.out || '').trim();
+      lines.push(`${s.ok ? '✓' : '✗'} ${s.step}${out ? ': ' + out.slice(0, 70) : ''}`);
+    });
+  } else if (data && data.error) {
+    lines.push(`✗ ${String(data.error).slice(0, 120)}`);
+  }
+  // Always show toast when called — even on empty steps show a status line
+  if (!lines.length) {
+    lines.push(data && data.ok ? '✓ Bridge command sent' : '✗ No response from server');
+  }
   el.deployToast.textContent = lines.join('\n');
   el.deployToast.classList.add('is-visible');
   clearTimeout(el._toastTimeout);
-  el._toastTimeout = setTimeout(() => { if (el.deployToast) el.deployToast.classList.remove('is-visible'); }, 6000);
+  el._toastTimeout = setTimeout(() => { if (el.deployToast) el.deployToast.classList.remove('is-visible'); }, 7000);
 }
 
 document.addEventListener('DOMContentLoaded', init);

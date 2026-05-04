@@ -924,6 +924,7 @@ body.modal-open .app-shell {
   align-items: center;
   gap: 10px;
   position: relative;
+  overflow: visible;
 }
 
 /* ── Connect Bridge button ───────────────────────────────────────────────── */
