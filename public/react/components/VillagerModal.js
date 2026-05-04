@@ -464,7 +464,7 @@
       h('div', { className: 'vedit-inv-left' },
         h('div', {
           className: 'vedit-inv-grid',
-          style: { gridTemplateColumns: `repeat(${INV_COLS}, 1fr)` },
+          style: { gridTemplateColumns: `repeat(${INV_COLS}, minmax(0, 1fr))` },
         },
           slots.map((slot, i) =>
             h('div', {
@@ -505,6 +505,68 @@
     );
   }
 
+  // ── ClothesPanel ──────────────────────────────────────────────────────────
+
+  const CLOTHES_SLOTS = [
+    'Hat', 'Accessory', 'Top', 'Bottom', 'Socks', 'Shoes', 'Bag', 'Umbrella', 'Wand', 'Dress Code',
+  ];
+  const CLOTHES_COLS = 5;
+
+  function ClothesPanel({ clothes }) {
+    const slots = Array.from({ length: CLOTHES_SLOTS.length }, (_, i) =>
+      (clothes && clothes[i]) ? clothes[i] : null
+    );
+    const [selectedSlot, setSelectedSlot] = useState(0);
+    const sel = slots[selectedSlot];
+    const [count, setCount] = useState(sel ? (sel.count || 0) : 0);
+    const [flag0, setFlag0] = useState(sel ? (sel.flag0 || 0) : 0);
+    const [flag1, setFlag1] = useState(sel ? (sel.flag1 || 0) : 0);
+
+    return h('div', { className: 'vedit-inv-shell' },
+      h('div', { className: 'vedit-inv-left' },
+        h('div', {
+          className: 'vedit-inv-grid vedit-clothes-grid',
+          style: { gridTemplateColumns: `repeat(${CLOTHES_COLS}, minmax(0, 1fr))` },
+        },
+          slots.map((slot, i) =>
+            h('div', {
+              key: i,
+              className: `vedit-inv-slot${selectedSlot === i ? ' is-selected' : ''}`,
+              onClick: () => setSelectedSlot(i),
+            },
+              h('span', { className: 'vedit-clothes-slot-label' }, CLOTHES_SLOTS[i]),
+              slot && slot.imageUrl
+                ? h('img', { className: 'vedit-inv-img vedit-clothes-img', src: slot.imageUrl, alt: slot.name || '' })
+                : null
+            )
+          )
+        ),
+        h('div', { className: 'vedit-inv-left-actions' },
+          h('button', { type: 'button', className: 'action-btn vmod-btn-sm' }, 'Clear'),
+        )
+      ),
+      h('div', { className: 'vedit-inv-detail' },
+        h('div', { className: 'vedit-inv-preview' }),
+        h('div', { className: 'vedit-inv-name-row' },
+          h('span', { className: 'vedit-inv-name-text' }, sel ? (sel.name || '(None)') : '(None)')
+        ),
+        h('div', { className: 'vedit-clothes-slot-type' }, CLOTHES_SLOTS[selectedSlot] || ''),
+        [['ItemID', count, setCount], ['Flag0', flag0, setFlag0], ['Flag1', flag1, setFlag1]].map(([label, val, setter]) =>
+          h('div', { key: label, className: 'vedit-inv-field-row' },
+            h('span', { className: 'vmod-label vedit-inv-field-label' }, `${label}:`),
+            h('input', {
+              className: 'vmod-input vedit-inv-field-input',
+              type: 'number',
+              min: 0,
+              value: String(val),
+              onChange: e => setter(parseInt(e.target.value, 10) || 0),
+            })
+          )
+        )
+      )
+    );
+  }
+
   // ── RoomPanel ────────────────────────────────────────────────────────────
 
   function RoomPanel({ room }) {
@@ -517,24 +579,90 @@
     const set = (key, val) => setFields(prev => ({ ...prev, [key]: val }));
 
     return h('div', { className: 'vedit-room-shell' },
-      ROOM_FIELDS.map(f =>
-        h('div', { key: f.label, className: 'vedit-room-row' },
-          h('button', { type: 'button', className: 'action-btn vedit-room-label-btn' }, f.label),
-          h('div', { className: 'vedit-room-fields' },
-            h('span', { className: 'vmod-label' }, 'DesignID'),
-            h('input', {
-              className: 'vmod-input vedit-room-input',
-              type: 'number',
-              value: String(fields[f.designKey]),
-              onChange: e => set(f.designKey, parseInt(e.target.value, 10) || 0),
-            }),
-            h('span', { className: 'vmod-label' }, f.extraLabel),
-            h('input', {
-              className: 'vmod-input vedit-room-input',
-              type: 'number',
-              value: String(fields[f.extraKey]),
-              onChange: e => set(f.extraKey, parseInt(e.target.value, 10) || 0),
-            })
+      h('div', { className: 'vedit-room-table' },
+        h('div', { className: 'vedit-room-thead' },
+          h('div', { className: 'vedit-room-th vedit-room-th-label' }, 'Surface'),
+          h('div', { className: 'vedit-room-th' }, 'Design ID'),
+          h('div', { className: 'vedit-room-th' }, 'Extra'),
+        ),
+        ROOM_FIELDS.map(f =>
+          h('div', { key: f.label, className: 'vedit-room-row' },
+            h('div', { className: 'vedit-room-cell vedit-room-cell-label' },
+              h('button', { type: 'button', className: 'action-btn vmod-btn-sm vedit-room-label-btn' }, f.label)
+            ),
+            h('div', { className: 'vedit-room-cell' },
+              h('input', {
+                className: 'vmod-input vedit-room-input',
+                type: 'number',
+                value: String(fields[f.designKey]),
+                onChange: e => set(f.designKey, parseInt(e.target.value, 10) || 0),
+              })
+            ),
+            h('div', { className: 'vedit-room-cell vedit-room-cell-extra' },
+              h('span', { className: 'vedit-room-extra-label vmod-label' }, f.extraLabel),
+              h('input', {
+                className: 'vmod-input vedit-room-input',
+                type: 'number',
+                value: String(fields[f.extraKey]),
+                onChange: e => set(f.extraKey, parseInt(e.target.value, 10) || 0),
+              })
+            )
+          )
+        )
+      )
+    );
+  }
+
+  // ── DIYTimerPanel ─────────────────────────────────────────────────────────
+
+  function DIYTimerPanel({ diy }) {
+    const [isCrafting, setIsCrafting] = useState(!!(diy && diy.isCrafting));
+    const [craftingUntil, setCraftingUntil] = useState(
+      (diy && diy.craftingUntil) ? diy.craftingUntil : ''
+    );
+    const [recipe, setRecipe] = useState(
+      (diy && diy.recipe != null) ? String(diy.recipe) : ''
+    );
+    const recipes = Array.isArray(diy && diy.recipeList) ? diy.recipeList : [];
+
+    return h('div', { className: 'vedit-diy-shell' },
+      h('div', { className: 'vedit-diy-form' },
+        h('div', { className: 'vedit-diy-row' },
+          h('label', { className: 'vedit-diy-label' }, 'Is crafting?'),
+          h('input', {
+            type: 'checkbox',
+            className: 'vedit-diy-checkbox',
+            checked: isCrafting,
+            onChange: e => setIsCrafting(e.target.checked),
+          })
+        ),
+        h('div', { className: 'vedit-diy-row' },
+          h('label', { className: 'vedit-diy-label' }, 'Crafting until:'),
+          h('input', {
+            type: 'time',
+            step: '1',
+            className: 'vmod-input vedit-diy-time',
+            value: craftingUntil,
+            onChange: e => setCraftingUntil(e.target.value),
+            disabled: !isCrafting,
+          })
+        ),
+        h('div', { className: 'vedit-diy-row' },
+          h('label', { className: 'vedit-diy-label' }, 'Recipe:'),
+          h('select', {
+            className: 'vmod-input vedit-diy-select',
+            value: recipe,
+            onChange: e => setRecipe(e.target.value),
+            disabled: !isCrafting,
+          },
+            h('option', { value: '' }, '— none —'),
+            recipes.length > 0
+              ? recipes.map((r, i) =>
+                  h('option', { key: i, value: String(r.id ?? i) }, r.name || `Recipe ${i}`)
+                )
+              : recipe
+                ? h('option', { value: recipe }, `Recipe #${recipe}`)
+                : null
           )
         )
       )
@@ -704,11 +832,12 @@
         ),
         h('div', { className: 'vmod-edit-panel vedit-panel' },
           activeTab === 'furniture' ? h(InventoryPanel, { furniture: v.furniture }) :
-          activeTab === 'clothes'   ? h(InventoryPanel, { furniture: v.clothes   }) :
+          activeTab === 'clothes'   ? h(ClothesPanel,   { clothes:   v.clothes   }) :
           activeTab === 'room'      ? h(RoomPanel,      { room:      v.room      }) :
           activeTab === 'designs'   ? h(DesignsPanel,   { designs:   v.designs   }) :
           activeTab === 'memories'  ? h(PlayerPanel,    { playerMemory: v.playerMemory }) :
-          h('div', { className: 'vmod-edit-panel' }, h('p', { className: 'vmod-edit-stub' }, `${activeTab} — coming soon`))
+          activeTab === 'DIY timer' ? h(DIYTimerPanel,  { diy:       v.diy       }) :
+          null
         )
       ),
       h('div', { className: 'villager-modal-footer vmod-subview-footer' },
