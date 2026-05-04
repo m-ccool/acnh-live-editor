@@ -65,9 +65,10 @@ Wants=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=${REPO_DIR}
+ExecStartPre=/bin/bash -c 'cd ${REPO_DIR} && git pull --ff-only origin dev 2>&1 | tee -a ${HOME}/.acnh-live-bridge.log || true'
 ExecStart=/bin/bash ${REPO_DIR}/scripts/steamdeck-run-bridge.sh
 Restart=on-failure
-RestartSec=30
+RestartSec=10
 StandardOutput=append:${HOME}/.acnh-live-bridge.log
 StandardError=append:${HOME}/.acnh-live-bridge.log
 Environment=HOME=${HOME}
