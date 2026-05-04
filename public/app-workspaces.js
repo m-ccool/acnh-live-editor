@@ -1492,11 +1492,9 @@ const PERSONALITY_COLORS = {
 };
 
 // Derive head-icon URL from villager's name for the list view (acnhcdn.com NpcIcon).
-// Prefers v.imageUrl set by the Python reader (direct CDN, no API key needed).
+// ?v=2 busts any browser cache entry from when the endpoint used max-age=86400.
 function villagerImageUrl(v) {
-  if (!v) return null;
-  if (v.imageUrl) return v.imageUrl;
-  if (!v.name) return null;
+  if (!v || !v.name) return null;
   const name = v.name.trim().replace(/[^a-zA-Z0-9_\-]/g, '');
   return `/api/villager-icon/${encodeURIComponent(name)}?v=2`;
 }
