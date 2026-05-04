@@ -345,16 +345,25 @@ function createApiRouter(options = {}) {
     }
   })
 
-  // Proxy villager head icons from acnhcdn.com (used in list view).
-  // Display name is the CDN filename directly (e.g. "Rolf" → NpcIcon/Rolf.png).
+  // Proxy villager head icons from Nookipedia CDN (dodo.ac).
+  // Path is derived from MediaWiki MD5 hash of the filename — no API key needed.
+  // Filename pattern: {DisplayName}_NH_Villager_Icon.png
   router.get('/api/villager-icon/:name', (req, res) => {
     const name = req.params.name.replace(/[^a-zA-Z0-9 _'\-]/g, '').trim()
     if (!name) return res.status(400).end()
     const https = require('https')
-    const iconUrl = `https://acnhcdn.com/latest/NpcIcon/${encodeURIComponent(name)}.png`
-    https.get(iconUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (upstream) => {
+    const crypto = require('crypto')
+
+    const capitalName = name.charAt(0).toUpperCase() + name.slice(1)
+    const filename = `${capitalName}_NH_Villager_Icon.png`
+    const hash = crypto.createHash('md5').update(filename).digest('hex')
+    const d1 = hash[0]
+    const d2 = hash.slice(0, 2)
+    const iconUrl = `https://dodo.ac/np/images/${d1}/${d2}/${encodeURIComponent(filename)}`
+
+    https.get(iconUrl, { headers: { 'User-Agent': 'acnh-live-editor/1.0' } }, (upstream) => {
       if (upstream.statusCode !== 200) { upstream.resume(); return res.status(404).end() }
-      res.setHeader('Content-Type', 'image/png')
+      res.setHeader('Content-Type', upstream.headers['content-type'] || 'image/png')
       res.setHeader('Cache-Control', 'public, max-age=3600')
       upstream.pipe(res)
     }).on('error', () => res.status(502).end())
