@@ -529,15 +529,13 @@
           style: { gridTemplateColumns: `repeat(${CLOTHES_COLS}, minmax(0, 1fr))` },
         },
           slots.map((slot, i) =>
-            h('div', {
-              key: i,
-              className: `vedit-inv-slot${selectedSlot === i ? ' is-selected' : ''}`,
-              onClick: () => setSelectedSlot(i),
-            },
+            h('div', { key: i, className: 'vedit-clothes-slot-wrap', onClick: () => setSelectedSlot(i) },
               h('span', { className: 'vedit-clothes-slot-label' }, CLOTHES_SLOTS[i]),
-              slot && slot.imageUrl
-                ? h('img', { className: 'vedit-inv-img vedit-clothes-img', src: slot.imageUrl, alt: slot.name || '' })
-                : null
+              h('div', { className: `vedit-inv-slot${selectedSlot === i ? ' is-selected' : ''}` },
+                slot && slot.imageUrl
+                  ? h('img', { className: 'vedit-inv-img vedit-clothes-img', src: slot.imageUrl, alt: slot.name || '' })
+                  : null
+              )
             )
           )
         ),
@@ -633,7 +631,16 @@
             type: 'checkbox',
             className: 'vedit-diy-checkbox',
             checked: isCrafting,
-            onChange: e => setIsCrafting(e.target.checked),
+            onChange: e => {
+              const checked = e.target.checked;
+              setIsCrafting(checked);
+              if (checked && !craftingUntil) {
+                const d = new Date(Date.now() + 60 * 60 * 1000);
+                setCraftingUntil(
+                  `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`
+                );
+              }
+            },
           })
         ),
         h('div', { className: 'vedit-diy-row' },
