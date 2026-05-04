@@ -3,7 +3,7 @@
 const TOTAL_SLOTS = 40;
 const STORAGE_KEY = 'acnh-live-editor-state-v5';
 const REPO_URL = 'https://github.com/m-ccool/acnh-live-editor';
-const SERVICE_WORKER_VERSION = '74';
+const SERVICE_WORKER_VERSION = '75';
 const PLAY_ICON_PATH = '/assets/icons/line-md--pause-to-play-filled-transition.svg';
 const PAUSE_ICON_PATH = '/assets/icons/line-md--pause.svg';
 const CONSOLE_CONNECTED_ICON_PATH = '/assets/icons/codicon--debug-connect.svg';
@@ -229,7 +229,7 @@ async function handleDeployClick() {
   }
   el.deployButton.classList.remove('is-busy');
   setTimeout(() => {
-    if (label) label.textContent = '⚡ Deploy';
+    if (label) label.textContent = '⚡ Deploy Bridge';
     if (el.deployButton) el.deployButton.disabled = false;
   }, 3000);
 }
