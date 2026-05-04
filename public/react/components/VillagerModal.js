@@ -421,11 +421,23 @@
   function EditView({ v, onBack }) {
     const [activeTab, setActiveTab] = useState('all');
     const iconUrl = `/api/villager-icon/${v.name}?v=2`;
+    const friendshipVal = v.friendship || 0;
+    const friendshipPct = Math.round((friendshipVal / 255) * 100);
 
     return h('div', { className: 'vmod-edit-view' },
       h('div', { className: 'vmod-subview-title vmod-edit-title' },
         h('img', { className: 'vmod-edit-icon', src: iconUrl, alt: v.name, onError(e) { e.target.style.display = 'none'; } }),
         h('span', null, `Edit — ${v.name || 'Villager'}`)
+      ),
+      h('div', { className: 'villager-modal-friendship' },
+        h('div', { className: 'villager-modal-friendship-label' },
+          h('span', null, 'Friendship'),
+          h('span', { className: 'vmod-friendship-value' }, `${friendshipVal} / 255`),
+          h('span', { className: 'villager-friendship-tier' }, v.friendshipTier || 'Stranger')
+        ),
+        h('div', { className: 'villager-friendship-bar-track' },
+          h('div', { className: 'villager-friendship-bar-fill', style: { width: `${friendshipPct}%` } })
+        )
       ),
       h('div', { className: 'vmod-edit-wrapper' },
         h('div', { className: 'vmod-edit-tabs tab-bar', role: 'tablist' },

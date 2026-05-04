@@ -161,8 +161,8 @@ This response gate is required in every technical answer.
 
 ## Confirmed Repo Facts
 
-- Windows UI address: `http://10.0.0.110:3000`
-- Steam Deck bridge target host: `10.0.0.110` (auto-discovered via UDP beacon; `.steamdeck-bridge.env` uses `BRIDGE_TARGET_HOST=auto`)
+- Windows UI address: `http://10.0.0.25:3000`
+- Steam Deck bridge target host: `10.0.0.25` (set explicitly in `.steamdeck-bridge.env` as `BRIDGE_TARGET_HOST=10.0.0.25`)
 - Steam Deck bridge target port: `32840`
 
 ## Verification Discipline
