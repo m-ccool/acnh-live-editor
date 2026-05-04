@@ -3620,6 +3620,340 @@ body:not([data-theme='night']) .modal-filter-btn {
   margin: 0;
 }
 
+/* vedit-panel overrides the default centered flex of vmod-edit-panel */
+.vmod-edit-panel.vedit-panel {
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* ── Inventory panel ─────────────────────────────────────────────────── */
+.vedit-inv-shell {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.vedit-inv-left {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  padding: 10px;
+  gap: 8px;
+}
+
+.vedit-inv-grid {
+  display: grid;
+  gap: 3px;
+  flex: 1;
+}
+
+.vedit-inv-slot {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 4px;
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  overflow: hidden;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.vedit-inv-slot:hover {
+  background: rgba(255,255,255,0.08);
+}
+
+.vedit-inv-slot.is-selected {
+  border-color: rgba(80,100,220,0.7);
+  background: rgba(80,100,220,0.15);
+}
+
+.vedit-inv-count {
+  position: absolute;
+  top: 2px;
+  left: 3px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.9);
+  line-height: 1;
+  pointer-events: none;
+}
+
+.vedit-inv-img {
+  width: 70%;
+  height: 70%;
+  object-fit: contain;
+}
+
+.vedit-inv-left-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.vedit-inv-detail {
+  width: 140px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 10px 10px 0;
+  border-left: 1px solid rgba(255,255,255,0.08);
+}
+
+.vedit-inv-preview {
+  width: 100%;
+  aspect-ratio: 1;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.vedit-inv-name-row {
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.6);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vedit-inv-name-text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vedit-inv-field-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.vedit-inv-field-label {
+  flex-shrink: 0;
+  min-width: 40px;
+  text-align: right;
+}
+
+.vedit-inv-field-input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Room panel ──────────────────────────────────────────────────────── */
+.vedit-room-shell {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px 20px;
+  flex: 1;
+}
+
+.vedit-room-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.vedit-room-label-btn {
+  width: 100px;
+  flex-shrink: 0;
+  text-align: center;
+}
+
+.vedit-room-fields {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.vedit-room-input {
+  width: 80px;
+  flex-shrink: 0;
+}
+
+/* ── Designs panel ───────────────────────────────────────────────────── */
+.vedit-designs-shell {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 10px;
+  gap: 10px;
+}
+
+.vedit-designs-list {
+  width: 120px;
+  flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 6px;
+  overflow-y: auto;
+  font-size: 0.78rem;
+}
+
+.vedit-designs-item {
+  padding: 6px 10px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.65);
+  user-select: none;
+}
+
+.vedit-designs-item:hover { background: rgba(255,255,255,0.05); }
+.vedit-designs-item.is-selected { background: rgba(80,100,220,0.3); color: rgba(255,255,255,0.95); }
+
+.vedit-designs-empty {
+  padding: 10px;
+  color: rgba(255,255,255,0.25);
+  font-size: 0.78rem;
+}
+
+.vedit-designs-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.vedit-designs-canvas {
+  flex: 1;
+  width: 100%;
+  background: #000;
+  border-radius: 4px;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.vedit-designs-dump {
+  align-self: flex-start;
+}
+
+/* ── Player panel ────────────────────────────────────────────────────── */
+.vedit-player-shell {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.vedit-player-left {
+  width: 160px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid rgba(255,255,255,0.08);
+  overflow: hidden;
+}
+
+.vedit-player-list {
+  flex: 1;
+  overflow-y: auto;
+  font-size: 0.78rem;
+  font-family: monospace;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.vedit-player-item {
+  padding: 5px 10px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.65);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: none;
+}
+
+.vedit-player-item:hover { background: rgba(255,255,255,0.05); }
+.vedit-player-item.is-selected { background: rgba(80,100,220,0.3); color: rgba(255,255,255,0.95); }
+
+.vedit-player-left-actions {
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  flex-shrink: 0;
+}
+
+.vedit-player-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  flex-shrink: 0;
+}
+
+.vedit-player-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+}
+
+.vedit-player-meta-row .vmod-label {
+  flex-shrink: 0;
+  min-width: 46px;
+  text-align: right;
+}
+
+.vedit-player-meta-row .vmod-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.vedit-player-right {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.vedit-player-flags-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 8px 10px;
+  gap: 6px;
+}
+
+.vedit-player-value-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.vedit-player-value-input {
+  width: 80px;
+}
+
+.vedit-player-misc-panel,
+.vedit-player-greet-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.vedit-player-greet-date {
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.5);
+  padding: 4px 0;
+}
+
 @media (max-width: 480px) {
   /* Shell: stack art above info */
   .villager-modal-shell {

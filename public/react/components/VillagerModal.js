@@ -117,7 +117,39 @@
     { key: 'buildPlayer',       label: 'BuildPlayer',       type: 'number', def: -1 },
   ];
 
-  const EDIT_TABS = ['all', 'furniture', 'clothes', 'room', 'designs', 'memories', 'DIY timer'];
+  const EDIT_TABS        = ['inventory', 'room', 'designs', 'player'];
+  const EDIT_TAB_LABELS  = { inventory: 'Inventory', room: 'Room', designs: 'Designs', player: 'Player Mem' };
+
+  const ROOM_FIELDS = [
+    { label: 'Accent Wall', designKey: 'accentWallDesignId', extraKey: 'accentWallDirection', extraLabel: 'Direction' },
+    { label: 'Wall',        designKey: 'wallDesignId',       extraKey: 'wallInfoBit',          extraLabel: 'InfoBit'   },
+    { label: 'Floor',       designKey: 'floorDesignId',      extraKey: 'floorDirection',       extraLabel: 'Direction' },
+  ];
+
+  const PLAYER_MEM_FLAGS = [
+    { index: 0,  name: 'TalkFreeMultiDayEventNow' },
+    { index: 1,  name: 'ContinuousTalkDays' },
+    { index: 2,  name: 'SameLand' },
+    { index: 3,  name: 'SetGreeting' },
+    { index: 4,  name: 'EasterGetRecipeFlag' },
+    { index: 5,  name: 'TalkProgressMuseumBuilt2' },
+    { index: 6,  name: 'NextMoveOutTalk' },
+    { index: 7,  name: 'TalkMoveOut' },
+    { index: 8,  name: 'VisitCount' },
+    { index: 9,  name: 'VisitedCount' },
+    { index: 10, name: 'Friendship' },
+    { index: 11, name: 'TalkCountToday' },
+    { index: 12, name: 'TalkCountInNpcHouseToday' },
+    { index: 13, name: 'HasAcquaintanceship' },
+    { index: 14, name: 'SitBenchFlag' },
+    { index: 15, name: 'TalkInDream' },
+    { index: 16, name: 'HalloweenGiveCandyCount' },
+    { index: 17, name: 'PastCountFromLastVisitPlayerHouse' },
+    { index: 18, name: 'TalkedAsSameVillageResident' },
+  ];
+
+  const INV_COLS = 8;
+  const INV_ROWS = 3;
 
   // ── helpers ───────────────────────────────────────────────────────────────
 
@@ -300,7 +332,7 @@
           h('span', { className: 'villager-friendship-tier' }, v.friendshipTier || 'Stranger')
         ),
         h('div', { className: 'villager-friendship-bar-track' },
-          h('div', { className: 'villager-friendship-bar-fill', style: { width: `${friendshipPct}%` } })
+          h('div', { className: 'villager-friendship-bar-fill', style: { width: `${friendshipVal === 0 ? 5 : friendshipPct}%`, opacity: friendshipVal === 0 ? 0.4 : 1 } })
         )
       ),
 
@@ -416,13 +448,232 @@
     );
   }
 
+  // ── InventoryPanel ────────────────────────────────────────────────────────
+
+  function InventoryPanel({ furniture }) {
+    const slots = Array.from({ length: INV_COLS * INV_ROWS }, (_, i) =>
+      (furniture && furniture[i]) ? furniture[i] : null
+    );
+    const [selectedSlot, setSelectedSlot] = useState(0);
+    const sel = slots[selectedSlot];
+    const [count, setCount]   = useState(sel ? (sel.count  || 0) : 0);
+    const [uses,  setUses]    = useState(sel ? (sel.uses   || 0) : 0);
+    const [flag0, setFlag0]   = useState(sel ? (sel.flag0  || 0) : 0);
+    const [flag1, setFlag1]   = useState(sel ? (sel.flag1  || 0) : 0);
+
+    return h('div', { className: 'vedit-inv-shell' },
+      h('div', { className: 'vedit-inv-left' },
+        h('div', {
+          className: 'vedit-inv-grid',
+          style: { gridTemplateColumns: `repeat(${INV_COLS}, 1fr)` },
+        },
+          slots.map((slot, i) =>
+            h('div', {
+              key: i,
+              className: `vedit-inv-slot${selectedSlot === i ? ' is-selected' : ''}`,
+              onClick: () => setSelectedSlot(i),
+            },
+              slot && (slot.count > 1) ? h('span', { className: 'vedit-inv-count' }, String(slot.count)) : null,
+              slot && slot.imageUrl
+                ? h('img', { className: 'vedit-inv-img', src: slot.imageUrl, alt: slot.name || '' })
+                : null
+            )
+          )
+        ),
+        h('div', { className: 'vedit-inv-left-actions' },
+          h('button', { type: 'button', className: 'action-btn vmod-btn-sm' }, 'Clear'),
+          h('button', { type: 'button', className: 'action-btn vmod-btn-sm' }, 'Sort'),
+        )
+      ),
+      h('div', { className: 'vedit-inv-detail' },
+        h('div', { className: 'vedit-inv-preview' }),
+        h('div', { className: 'vedit-inv-name-row' },
+          h('span', { className: 'vedit-inv-name-text' }, sel ? (sel.name || '(None)') : '(None)')
+        ),
+        [['Count', count, setCount], ['Uses', uses, setUses], ['Flag0', flag0, setFlag0], ['Flag1', flag1, setFlag1]].map(([label, val, setter]) =>
+          h('div', { key: label, className: 'vedit-inv-field-row' },
+            h('span', { className: 'vmod-label vedit-inv-field-label' }, `${label}:`),
+            h('input', {
+              className: 'vmod-input vedit-inv-field-input',
+              type: 'number',
+              min: 0,
+              value: String(val),
+              onChange: e => setter(parseInt(e.target.value, 10) || 0),
+            })
+          )
+        )
+      )
+    );
+  }
+
+  // ── RoomPanel ────────────────────────────────────────────────────────────
+
+  function RoomPanel({ room }) {
+    const init = {};
+    ROOM_FIELDS.forEach(f => {
+      init[f.designKey] = (room && room[f.designKey]) != null ? room[f.designKey] : 0;
+      init[f.extraKey]  = (room && room[f.extraKey])  != null ? room[f.extraKey]  : 0;
+    });
+    const [fields, setFields] = useState(init);
+    const set = (key, val) => setFields(prev => ({ ...prev, [key]: val }));
+
+    return h('div', { className: 'vedit-room-shell' },
+      ROOM_FIELDS.map(f =>
+        h('div', { key: f.label, className: 'vedit-room-row' },
+          h('button', { type: 'button', className: 'action-btn vedit-room-label-btn' }, f.label),
+          h('div', { className: 'vedit-room-fields' },
+            h('span', { className: 'vmod-label' }, 'DesignID'),
+            h('input', {
+              className: 'vmod-input vedit-room-input',
+              type: 'number',
+              value: String(fields[f.designKey]),
+              onChange: e => set(f.designKey, parseInt(e.target.value, 10) || 0),
+            }),
+            h('span', { className: 'vmod-label' }, f.extraLabel),
+            h('input', {
+              className: 'vmod-input vedit-room-input',
+              type: 'number',
+              value: String(fields[f.extraKey]),
+              onChange: e => set(f.extraKey, parseInt(e.target.value, 10) || 0),
+            })
+          )
+        )
+      )
+    );
+  }
+
+  // ── DesignsPanel ─────────────────────────────────────────────────────────
+
+  function DesignsPanel({ designs }) {
+    const items = Array.isArray(designs) ? designs : [];
+    const [selectedIdx, setSelectedIdx] = useState(0);
+
+    return h('div', { className: 'vedit-designs-shell' },
+      h('div', { className: 'vedit-designs-list' },
+        items.length === 0
+          ? h('div', { className: 'vedit-designs-empty' }, '—')
+          : items.map((d, i) =>
+              h('div', {
+                key: i,
+                className: `vedit-designs-item${selectedIdx === i ? ' is-selected' : ''}`,
+                onClick: () => setSelectedIdx(i),
+              }, d.name || `Design ${i + 1}`)
+            )
+      ),
+      h('div', { className: 'vedit-designs-center' },
+        h('div', { className: 'vedit-designs-canvas' }),
+        h('button', { type: 'button', className: 'action-btn vmod-btn-sm vedit-designs-dump' }, 'Dump/Import')
+      )
+    );
+  }
+
+  // ── PlayerPanel ──────────────────────────────────────────────────────────
+
+  function PlayerPanel({ playerMemory }) {
+    const players = Array.isArray(playerMemory) && playerMemory.length > 0
+      ? playerMemory
+      : Array.from({ length: 8 }, (_, i) => ({ index: i, name: '', island: '', flags: [], nickname: '', greetDate: '', greeting: '', greetings: [] }));
+    const [selectedPlayer, setSelectedPlayer] = useState(0);
+    const [activeTab, setActiveTab] = useState('Flags');
+    const [flagSelectedIdx, setFlagSelectedIdx] = useState(0);
+    const player = players[selectedPlayer] || {};
+    const [flagValues, setFlagValues] = useState(() => {
+      const fv = {};
+      PLAYER_MEM_FLAGS.forEach(f => { fv[f.index] = (player.flags && player.flags[f.index]) || 0; });
+      return fv;
+    });
+
+    return h('div', { className: 'vedit-player-shell' },
+      h('div', { className: 'vedit-player-left' },
+        h('div', { className: 'vedit-player-list' },
+          players.map((p, i) =>
+            h('div', {
+              key: i,
+              className: `vedit-player-item${selectedPlayer === i ? ' is-selected' : ''}`,
+              onClick: () => setSelectedPlayer(i),
+            }, `${i} - ${p.name || '0'}${p.island ? ` (${p.island})` : ''}`)
+          )
+        ),
+        h('div', { className: 'vedit-player-left-actions' },
+          h('button', { type: 'button', className: 'action-btn vmod-btn-sm' }, 'Dump'),
+          h('button', { type: 'button', className: 'action-btn vmod-btn-sm' }, 'Load'),
+        ),
+        h('div', { className: 'vedit-player-meta' },
+          h('div', { className: 'vedit-player-meta-row' },
+            h('span', { className: 'vmod-label' }, 'Name:'),
+            h('input', { className: 'vmod-input', type: 'text', value: player.name || '', readOnly: true })
+          ),
+          h('div', { className: 'vedit-player-meta-row' },
+            h('span', { className: 'vmod-label' }, 'Island:'),
+            h('input', { className: 'vmod-input', type: 'text', value: player.island || '', readOnly: true })
+          )
+        )
+      ),
+      h('div', { className: 'vedit-player-right' },
+        h('div', { className: 'vmod-edit-tabs tab-bar', role: 'tablist' },
+          ['Flags', 'Misc', 'Greet'].map(tab =>
+            h('button', {
+              key: tab,
+              type: 'button',
+              className: `tab-btn vmod-edit-tab-btn${activeTab === tab ? ' is-active' : ''}`,
+              role: 'tab',
+              'aria-selected': activeTab === tab,
+              onClick: () => setActiveTab(tab),
+            }, tab)
+          )
+        ),
+        activeTab === 'Flags'
+          ? h('div', { className: 'vedit-player-flags-panel' },
+              h('div', { className: 'vedit-player-value-row' },
+                h('span', { className: 'vmod-label' }, 'Value:'),
+                h('input', {
+                  className: 'vmod-input vedit-player-value-input',
+                  type: 'number',
+                  value: String(flagValues[flagSelectedIdx] || 0),
+                  onChange: e => setFlagValues(prev => ({ ...prev, [flagSelectedIdx]: parseInt(e.target.value, 10) || 0 })),
+                })
+              ),
+              h('div', { className: 'vmod-flags-list', role: 'listbox' },
+                PLAYER_MEM_FLAGS.map(f =>
+                  h('div', {
+                    key: f.index,
+                    className: `vmod-flag-item${flagSelectedIdx === f.index ? ' is-selected' : ''}`,
+                    onClick: () => setFlagSelectedIdx(f.index),
+                  }, `${String(f.index).padStart(2, '0')} - ${f.name} = ${flagValues[f.index] || 0}`)
+                )
+              )
+            )
+          : activeTab === 'Misc'
+            ? h('div', { className: 'vedit-player-misc-panel' },
+                h('div', { className: 'vedit-player-meta-row' },
+                  h('span', { className: 'vmod-label' }, 'Nickname:'),
+                  h('input', { className: 'vmod-input', type: 'text', value: player.nickname || '', readOnly: true })
+                )
+              )
+            : h('div', { className: 'vedit-player-greet-panel' },
+                h('div', { className: 'vedit-player-greet-date' }, player.greetDate || 'No date'),
+                h('div', { className: 'vedit-player-meta-row' },
+                  h('span', { className: 'vmod-label' }, 'Greeting:'),
+                  h('input', { className: 'vmod-input', type: 'text', value: player.greeting || '', readOnly: true })
+                ),
+                Array.from({ length: 10 }, (_, i) =>
+                  h('div', { key: i, className: 'vedit-player-meta-row' },
+                    h('span', { className: 'vmod-label' }, `Greeting ${i + 1}:`),
+                    h('input', { className: 'vmod-input', type: 'text', value: (player.greetings && player.greetings[i]) || '', readOnly: true })
+                  )
+                )
+              )
+      )
+    );
+  }
+
   // ── EditView ──────────────────────────────────────────────────────────────
 
   function EditView({ v, onBack }) {
-    const [activeTab, setActiveTab] = useState('all');
+    const [activeTab, setActiveTab] = useState('inventory');
     const iconUrl = `/api/villager-icon/${v.name}?v=2`;
     const friendshipVal = v.friendship || 0;
-    const friendshipPct = Math.round((friendshipVal / 255) * 100);
+    const friendshipBarPct = friendshipVal === 0 ? 5 : Math.round((friendshipVal / 255) * 100);
 
     return h('div', { className: 'vmod-edit-view' },
       h('div', { className: 'vmod-subview-title vmod-edit-title' },
@@ -436,7 +687,7 @@
           h('span', { className: 'villager-friendship-tier' }, v.friendshipTier || 'Stranger')
         ),
         h('div', { className: 'villager-friendship-bar-track' },
-          h('div', { className: 'villager-friendship-bar-fill', style: { width: `${friendshipPct}%` } })
+          h('div', { className: 'villager-friendship-bar-fill', style: { width: `${friendshipBarPct}%`, opacity: friendshipVal === 0 ? 0.4 : 1 } })
         )
       ),
       h('div', { className: 'vmod-edit-wrapper' },
@@ -449,13 +700,15 @@
               role: 'tab',
               'aria-selected': activeTab === tab,
               onClick: () => setActiveTab(tab),
-            }, tab)
+            }, EDIT_TAB_LABELS[tab] || tab)
           )
         ),
-        h('div', { className: 'vmod-edit-panel' },
-          h('p', { className: 'vmod-edit-stub' },
-            `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} editing — coming soon`
-          )
+        h('div', { className: 'vmod-edit-panel vedit-panel' },
+          activeTab === 'inventory' ? h(InventoryPanel,  { furniture:     v.furniture     }) :
+          activeTab === 'room'      ? h(RoomPanel,       { room:          v.room          }) :
+          activeTab === 'designs'   ? h(DesignsPanel,    { designs:       v.designs       }) :
+          activeTab === 'player'    ? h(PlayerPanel,     { playerMemory:  v.playerMemory  }) :
+          null
         )
       ),
       h('div', { className: 'villager-modal-footer vmod-subview-footer' },
