@@ -373,7 +373,7 @@ function createApiRouter(options = {}) {
         ...SSH_OPTS, DECK_HOST,
         'cd ~/acnh-live-editor' +
         ' && (git pull --ff-only origin dev 2>&1 || true)' +
-        ' ; pkill -f steamdeck-bridge-client 2>/dev/null || true' +
+        ' ; pkill -f "node.*bridge-client" 2>/dev/null || true' +
         ' ; nohup bash ~/acnh-live-editor/scripts/steamdeck-run-bridge.sh >/tmp/bridge.log 2>&1 </dev/null & echo ok'
       ])
       steps.push({ step: 'deck pull + bridge restart', ...combined })
