@@ -368,7 +368,7 @@ function createApiRouter(options = {}) {
     ;(async () => {
       const push = await runStep('git', ['push', 'origin', 'dev'])
       steps.push({ step: 'git push', ...push })
-      if (!push.ok) return res.json({ ok: false, steps })
+      // continue to SSH steps even if push fails (nothing new to push is fine)
 
       const pull = await runStep('ssh', [
         ...SSH_OPTS, DECK_HOST,
@@ -378,11 +378,14 @@ function createApiRouter(options = {}) {
 
       const restart = await runStep('ssh', [
         ...SSH_OPTS, DECK_HOST,
-        'systemctl --user restart acnh-live-bridge 2>/dev/null || (pkill -f steamdeck-bridge-client 2>/dev/null; true)'
+        'systemctl --user restart acnh-live-bridge 2>/dev/null || ' +
+        '(pkill -f steamdeck-bridge-client 2>/dev/null; ' +
+        'nohup bash ~/acnh-live-editor/scripts/steamdeck-run-bridge.sh >/tmp/bridge.log 2>&1 </dev/null & disown; sleep 3; grep -q "connected\\|Connected\\|CONNECTED\\|listening\\|Listening" /tmp/bridge.log && echo "bridge started" || tail -5 /tmp/bridge.log)'
       ])
       steps.push({ step: 'bridge restart', ...restart })
 
-      res.json({ ok: true, steps })
+      const allOk = pull.ok && restart.ok
+      res.json({ ok: allOk, steps })
     })().catch(err => res.status(500).json({ ok: false, error: err.message, steps }))
   })
 
