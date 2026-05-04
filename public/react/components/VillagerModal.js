@@ -354,7 +354,7 @@
     const initFields = {};
     HOUSE_FIELDS.forEach(f => { initFields[f.key] = house[f.key] != null ? house[f.key] : f.def; });
     const [fields, setFields] = useState(initFields);
-    const iconUrl = v.imageUrl || `/api/villager-icon/${encodeURIComponent(v.name || '')}?v=3`;((key, val) => {
+    const iconUrl = v.imageUrl || `/api/villager-icon/${encodeURIComponent(v.name || '')}?v=4`;((key, val) => {
       setFields(prev => ({ ...prev, [key]: val }));
     }, []);
 
@@ -397,7 +397,7 @@
     const selected = VILLAGER_FLAGS[selectedIdx];
     const selectedValue = flagValues[selectedIdx] != null ? flagValues[selectedIdx] : 0;
 
-    const iconUrl = v.imageUrl || `/api/villager-icon/${encodeURIComponent(v.name || '')}?v=3`;
+    const iconUrl = v.imageUrl || `/api/villager-icon/${encodeURIComponent(v.name || '')}?v=4`;
       h('div', { className: 'vmod-subview-title vmod-edit-title' },
         h('img', { className: 'vmod-edit-icon', src: iconUrl, alt: v.name, onError(e) { e.target.style.display = 'none'; } }),
         h('span', null, `Flags — ${v.name || 'Villager'}`)
@@ -807,7 +807,7 @@
 
   function EditView({ v, onBack }) {
     const [activeTab, setActiveTab] = useState('furniture');
-    const iconUrl = v.imageUrl || `/api/villager-icon/${encodeURIComponent(v.name || '')}?v=3`;
+    const iconUrl = v.imageUrl || `/api/villager-icon/${encodeURIComponent(v.name || '')}?v=4`;
     const friendshipBarPct = friendshipVal === 0 ? 5 : Math.round((friendshipVal / 255) * 100);
 
     return h('div', { className: 'vmod-edit-view' },
