@@ -3,7 +3,7 @@
 const TOTAL_SLOTS = 40;
 const STORAGE_KEY = 'acnh-live-editor-state-v5';
 const REPO_URL = 'https://github.com/m-ccool/acnh-live-editor';
-const SERVICE_WORKER_VERSION = '75';
+const SERVICE_WORKER_VERSION = '76';
 const PLAY_ICON_PATH = '/assets/icons/line-md--pause-to-play-filled-transition.svg';
 const PAUSE_ICON_PATH = '/assets/icons/line-md--pause.svg';
 const CONSOLE_CONNECTED_ICON_PATH = '/assets/icons/codicon--debug-connect.svg';
@@ -212,26 +212,39 @@ const state = {
 
 const el = {};
 
-async function handleDeployClick() {
+async function handleConnectBridgeClick() {
   if (!el.deployButton || el.deployButton.disabled) return;
   const label = document.getElementById('deploy-button-label');
   el.deployButton.disabled = true;
   el.deployButton.classList.add('is-busy');
-  if (label) label.textContent = '⏳ Deploying…';
+  if (label) label.textContent = '⏳ Connecting…';
   try {
-    const res = await fetch('/api/deploy', { method: 'POST', cache: 'no-store' });
+    const res = await fetch('/api/connect-bridge', { method: 'POST', cache: 'no-store' });
     const data = await res.json();
     if (label) label.textContent = data.ok ? '✓ Connected' : '✗ Failed';
-    if (data.steps) data.steps.forEach(s => console.log(`[deploy] ${s.step}: ${s.ok ? 'ok' : 'fail'} — ${s.out}`));
+    showDeployToast(data);
   } catch (err) {
     if (label) label.textContent = '✗ Error';
-    console.error('[deploy]', err);
+    showDeployToast({ ok: false, error: err.message });
+    console.error('[connect-bridge]', err);
   }
   el.deployButton.classList.remove('is-busy');
   setTimeout(() => {
-    if (label) label.textContent = '⚡ Deploy Bridge';
+    if (label) label.textContent = '⚡ Connect Bridge';
     if (el.deployButton) el.deployButton.disabled = false;
-  }, 3000);
+  }, 4000);
+}
+
+function showDeployToast(data) {
+  if (!el.deployToast) return;
+  const lines = [];
+  if (data.steps) data.steps.forEach(s => lines.push(`${s.ok ? '✓' : '✗'} ${s.step}: ${(s.out || '').slice(0, 70)}`));
+  else if (data.error) lines.push(`✗ ${String(data.error).slice(0, 90)}`);
+  if (!lines.length) return;
+  el.deployToast.textContent = lines.join('\n');
+  el.deployToast.classList.add('is-visible');
+  clearTimeout(el._toastTimeout);
+  el._toastTimeout = setTimeout(() => { if (el.deployToast) el.deployToast.classList.remove('is-visible'); }, 6000);
 }
 
 document.addEventListener('DOMContentLoaded', init);
@@ -321,6 +334,8 @@ function cacheDom() {
   el.quickCheatControls = document.getElementById('quick-cheat-controls');
 
   el.deployButton = document.getElementById('deploy-button');
+  el.connectBridgeDot = document.getElementById('connect-bridge-dot');
+  el.deployToast = document.getElementById('deploy-toast');
   el.settingsButton = document.getElementById('settings-button');
   el.settingsModal = document.getElementById('settings-modal');
   el.settingsClose = document.getElementById('settings-close');
@@ -397,7 +412,7 @@ function cacheDom() {
 }
 
 function bindEvents() {
-  if (el.deployButton) el.deployButton.addEventListener('click', handleDeployClick);
+  if (el.deployButton) el.deployButton.addEventListener('click', handleConnectBridgeClick);
   el.settingsButton.addEventListener('click', () => {
     openModal(el.settingsModal);
     refreshCatalogDiagnostics();
@@ -593,9 +608,11 @@ function bindEvents() {
     });
   });
 
-  el.bridgeToggle.addEventListener('click', () => {
-    refreshBridgeStatus('Bridge status refreshed');
-  });
+  if (el.bridgeToggle) {
+    el.bridgeToggle.addEventListener('click', () => {
+      refreshBridgeStatus('Bridge status refreshed');
+    });
+  }
 
   el.logRefreshButton.addEventListener('click', () => {
     refreshBridgeStatus('Status log refreshed');
@@ -1032,10 +1049,12 @@ function renderBridge() {
     el.catalogStatusLabel.title = state.catalog.message || '';
   }
 
-  el.bridgeStatusInline.textContent = state.bridge.connected ? '✓' : '✕';
-  el.bridgeStatusInline.classList.toggle('is-ok', state.bridge.connected);
-  el.bridgeStatusInline.classList.toggle('is-bad', !state.bridge.connected);
-  el.bridgeStatusInline.classList.remove('is-warn');
+  if (el.bridgeStatusInline) {
+    el.bridgeStatusInline.textContent = state.bridge.connected ? '✓' : '✕';
+    el.bridgeStatusInline.classList.toggle('is-ok', state.bridge.connected);
+    el.bridgeStatusInline.classList.toggle('is-bad', !state.bridge.connected);
+    el.bridgeStatusInline.classList.remove('is-warn');
+  }
 
   if (el.ryujinxStatusChip) {
     let chipText = 'Ryujinx: Unknown';
@@ -1099,15 +1118,23 @@ function renderBridge() {
     el.acnhDataStatusChip.classList.toggle('is-warn', chipClass === 'is-warn');
   }
 
-  el.bridgeToggle.classList.toggle('is-on', state.bridge.connected);
-  el.bridgeToggle.setAttribute('aria-pressed', state.bridge.connected ? 'true' : 'false');
-  el.bridgeToggle.title = state.bridge.connected
-    ? 'Bridge connected'
-    : (state.bridge.listening ? 'Bridge listener active' : 'Bridge listener offline');
+  if (el.connectBridgeDot) {
+    el.connectBridgeDot.classList.toggle('is-on', state.bridge.connected);
+  }
 
-  el.ipDisplay.textContent = state.bridge.connected
-    ? `Bridge: ${state.bridge.ip}`
-    : `Listening: ${state.bridge.listenerIp || state.bridge.host}:${state.bridge.port}`;
+  if (el.bridgeToggle) {
+    el.bridgeToggle.classList.toggle('is-on', state.bridge.connected);
+    el.bridgeToggle.setAttribute('aria-pressed', state.bridge.connected ? 'true' : 'false');
+    el.bridgeToggle.title = state.bridge.connected
+      ? 'Bridge connected'
+      : (state.bridge.listening ? 'Bridge listener active' : 'Bridge listener offline');
+  }
+
+  if (el.ipDisplay) {
+    el.ipDisplay.textContent = state.bridge.connected
+      ? `Bridge: ${state.bridge.ip}`
+      : `Listening: ${state.bridge.listenerIp || state.bridge.host}:${state.bridge.port}`;
+  }
 
   if (el.logConnectionIndicator) {
     el.logConnectionIndicator.classList.toggle('is-online', state.bridge.connected);

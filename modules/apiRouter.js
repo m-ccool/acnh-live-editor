@@ -347,6 +347,38 @@ function createApiRouter(options = {}) {
   })
 
   // Push local commits, pull to Steam Deck, restart bridge
+  // Simplified bridge-only connect (no git push/pull)
+  router.post('/api/connect-bridge', (req, res) => {
+    const { execFile } = require('child_process')
+    const path = require('path')
+    const repoRoot = path.join(__dirname, '..')
+    const SSH_KEY   = process.env.STEAMDECK_SSH_KEY || 'C:/Users/mccoo/.ssh/id_ed25519_steamdeck'
+    const DECK_HOST = process.env.STEAMDECK_HOST    || 'deck@10.0.0.233'
+    const SSH_OPTS  = ['-i', SSH_KEY, '-o', 'ConnectTimeout=10', '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=no']
+
+    const steps = []
+    function runStep(file, args) {
+      return new Promise(resolve => {
+        execFile(file, args, { cwd: repoRoot, timeout: 30000 }, (err, stdout, stderr) => {
+          const out = ((stdout || '') + (stderr || '')).trim().slice(0, 800)
+          resolve({ ok: !err, out, code: err ? (err.code || 1) : 0 })
+        })
+      })
+    }
+
+    ;(async () => {
+      const restart = await runStep('ssh', [
+        ...SSH_OPTS, DECK_HOST,
+        'systemctl --user restart acnh-live-bridge 2>/dev/null || ' +
+        '(pkill -f steamdeck-bridge-client 2>/dev/null; ' +
+        'nohup bash ~/acnh-live-editor/scripts/steamdeck-run-bridge.sh >/tmp/bridge.log 2>&1 </dev/null & disown; ' +
+        'sleep 3; grep -q "connected\\|Connected\\|CONNECTED\\|listening\\|Listening" /tmp/bridge.log && echo "bridge started" || tail -5 /tmp/bridge.log)'
+      ])
+      steps.push({ step: 'bridge restart', ...restart })
+      res.json({ ok: restart.ok, steps })
+    })().catch(err => res.status(500).json({ ok: false, error: err.message, steps }))
+  })
+
   router.post('/api/deploy', (req, res) => {
     const path = require('path')
     const { execFile } = require('child_process')

@@ -14,7 +14,7 @@
   <link rel="icon" type="image/png" href="/assets/icons/Apple_NL_Icon.png" />
   <link rel="manifest" href="./manifest.webmanifest" />
   <meta name="theme-color" content="#09090b" />
-  <link rel="stylesheet" href="./styles.css?v=75" />
+  <link rel="stylesheet" href="./styles.css?v=76" />
 </head>
 <body>
   <div id="loading-screen" class="loading-screen" aria-hidden="true">
@@ -53,8 +53,6 @@
           <span>Catalog</span>
           <span id="catalog-status" class="status-pair is-ok">✓</span>
           <span id="catalog-status-label" class="status-copy">Local</span>
-          <span>Bridge</span>
-          <span id="bridge-status-inline" class="status-pair is-bad">✕</span>
           <span id="ryujinx-status-chip" class="status-chip is-warn" title="Ryujinx status unknown">Ryujinx: Unknown</span>
           <span id="acnh-data-status-chip" class="status-chip is-warn" title="ACNH data status unknown">ACNH Data: Unknown</span>
         </div>
@@ -70,11 +68,13 @@
           id="deploy-button"
           class="deploy-button"
           type="button"
-          aria-label="Push to git, pull to Steam Deck, reconnect bridge"
-          title="Push · Pull Deck · Reconnect Bridge"
+          aria-label="Connect Steam Deck bridge"
+          title="Reconnect Steam Deck bridge via SSH"
         >
-          <span id="deploy-button-label">⚡ Deploy Bridge</span>
+          <span id="connect-bridge-dot" class="bridge-dot" aria-hidden="true"></span>
+          <span id="deploy-button-label">⚡ Connect Bridge</span>
         </button>
+        <div id="deploy-toast" class="deploy-toast" aria-live="polite"></div>
 
         <button
           id="theme-toggle"
@@ -118,20 +118,6 @@
     <section class="log-panel shell-card">
       <div class="log-panel-head">
         <span>CMD / Log view</span>
-        <div class="log-panel-head-meta">
-          <button
-            id="bridge-toggle"
-            class="toggle-button"
-            type="button"
-            aria-label="Bridge toggle"
-            aria-pressed="false"
-          >
-            <span class="toggle-track">
-              <span class="toggle-thumb"></span>
-            </span>
-          </button>
-          <span id="ip-display">IP Address: 00.00.00.00</span>
-        </div>
       </div>
 
       <div class="log-console-wrap">
@@ -1076,12 +1062,12 @@
   <script defer src="./react/components/ModalFilterButtons.js?v=47"></script>
   <script defer src="./react/components/ModalResultsList.js?v=47"></script>
   <script defer src="./react/components/MusicLibraryOptions.js?v=47"></script>
-  <script defer src="./react/components/VillagerModal.js?v=75"></script>
+  <script defer src="./react/components/VillagerModal.js?v=76"></script>
   <script defer src="./react/renderers.js?v=47"></script>
-  <script defer src="./app-core.js?v=75"></script>
+  <script defer src="./app-core.js?v=76"></script>
   <script defer src="./app-music.js?v=47"></script>
-  <script defer src="./app-workspaces.js?v=75"></script>
-  <script defer src="./app.js?v=75"></script>
+  <script defer src="./app-workspaces.js?v=76"></script>
+  <script defer src="./app.js?v=76"></script>
 </body>
 </html>
 
