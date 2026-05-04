@@ -354,7 +354,7 @@
     const initFields = {};
     HOUSE_FIELDS.forEach(f => { initFields[f.key] = house[f.key] != null ? house[f.key] : f.def; });
     const [fields, setFields] = useState(initFields);
-    const iconUrl = `/api/villager-icon/${v.name}?v=2`;
+    const iconUrl = v.imageUrl || `/api/villager-icon/${encodeURIComponent(v.name || '')}?v=2`;
 
     const setField = useCallback((key, val) => {
       setFields(prev => ({ ...prev, [key]: val }));
@@ -399,7 +399,7 @@
     const selected = VILLAGER_FLAGS[selectedIdx];
     const selectedValue = flagValues[selectedIdx] != null ? flagValues[selectedIdx] : 0;
 
-    const iconUrl = `/api/villager-icon/${v.name}?v=2`;
+    const iconUrl = v.imageUrl || `/api/villager-icon/${encodeURIComponent(v.name || '')}?v=2`;
 
     return h('div', { className: 'vmod-flags-view' },
       h('div', { className: 'vmod-subview-title vmod-edit-title' },
@@ -531,16 +531,19 @@
           className: 'vedit-inv-grid vedit-clothes-grid',
           style: { gridTemplateColumns: `repeat(${CLOTHES_COLS}, minmax(0, 1fr))` },
         },
-          slots.map((slot, i) =>
-            h('div', { key: i, className: 'vedit-clothes-slot-wrap', onClick: () => setSelectedSlot(i) },
+          slots.map((slot, i) => {
+            const isEmpty = !slot || slot.itemId === '0xFFFE' || slot.itemId === '0xFFFF';
+            return h('div', { key: i, className: 'vedit-clothes-slot-wrap', onClick: () => setSelectedSlot(i) },
               h('span', { className: 'vedit-clothes-slot-label' }, CLOTHES_SLOTS[i]),
-              h('div', { className: `vedit-inv-slot${selectedSlot === i ? ' is-selected' : ''}` },
-                slot && slot.imageUrl
+              h('div', { className: `vedit-inv-slot${selectedSlot === i ? ' is-selected' : ''}${isEmpty ? ' is-empty-slot' : ''}` },
+                slot && !isEmpty && slot.imageUrl
                   ? h('img', { className: 'vedit-inv-img vedit-clothes-img', src: slot.imageUrl, alt: slot.name || '' })
-                  : null
+                  : slot && !isEmpty
+                    ? h('span', { className: 'vedit-inv-slot-label' }, slot.name || slot.itemId || '')
+                    : null
               )
-            )
-          )
+            );
+          })
         ),
         h('div', { className: 'vedit-inv-left-actions' },
           h('button', { type: 'button', className: 'action-btn vmod-btn-sm' }, 'Clear'),
@@ -549,7 +552,7 @@
       h('div', { className: 'vedit-inv-detail' },
         h('div', { className: 'vedit-inv-preview' }),
         h('div', { className: 'vedit-inv-name-row' },
-          h('span', { className: 'vedit-inv-name-text' }, sel ? (sel.name || '(None)') : '(None)')
+          h('span', { className: 'vedit-inv-name-text' }, sel ? (sel.name || sel.itemId || '(None)') : '(None)')
         ),
         h('div', { className: 'vedit-clothes-slot-type' }, CLOTHES_SLOTS[selectedSlot] || ''),
         [['ItemID', count, setCount], ['Flag0', flag0, setFlag0], ['Flag1', flag1, setFlag1]].map(([label, val, setter]) =>
@@ -808,7 +811,7 @@
 
   function EditView({ v, onBack }) {
     const [activeTab, setActiveTab] = useState('furniture');
-    const iconUrl = `/api/villager-icon/${v.name}?v=2`;
+    const iconUrl = v.imageUrl || `/api/villager-icon/${encodeURIComponent(v.name || '')}?v=2`;
     const friendshipVal = v.friendship || 0;
     const friendshipBarPct = friendshipVal === 0 ? 5 : Math.round((friendshipVal / 255) * 100);
 

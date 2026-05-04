@@ -735,5 +735,7 @@ module.exports = {
   buildCatalogStatusResponse,
   listStarterItemsWithPreview,
   lookupCatalogItems,
-  searchCatalogItems
+  searchCatalogItems,
+  findCatalogItemByName,
+  mergeCatalogItems
 }

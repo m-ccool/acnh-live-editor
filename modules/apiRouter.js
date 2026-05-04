@@ -8,13 +8,16 @@ const {
   BRIDGE_PORT
 } = require('./bridgeService')
 const {
-  getCatalogDiagnostics
+  getCatalogDiagnostics,
+  getCachedCatalogItems
 } = require('./nookipediaCatalog')
 const {
   buildCatalogStatusResponse,
   listStarterItemsWithPreview,
   lookupCatalogItems,
-  searchCatalogItems
+  searchCatalogItems,
+  findCatalogItemByName,
+  mergeCatalogItems
 } = require('./catalogApi')
 const {
   getMusicLibrary
@@ -42,6 +45,9 @@ function getItemNamesIndex() {
 function enrichVillagerItems(items) {
   if (!Array.isArray(items)) return items
   const index = getItemNamesIndex()
+  const localItems = listStarterItemsWithPreview()
+  const cachedItems = getCachedCatalogItems()
+  const catalogItems = mergeCatalogItems(cachedItems, localItems)
   return items.map(slot => {
     if (!slot || typeof slot !== 'object') return slot
     const rawId = String(slot.itemId || '')
@@ -49,7 +55,12 @@ function enrichVillagerItems(items) {
       ? '0x' + rawId.slice(2).toUpperCase().padStart(4, '0')
       : rawId
     const name = index[hexKey] || null
-    return name ? { ...slot, name } : slot
+    if (!name) return slot
+    const catalogItem = findCatalogItemByName(catalogItems, name)
+    const imageUrl = catalogItem
+      ? (catalogItem.preview_url || catalogItem.icon_url || catalogItem.image_url || null)
+      : null
+    return { ...slot, name, ...(imageUrl ? { imageUrl } : {}) }
   })
 }
 
