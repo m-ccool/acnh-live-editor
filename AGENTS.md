@@ -162,8 +162,16 @@ This response gate is required in every technical answer.
 ## Confirmed Repo Facts
 
 - Windows UI address: `http://10.0.0.25:3000`
-- Steam Deck bridge target host: `10.0.0.25` (set explicitly in `.steamdeck-bridge.env` as `BRIDGE_TARGET_HOST=10.0.0.25`)
+- Windows Wi-Fi IP: `10.0.0.25` (confirmed live, `netstat` shows `0.0.0.0:3000` and `0.0.0.0:32840` LISTENING under PID 93128)
+- Steam Deck IP: `10.0.0.233`
+- Steam Deck SSH key: `C:/Users/mccoo/.ssh/id_ed25519_steamdeck`
+- Steam Deck SSH user: `deck`
+- Steam Deck bridge target host: `10.0.0.25` (set in `.steamdeck-bridge.env` as `BRIDGE_TARGET_HOST=10.0.0.25`)
 - Steam Deck bridge target port: `32840`
+- Bridge confirmed CONNECTED: `10.0.0.233` → `10.0.0.25:32840` (verified May 4 2026)
+- `.steamdeck-bridge.env` is gitignored — must be set directly on Steam Deck; do not commit it
+- Node on Steam Deck: `/home/deck/.nvm/versions/node/v24.14.1/bin/node`
+- Bridge systemd service: `~/.config/systemd/user/acnh-live-bridge.service` (auto-starts on boot, restarts on failure)
 
 ## Verification Discipline
 

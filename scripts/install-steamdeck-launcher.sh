@@ -49,3 +49,40 @@ create_desktop_entry "${APP_FILE}"
 echo "[acnh-bridge] Launcher created: ${DESKTOP_FILE}"
 echo "[acnh-bridge] App entry created: ${APP_FILE}"
 echo "[acnh-bridge] Double-click the Desktop icon to run bridge client."
+
+# ── systemd user service (survives reboot / power-off) ───────────────────────
+SYSTEMD_USER_DIR="${HOME}/.config/systemd/user"
+SERVICE_FILE="${SYSTEMD_USER_DIR}/acnh-live-bridge.service"
+
+mkdir -p "${SYSTEMD_USER_DIR}"
+
+cat > "${SERVICE_FILE}" <<EOF
+[Unit]
+Description=ACNH Live Bridge Client
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=${REPO_DIR}
+ExecStart=/bin/bash ${REPO_DIR}/scripts/steamdeck-run-bridge.sh
+Restart=on-failure
+RestartSec=30
+StandardOutput=append:${HOME}/.acnh-live-bridge.log
+StandardError=append:${HOME}/.acnh-live-bridge.log
+Environment=HOME=${HOME}
+
+[Install]
+WantedBy=default.target
+EOF
+
+systemctl --user daemon-reload
+systemctl --user enable acnh-live-bridge.service
+
+# Allow the user service to run without an active login session (survives power-off/reboot)
+loginctl enable-linger deck 2>/dev/null || true
+
+echo "[acnh-bridge] systemd user service installed: ${SERVICE_FILE}"
+echo "[acnh-bridge] Service will auto-start on next boot and restart on failure."
+echo "[acnh-bridge] To start now: systemctl --user start acnh-live-bridge"
+echo "[acnh-bridge] To check status: systemctl --user status acnh-live-bridge"
