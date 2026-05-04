@@ -346,6 +346,46 @@ function createApiRouter(options = {}) {
     res.json({ ok: true, path: dir })
   })
 
+  // Push local commits, pull to Steam Deck, restart bridge
+  router.post('/api/deploy', (req, res) => {
+    const path = require('path')
+    const { execFile } = require('child_process')
+    const repoRoot = path.join(__dirname, '..')
+    const SSH_KEY  = process.env.STEAMDECK_SSH_KEY  || 'C:/Users/mccoo/.ssh/id_ed25519_steamdeck'
+    const DECK_HOST = process.env.STEAMDECK_HOST    || 'deck@10.0.0.233'
+    const SSH_OPTS  = ['-i', SSH_KEY, '-o', 'ConnectTimeout=10', '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=no']
+
+    const steps = []
+    function runStep(file, args, opts = {}) {
+      return new Promise(resolve => {
+        execFile(file, args, { cwd: repoRoot, timeout: 30000, ...opts }, (err, stdout, stderr) => {
+          const out = ((stdout || '') + (stderr || '')).trim().slice(0, 800)
+          resolve({ ok: !err, out, code: err ? (err.code || 1) : 0 })
+        })
+      })
+    }
+
+    ;(async () => {
+      const push = await runStep('git', ['push', 'origin', 'dev'])
+      steps.push({ step: 'git push', ...push })
+      if (!push.ok) return res.json({ ok: false, steps })
+
+      const pull = await runStep('ssh', [
+        ...SSH_OPTS, DECK_HOST,
+        'cd ~/acnh-live-editor && git pull --ff-only origin dev 2>&1'
+      ])
+      steps.push({ step: 'deck pull', ...pull })
+
+      const restart = await runStep('ssh', [
+        ...SSH_OPTS, DECK_HOST,
+        'systemctl --user restart acnh-live-bridge 2>/dev/null || (pkill -f steamdeck-bridge-client 2>/dev/null; true)'
+      ])
+      steps.push({ step: 'bridge restart', ...restart })
+
+      res.json({ ok: true, steps })
+    })().catch(err => res.status(500).json({ ok: false, error: err.message, steps }))
+  })
+
   return router
 }
 

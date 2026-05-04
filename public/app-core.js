@@ -3,7 +3,7 @@
 const TOTAL_SLOTS = 40;
 const STORAGE_KEY = 'acnh-live-editor-state-v5';
 const REPO_URL = 'https://github.com/m-ccool/acnh-live-editor';
-const SERVICE_WORKER_VERSION = '70';
+const SERVICE_WORKER_VERSION = '73';
 const PLAY_ICON_PATH = '/assets/icons/line-md--pause-to-play-filled-transition.svg';
 const PAUSE_ICON_PATH = '/assets/icons/line-md--pause.svg';
 const CONSOLE_CONNECTED_ICON_PATH = '/assets/icons/codicon--debug-connect.svg';
@@ -212,6 +212,28 @@ const state = {
 
 const el = {};
 
+async function handleDeployClick() {
+  if (!el.deployButton || el.deployButton.disabled) return;
+  const label = document.getElementById('deploy-button-label');
+  el.deployButton.disabled = true;
+  el.deployButton.classList.add('is-busy');
+  if (label) label.textContent = '⏳ Deploying…';
+  try {
+    const res = await fetch('/api/deploy', { method: 'POST', cache: 'no-store' });
+    const data = await res.json();
+    if (label) label.textContent = data.ok ? '✓ Connected' : '✗ Failed';
+    if (data.steps) data.steps.forEach(s => console.log(`[deploy] ${s.step}: ${s.ok ? 'ok' : 'fail'} — ${s.out}`));
+  } catch (err) {
+    if (label) label.textContent = '✗ Error';
+    console.error('[deploy]', err);
+  }
+  el.deployButton.classList.remove('is-busy');
+  setTimeout(() => {
+    if (label) label.textContent = '⚡ Deploy';
+    if (el.deployButton) el.deployButton.disabled = false;
+  }, 3000);
+}
+
 document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
@@ -298,6 +320,7 @@ function cacheDom() {
   el.shortcutColumn = document.getElementById('shortcut-column');
   el.quickCheatControls = document.getElementById('quick-cheat-controls');
 
+  el.deployButton = document.getElementById('deploy-button');
   el.settingsButton = document.getElementById('settings-button');
   el.settingsModal = document.getElementById('settings-modal');
   el.settingsClose = document.getElementById('settings-close');
@@ -374,6 +397,7 @@ function cacheDom() {
 }
 
 function bindEvents() {
+  if (el.deployButton) el.deployButton.addEventListener('click', handleDeployClick);
   el.settingsButton.addEventListener('click', () => {
     openModal(el.settingsModal);
     refreshCatalogDiagnostics();

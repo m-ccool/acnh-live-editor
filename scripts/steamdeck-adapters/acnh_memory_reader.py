@@ -1260,6 +1260,18 @@ _GSAVE_FRIENDSHIP_OFF      = 0x42             # uint8
 _VILLAGER2_FLAGS_OFF       = 0x1267C          # ushort[256] array; NHSE defines 81 named entries (0x050 max)
 _VILLAGER2_FLAGS_COUNT     = 81               # Covers all NHSE-named flags (index 0..80)
 
+# Villager2 sub-struct offsets — confirmed from NHSE Villager2.cs / VillagerItem.cs (2.0.7)
+_VILLAGER2_WEAR_OFF        = 0x1094c   # WearStockList: 24 × VillagerItem(0x2C)
+_VILLAGER2_WEAR_COUNT      = 24
+_VILLAGER2_FTR_OFF         = 0x10d6c   # FtrStockList: 32 × VillagerItem(0x2C)
+_VILLAGER2_FTR_COUNT       = 32
+_VILLAGER_ITEM_SIZE        = 0x2C      # VillagerItem.SIZE = Item(0x8) + 9×uint32
+_VILLAGER2_ROOM_OFF        = 0x12880   # GSaveRoomFloorWall, size 0x24
+_VILLAGER2_DIY_HOUR_OFF    = 0x13151   # DIYEndHour  (byte)
+_VILLAGER2_DIY_MIN_OFF     = 0x13152   # DIYEndMinute (byte)
+_VILLAGER2_DIY_SEC_OFF     = 0x13153   # DIYEndSecond (byte)
+_VILLAGER2_DIY_RECIPE_OFF  = 0x13154   # DIYRecipeIndex (uint16 LE)
+
 # Offset of the 10-slot villager array within decrypted main.dat
 # Confirmed via ryujinx-save Node.js decrypt + "cha"/"cardio" catchphrase search.
 _VILLAGER2_ARRAY_FILE_OFFSET = 0x120
@@ -1801,6 +1813,37 @@ def _find_villager_array_procmem(pid, dram_base):
     return best_va
 
 
+# ---------------------------------------------------------------------------
+# VillagerItem helpers (furniture / clothes lists)
+# ---------------------------------------------------------------------------
+
+def _read_villager_items_from_bytes(data: bytes, base: int, count: int) -> list:
+    """Read `count` VillagerItem(0x2C) entries from save bytes starting at `base`."""
+    items = []
+    for i in range(count):
+        off = base + i * _VILLAGER_ITEM_SIZE
+        item_id = struct.unpack_from('<H', data, off)[0]
+        flag0   = struct.unpack_from('<H', data, off + 2)[0]
+        flag1   = struct.unpack_from('<H', data, off + 4)[0]
+        items.append({'itemId': f'0x{item_id:04X}', 'flag0': flag0, 'flag1': flag1})
+    return items
+
+
+def _read_villager_items_from_mem(pid, dram_base, va: int, count: int) -> list:
+    """Read `count` VillagerItem(0x2C) entries from live Ryujinx memory at Switch VA `va`."""
+    items = []
+    for i in range(count):
+        try:
+            raw = _read_switch_va(pid, dram_base, va + i * _VILLAGER_ITEM_SIZE, _VILLAGER_ITEM_SIZE)
+            item_id = struct.unpack_from('<H', raw)[0]
+            flag0   = struct.unpack_from('<H', raw, 2)[0]
+            flag1   = struct.unpack_from('<H', raw, 4)[0]
+            items.append({'itemId': f'0x{item_id:04X}', 'flag0': flag0, 'flag1': flag1})
+        except Exception:
+            items.append({'itemId': '0xFFFE', 'flag0': 0, 'flag1': 0})
+    return items
+
+
 def _read_one_villager(pid, dram_base, slot_va, slot_index):
     """Read a single Villager2 struct from live memory and return a dict."""
     try:
@@ -1871,6 +1914,64 @@ def _read_one_villager(pid, dram_base, slot_va, slot_index):
     # Image URL: acnhcdn.com public CDN — no auth required
     img_url = f'https://acnhcdn.com/latest/NpcIcon/{display_name}.png' if display_name else None
 
+    # Furniture (FtrStockList: 32 × VillagerItem at slot_va+0x10d6c)
+    try:
+        furniture = _read_villager_items_from_mem(pid, dram_base, slot_va + _VILLAGER2_FTR_OFF, _VILLAGER2_FTR_COUNT)
+    except Exception:
+        furniture = []
+
+    # Clothes (WearStockList: 24 × VillagerItem at slot_va+0x1094c)
+    try:
+        clothes = _read_villager_items_from_mem(pid, dram_base, slot_va + _VILLAGER2_WEAR_OFF, _VILLAGER2_WEAR_COUNT)
+    except Exception:
+        clothes = []
+
+    # Room (GSaveRoomFloorWall at slot_va+0x12880)
+    try:
+        room_raw = _read_switch_va(pid, dram_base, slot_va + _VILLAGER2_ROOM_OFF, 0x24)
+        room = {
+            'accentWallDesignId': struct.unpack_from('<H', room_raw, 0x18)[0],
+            'accentWallDirection': room_raw[0x1e],
+            'wallDesignId':        struct.unpack_from('<H', room_raw, 0x1a)[0],
+            'wallInfoBit':         room_raw[0x1f],
+            'floorDesignId':       struct.unpack_from('<H', room_raw, 0x1c)[0],
+            'floorDirection':      room_raw[0x20],
+        }
+    except Exception:
+        room = {}
+
+    # DIY crafting timer
+    try:
+        diy_raw = _read_switch_va(pid, dram_base, slot_va + _VILLAGER2_DIY_HOUR_OFF, 6)
+        diy_hour, diy_min, diy_sec = diy_raw[0], diy_raw[1], diy_raw[2]
+        diy_recipe = struct.unpack_from('<H', diy_raw, 3)[0]
+        diy = {
+            'isCrafting':    bool(diy_recipe),
+            'craftingUntil': f'{diy_hour:02d}:{diy_min:02d}:{diy_sec:02d}' if diy_recipe else '',
+            'recipeIndex':   diy_recipe,
+        }
+    except Exception:
+        diy = {}
+
+    # Player memory (GSaveMemory[0..7])
+    try:
+        playerMemory = []
+        for pi in range(8):
+            gb = gsave0_base + pi * _GSAVE_SIZE
+            try:
+                pname_r = _read_switch_va(pid, dram_base, gb + _GSAVE_PLAYERNAME_OFF, 20)
+                tname_r = _read_switch_va(pid, dram_base, gb + _GSAVE_TOWNNAME_OFF,   20)
+                fs_r    = _read_switch_va(pid, dram_base, gb + _GSAVE_FRIENDSHIP_OFF,  1)
+                playerMemory.append({
+                    'playerName': _read_utf16le(pname_r, 10),
+                    'townName':   _read_utf16le(tname_r, 10),
+                    'friendship': fs_r[0],
+                })
+            except Exception:
+                playerMemory.append({'playerName': '', 'townName': '', 'friendship': 0})
+    except Exception:
+        playerMemory = []
+
     return {
         'slot':         slot_index,
         'empty':        False,
@@ -1891,6 +1992,12 @@ def _read_one_villager(pid, dram_base, slot_va, slot_index):
         'flags':        flags,
         'house':        {},
         'imageUrl':     img_url,
+        'furniture':    furniture,
+        'clothes':      clothes,
+        'room':         room,
+        'diy':          diy,
+        'designs':      [],
+        'playerMemory': playerMemory,
     }
 
 
@@ -1950,6 +2057,58 @@ def _read_one_villager_from_save(data: bytes, slot_index: int) -> dict:
 
     img_url = f'https://acnhcdn.com/latest/NpcIcon/{display_name}.png' if display_name else None
 
+    # Furniture (FtrStockList: 32 × VillagerItem at off+0x10d6c)
+    try:
+        furniture = _read_villager_items_from_bytes(data, off + _VILLAGER2_FTR_OFF, _VILLAGER2_FTR_COUNT)
+    except Exception:
+        furniture = []
+
+    # Clothes (WearStockList: 24 × VillagerItem at off+0x1094c)
+    try:
+        clothes = _read_villager_items_from_bytes(data, off + _VILLAGER2_WEAR_OFF, _VILLAGER2_WEAR_COUNT)
+    except Exception:
+        clothes = []
+
+    # Room (GSaveRoomFloorWall at off+0x12880, size 0x24)
+    try:
+        r = off + _VILLAGER2_ROOM_OFF
+        room = {
+            'accentWallDesignId': struct.unpack_from('<H', data, r + 0x18)[0],
+            'accentWallDirection': data[r + 0x1e],
+            'wallDesignId':        struct.unpack_from('<H', data, r + 0x1a)[0],
+            'wallInfoBit':         data[r + 0x1f],
+            'floorDesignId':       struct.unpack_from('<H', data, r + 0x1c)[0],
+            'floorDirection':      data[r + 0x20],
+        }
+    except Exception:
+        room = {}
+
+    # DIY crafting timer (bytes at off+0x13151..0x13155)
+    try:
+        diy_hour   = data[off + _VILLAGER2_DIY_HOUR_OFF]
+        diy_min    = data[off + _VILLAGER2_DIY_MIN_OFF]
+        diy_sec    = data[off + _VILLAGER2_DIY_SEC_OFF]
+        diy_recipe = struct.unpack_from('<H', data, off + _VILLAGER2_DIY_RECIPE_OFF)[0]
+        diy = {
+            'isCrafting':    bool(diy_recipe),
+            'craftingUntil': f'{diy_hour:02d}:{diy_min:02d}:{diy_sec:02d}' if diy_recipe else '',
+            'recipeIndex':   diy_recipe,
+        }
+    except Exception:
+        diy = {}
+
+    # Player memory (GSaveMemory[0..7] — friendship per player slot)
+    try:
+        playerMemory = []
+        for pi in range(8):
+            gb = off + _VILLAGER2_GSAVE0_OFF + pi * _GSAVE_SIZE
+            pname = _read_utf16le(data[gb + _GSAVE_PLAYERNAME_OFF: gb + _GSAVE_PLAYERNAME_OFF + 20], 10)
+            tname = _read_utf16le(data[gb + _GSAVE_TOWNNAME_OFF:   gb + _GSAVE_TOWNNAME_OFF + 20],   10)
+            fs_val = data[gb + _GSAVE_FRIENDSHIP_OFF]
+            playerMemory.append({'playerName': pname, 'townName': tname, 'friendship': fs_val})
+    except Exception:
+        playerMemory = []
+
     return {
         'slot':            slot_index + 1,
         'empty':           False,
@@ -1970,6 +2129,12 @@ def _read_one_villager_from_save(data: bytes, slot_index: int) -> dict:
         'flags':           flags,
         'house':           house,
         'imageUrl':        img_url,
+        'furniture':       furniture,
+        'clothes':         clothes,
+        'room':            room,
+        'diy':             diy,
+        'designs':         [],
+        'playerMemory':    playerMemory,
     }
 
 

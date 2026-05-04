@@ -925,6 +925,26 @@ body.modal-open .app-shell {
   gap: 12px;
 }
 
+/* ── Deploy button ───────────────────────────────────────────────────────── */
+.deploy-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--ease), opacity var(--ease);
+  white-space: nowrap;
+}
+.deploy-button:hover { background: rgba(255,255,255,0.12); }
+.deploy-button:disabled,
+.deploy-button.is-busy { opacity: 0.55; cursor: not-allowed; }
+
 .debug-reload-tab {
   position: fixed;
   top: 18vh;
