@@ -117,8 +117,7 @@
     { key: 'buildPlayer',       label: 'BuildPlayer',       type: 'number', def: -1 },
   ];
 
-  const EDIT_TABS        = ['inventory', 'room', 'designs', 'player'];
-  const EDIT_TAB_LABELS  = { inventory: 'Inventory', room: 'Room', designs: 'Designs', player: 'Player Mem' };
+  const EDIT_TABS = ['furniture', 'clothes', 'room', 'designs', 'memories', 'DIY timer'];
 
   const ROOM_FIELDS = [
     { label: 'Accent Wall', designKey: 'accentWallDesignId', extraKey: 'accentWallDirection', extraLabel: 'Direction' },
@@ -670,7 +669,7 @@
   // ── EditView ──────────────────────────────────────────────────────────────
 
   function EditView({ v, onBack }) {
-    const [activeTab, setActiveTab] = useState('inventory');
+    const [activeTab, setActiveTab] = useState('furniture');
     const iconUrl = `/api/villager-icon/${v.name}?v=2`;
     const friendshipVal = v.friendship || 0;
     const friendshipBarPct = friendshipVal === 0 ? 5 : Math.round((friendshipVal / 255) * 100);
@@ -700,15 +699,16 @@
               role: 'tab',
               'aria-selected': activeTab === tab,
               onClick: () => setActiveTab(tab),
-            }, EDIT_TAB_LABELS[tab] || tab)
+            }, tab)
           )
         ),
         h('div', { className: 'vmod-edit-panel vedit-panel' },
-          activeTab === 'inventory' ? h(InventoryPanel,  { furniture:     v.furniture     }) :
-          activeTab === 'room'      ? h(RoomPanel,       { room:          v.room          }) :
-          activeTab === 'designs'   ? h(DesignsPanel,    { designs:       v.designs       }) :
-          activeTab === 'player'    ? h(PlayerPanel,     { playerMemory:  v.playerMemory  }) :
-          null
+          activeTab === 'furniture' ? h(InventoryPanel, { furniture: v.furniture }) :
+          activeTab === 'clothes'   ? h(InventoryPanel, { furniture: v.clothes   }) :
+          activeTab === 'room'      ? h(RoomPanel,      { room:      v.room      }) :
+          activeTab === 'designs'   ? h(DesignsPanel,   { designs:   v.designs   }) :
+          activeTab === 'memories'  ? h(PlayerPanel,    { playerMemory: v.playerMemory }) :
+          h('div', { className: 'vmod-edit-panel' }, h('p', { className: 'vmod-edit-stub' }, `${activeTab} — coming soon`))
         )
       ),
       h('div', { className: 'villager-modal-footer vmod-subview-footer' },
