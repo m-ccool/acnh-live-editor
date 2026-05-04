@@ -368,13 +368,15 @@ function createApiRouter(options = {}) {
     }
 
     ;(async () => {
-      // Single SSH connection: pull + kill old bridge + start new bridge
+      // Single SSH connection: pull + restart via systemd (D-Bus env required for SSH sessions)
       const combined = await runStep(SSH_EXE, [
         ...SSH_OPTS, DECK_HOST,
         'cd ~/acnh-live-editor' +
         ' && (git pull --ff-only origin dev 2>&1 || true)' +
-        ' ; pkill -f "[b]ridge-client" 2>/dev/null || true' +
-        ' ; nohup bash ~/acnh-live-editor/scripts/steamdeck-run-bridge.sh >/tmp/bridge.log 2>&1 </dev/null & echo ok'
+        ' ; export XDG_RUNTIME_DIR=/run/user/$(id -u)' +
+        ' ; export DBUS_SESSION_BUS_ADDRESS=unix:path=$XDG_RUNTIME_DIR/bus' +
+        ' ; systemctl --user restart acnh-live-bridge' +
+        ' && echo "systemd restarted"'
       ])
       steps.push({ step: 'deck pull + bridge restart', ...combined })
       res.json({ ok: combined.ok, steps })
