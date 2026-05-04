@@ -347,7 +347,7 @@ function createApiRouter(options = {}) {
   })
 
   // Push local commits, pull to Steam Deck, restart bridge
-  // Connect Bridge: git pull on Deck + bridge restart (catch-all reconnect)
+  // Connect Bridge: git pull on Deck + bridge restart in ONE SSH connection
   router.post('/api/connect-bridge', (req, res) => {
     const { execFile } = require('child_process')
     const path = require('path')
@@ -358,7 +358,7 @@ function createApiRouter(options = {}) {
     const SSH_OPTS  = ['-i', SSH_KEY, '-o', 'ConnectTimeout=15', '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=no']
 
     const steps = []
-    function runStep(file, args, timeoutMs = 35000) {
+    function runStep(file, args, timeoutMs = 40000) {
       return new Promise(resolve => {
         execFile(file, args, { cwd: repoRoot, timeout: timeoutMs }, (err, stdout, stderr) => {
           const out = ((stdout || '') + (stderr || '')).trim().slice(0, 800)
@@ -368,24 +368,18 @@ function createApiRouter(options = {}) {
     }
 
     ;(async () => {
-      // Step 1: pull latest code on Deck
-      const pull = await runStep(SSH_EXE, [
+      // Single SSH connection: pull + kill old bridge + start new bridge
+      const combined = await runStep(SSH_EXE, [
         ...SSH_OPTS, DECK_HOST,
-        'cd ~/acnh-live-editor && git pull --ff-only origin dev 2>&1 || echo "pull skipped"'
+        'cd ~/acnh-live-editor' +
+        ' && git pull --ff-only origin dev 2>&1 || echo "pull skipped"' +
+        ' ; pkill -f steamdeck-bridge-client 2>/dev/null || true' +
+        ' ; systemctl --user restart acnh-live-bridge 2>/dev/null' +
+        ' || nohup bash ~/acnh-live-editor/scripts/steamdeck-run-bridge.sh >/tmp/bridge.log 2>&1 </dev/null &' +
+        ' ; echo "bridge launch sent"'
       ])
-      steps.push({ step: 'deck pull', ...pull })
-
-      // Step 2: restart bridge (systemd preferred, nohup fallback)
-      const restart = await runStep(SSH_EXE, [
-        ...SSH_OPTS, DECK_HOST,
-        'systemctl --user restart acnh-live-bridge 2>/dev/null || ' +
-        '(pkill -f steamdeck-bridge-client 2>/dev/null; ' +
-        'nohup bash ~/acnh-live-editor/scripts/steamdeck-run-bridge.sh >/tmp/bridge.log 2>&1 </dev/null & disown; ' +
-        'sleep 4; grep -q "connected\\|Connected\\|CONNECTED\\|listening\\|Listening" /tmp/bridge.log && echo "bridge started" || tail -5 /tmp/bridge.log)'
-      ])
-      steps.push({ step: 'bridge restart', ...restart })
-
-      res.json({ ok: restart.ok, steps })
+      steps.push({ step: 'deck pull + bridge restart', ...combined })
+      res.json({ ok: combined.ok, steps })
     })().catch(err => res.status(500).json({ ok: false, error: err.message, steps }))
   })
 
