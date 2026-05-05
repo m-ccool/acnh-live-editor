@@ -182,6 +182,13 @@ This response gate is required in every technical answer.
 - Do not use conditional phrasing for facts already established in context; state established facts directly.
 - Use the Windows UI browser window as the primary validation surface when it is available, inspect rendered outputs there directly, and only send live tests to the running game or project when the user has explicitly authorized the test and the intended live effect has been stated in the work log or response.
 
+## Git Push / Pull Gate
+
+- **Do NOT prompt the user to `git push`, `git pull`, `git pull --ff-only`, sync any machine, or update a remote (Steam Deck, server, etc.) from git UNLESS the user has explicitly confirmed in the active conversation that the code is ready to push/pull.**
+- This applies to all machines: local Windows, Steam Deck, any remote.
+- If a push or pull step is genuinely required to complete the task, stop and ask one concise approval question before including it in instructions.
+- Never bundle a push or pull step silently inside a multi-step command block.
+
 ## Work Integrity
 
 - Preserve existing UI unless explicitly told otherwise.

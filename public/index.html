@@ -14,7 +14,7 @@
   <link rel="icon" type="image/png" href="/assets/icons/Apple_NL_Icon.png" />
   <link rel="manifest" href="./manifest.webmanifest" />
   <meta name="theme-color" content="#09090b" />
-  <link rel="stylesheet" href="./styles.css?v=88" />
+  <link rel="stylesheet" href="./styles.css?v=89" />
 </head>
 <body>
   <div id="loading-screen" class="loading-screen" aria-hidden="true">
@@ -178,6 +178,21 @@
     <section class="player-panel shell-card">
       <div class="player-panel-head">
         <div class="panel-label">Player</div>
+        <div class="player-save-load-bar">
+          <button
+            id="player-load-btn"
+            class="action-btn"
+            type="button"
+            aria-label="Load from save file"
+          >Load</button>
+          <button
+            id="player-save-btn"
+            class="action-btn"
+            type="button"
+            aria-label="Save changes to file"
+            disabled
+          >Save</button>
+        </div>
 
         <div class="player-toolbar">
           <div class="player-toolbar-label">
@@ -341,22 +356,6 @@
         </div>
       </div>
 
-      <div class="player-save-load-bar">
-        <button
-          id="player-load-btn"
-          class="action-btn"
-          type="button"
-          aria-label="Load from save file"
-        >Load</button>
-        <button
-          id="player-save-btn"
-          class="action-btn"
-          type="button"
-          aria-label="Save changes to file"
-          disabled
-        >Save</button>
-      </div>
-
       <div class="player-actions-bar">
         <button
           id="open-selected-search-button"
@@ -367,17 +366,16 @@
           <span class="search-glyph">⌕</span>
           <span>Search</span>
         </button>
+        <span class="presets-label">Presets:</span>
+        <button type="button" class="action-btn preset-btn" id="preset-tools-btn">Tools</button>
+        <button type="button" class="action-btn preset-btn" id="preset-gold-btn">Gold</button>
+        <button type="button" class="action-btn preset-btn" id="preset-materials-btn">Materials</button>
+        <button type="button" class="action-btn preset-btn preset-btn-add" id="preset-custom-btn" title="Custom preset (coming soon)">+</button>
       </div>
 
         <div class="inventory-area">
           <div id="inventory-card" class="inventory-card">
             <div id="inventory-grid" class="inventory-grid"></div>
-          </div>
-
-          <div id="shortcut-column" class="shortcut-column">
-            <button type="button" class="shortcut-btn" data-filter="Tool">tools</button>
-            <button type="button" class="shortcut-btn" data-filter="Material">material</button>
-            <button type="button" class="shortcut-btn" data-filter="Sea creature">sea</button>
           </div>
         </div>
       </section>
@@ -1087,11 +1085,11 @@
   <script defer src="./react/components/ModalFilterButtons.js?v=47"></script>
   <script defer src="./react/components/ModalResultsList.js?v=47"></script>
   <script defer src="./react/components/MusicLibraryOptions.js?v=47"></script>
-  <script defer src="./react/components/VillagerModal.js?v=88"></script>
+  <script defer src="./react/components/VillagerModal.js?v=89"></script>
   <script defer src="./react/renderers.js?v=47"></script>
-  <script defer src="./app-core.js?v=88"></script>
+  <script defer src="./app-core.js?v=89"></script>
   <script defer src="./app-music.js?v=47"></script>
-  <script defer src="./app-workspaces.js?v=88"></script>
+  <script defer src="./app-workspaces.js?v=89"></script>
   <script defer src="./app.js?v=88"></script>
 </body>
 </html>

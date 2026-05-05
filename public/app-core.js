@@ -3,7 +3,7 @@
 const TOTAL_SLOTS = 40;
 const STORAGE_KEY = 'acnh-live-editor-state-v5';
 const REPO_URL = 'https://github.com/m-ccool/acnh-live-editor';
-const SERVICE_WORKER_VERSION = '88';
+const SERVICE_WORKER_VERSION = '89';
 const PLAY_ICON_PATH = '/assets/icons/line-md--pause-to-play-filled-transition.svg';
 const PAUSE_ICON_PATH = '/assets/icons/line-md--pause.svg';
 const CONSOLE_CONNECTED_ICON_PATH = '/assets/icons/codicon--debug-connect.svg';
@@ -208,7 +208,8 @@ const state = {
     library: DEFAULT_MUSIC_LIBRARY.tracks.slice()
   },
   bridgePollIntervalId: null,
-  playerSaveSnapshot: null
+  playerSaveSnapshot: null,
+  villagers: []
 };
 
 const el = {};
@@ -432,6 +433,12 @@ function bindEvents() {
   if (el.deployButton) el.deployButton.addEventListener('click', handleConnectBridgeClick);
   if (el.playerLoadBtn) el.playerLoadBtn.addEventListener('click', handlePlayerLoadClick);
   if (el.playerSaveBtn) el.playerSaveBtn.addEventListener('click', handlePlayerSaveClick);
+  const presetToolsBtn = document.getElementById('preset-tools-btn');
+  const presetGoldBtn = document.getElementById('preset-gold-btn');
+  const presetMaterialsBtn = document.getElementById('preset-materials-btn');
+  if (presetToolsBtn) presetToolsBtn.addEventListener('click', () => applyInventoryPreset('tools'));
+  if (presetGoldBtn) presetGoldBtn.addEventListener('click', () => applyInventoryPreset('gold'));
+  if (presetMaterialsBtn) presetMaterialsBtn.addEventListener('click', () => applyInventoryPreset('materials'));
   el.settingsButton.addEventListener('click', () => {
     openModal(el.settingsModal);
     refreshCatalogDiagnostics();
@@ -1080,9 +1087,9 @@ function renderBridge() {
     let chipClass = 'is-warn';
 
     if (!state.bridge.connected) {
-      chipText = 'Ryujinx: Disconnected';
-      chipTitle = 'Bridge is disconnected';
-      chipClass = 'is-warn';
+      chipText = 'Ryujinx: Offline';
+      chipTitle = 'Bridge is disconnected — Ryujinx status unknown';
+      chipClass = 'is-bad';
     } else if (state.bridge.ryujinxRunning === true) {
       chipText = 'Ryujinx: Running';
       chipTitle = `Ryujinx process detected${state.bridge.ryujinxMatchCount ? ` (${state.bridge.ryujinxMatchCount})` : ''}`;
@@ -1106,8 +1113,8 @@ function renderBridge() {
 
     if (!state.bridge.connected) {
       chipText = 'ACNH Data: Offline';
-      chipTitle = 'Bridge not connected';
-      chipClass = 'is-warn';
+      chipTitle = 'Bridge not connected — game data unavailable';
+      chipClass = 'is-bad';
     } else if (
       state.bridge.gameDataSource === 'unavailable' ||
       state.bridge.gameDataSource === 'none' ||

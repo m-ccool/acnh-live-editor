@@ -177,6 +177,43 @@ async function handlePlayerSaveClick() {
   renderSaveLoadButtons();
 }
 
+// ─── Inventory Presets ────────────────────────────────────────────────────────
+
+const INVENTORY_PRESETS = {
+  tools: [
+    { itemId: 'Golden Axe',          count: 1, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Golden Net',          count: 1, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Golden Rod',          count: 1, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Golden Shovel',       count: 1, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Golden Slingshot',    count: 1, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Golden Watering Can', count: 1, uses: 0, flag0: 0, flag1: 0 },
+  ],
+  gold: Array.from({ length: 10 }, (_, i) => ({ itemId: '99k Bells', count: 1, uses: 0, flag0: 0, flag1: 0 })),
+  materials: [
+    { itemId: 'Wood',        count: 30, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Softwood',    count: 30, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Hardwood',    count: 30, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Clay',        count: 30, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Iron Nugget', count: 30, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Gold Nugget', count: 30, uses: 0, flag0: 0, flag1: 0 },
+  ]
+};
+
+async function applyInventoryPreset(presetKey) {
+  const preset = INVENTORY_PRESETS[presetKey];
+  if (!preset) return;
+  const btn = document.getElementById(`preset-${presetKey}-btn`);
+  if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+  try {
+    for (let i = 0; i < preset.length; i++) {
+      const slot = { slot: i + 1, ...preset[i] };
+      await writeSlotToBridge(slot, `Preset: ${presetKey} slot ${i + 1}`);
+    }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = presetKey.charAt(0).toUpperCase() + presetKey.slice(1); }
+  }
+}
+
 function renderSelectedPreview() {
   const rawPreviewItem = getSelectedPreviewItem();
   const previewItem = rawPreviewItem
@@ -1682,9 +1719,15 @@ async function loadVillagersFromBridge() {
     const data = await res.json();
     if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
     const villagers = (data.payload && data.payload.villagers) ? data.payload.villagers : (data.villagers || []);
+    state.villagers = villagers;
     renderVillagersPanel(villagers);
   } catch (err) {
-    if (roster) roster.innerHTML = `<p class="villager-placeholder" style="color:rgba(255,120,80,0.8)">Error: ${escapeHtml(err.message)}</p>`;
+    // Fall back to last known villager data so data persists while offline
+    if (state.villagers && state.villagers.length > 0) {
+      renderVillagersPanel(state.villagers);
+    } else {
+      if (roster) roster.innerHTML = `<p class="villager-placeholder" style="color:rgba(255,120,80,0.8)">Error: ${escapeHtml(err.message)}</p>`;
+    }
   }
 }
 
