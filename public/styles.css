@@ -3073,6 +3073,83 @@ body:not([data-theme='night']) .modal-filter-btn {
   padding: 4px 0;
 }
 
+/* action-pill: unified pill button for Connect, Settings, Save, Load */
+.action-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 13px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.06);
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s var(--ease), border-color 0.2s var(--ease);
+}
+.action-pill:hover { background: rgba(255,255,255,0.11); border-color: var(--line-strong); }
+.action-pill:disabled, .action-pill.is-busy { opacity: 0.38; cursor: not-allowed; pointer-events: none; }
+.action-pill-icon-only { width: 34px; padding: 0; justify-content: center; }
+.action-pill-sm { height: 28px; padding: 0 10px; font-size: 0.72rem; gap: 5px; }
+.action-pill-icon-img { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* deploy-button: legacy alias */
+.deploy-button { display: flex; align-items: center; gap: 7px; padding: 0 13px; height: 34px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,255,255,0.06); color: #fff; font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: background var(--ease); white-space: nowrap; }
+.deploy-button:hover { background: rgba(255,255,255,0.12); }
+.deploy-button:disabled, .deploy-button.is-busy { opacity: 0.55; cursor: not-allowed; }
+
+/* Bridge status dot */
+.bridge-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--danger, #ff8383);
+  flex-shrink: 0;
+  transition: background 0.4s ease;
+}
+.bridge-dot.is-on {
+  background: var(--good, #8ef4b7);
+  box-shadow: 0 0 5px rgba(142, 244, 183, 0.6);
+}
+
+/* deploy-toast: fixed — renders outside shell-card overflow:hidden */
+.deploy-toast {
+  position: fixed;
+  top: 78px;
+  right: 20px;
+  min-width: 220px;
+  max-width: 380px;
+  background: rgba(10, 12, 22, 0.97);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 0.72rem;
+  font-family: 'SF Mono', 'Consolas', monospace;
+  color: var(--text-muted);
+  white-space: pre;
+  z-index: 2000;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.55);
+}
+.deploy-toast.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* player save/load bar */
+.player-save-load-bar {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
 @media (max-width: 480px) {
   /* Shell: stack art above info */
   .villager-modal-shell {
@@ -4366,85 +4443,7 @@ body:not([data-theme='night']) .action-btn-solid {
   .music-ribbon {
     --music-ribbon-width: min(430px, calc(100vw - 28px));
   }
-
-/* action-pill: unified pill button for Connect, Settings, Save, Load */
-.action-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 34px;
-  padding: 0 13px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: rgba(255,255,255,0.06);
-  color: var(--text);
-  font-size: 0.78rem;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background 0.2s var(--ease), border-color 0.2s var(--ease);
-}
-.action-pill:hover { background: rgba(255,255,255,0.11); border-color: var(--line-strong); }
-.action-pill:disabled, .action-pill.is-busy { opacity: 0.38; cursor: not-allowed; pointer-events: none; }
-.action-pill-icon-only { width: 34px; padding: 0; justify-content: center; }
-.action-pill-sm { height: 28px; padding: 0 10px; font-size: 0.72rem; gap: 5px; }
-.action-pill-icon-img { width: 14px; height: 14px; flex-shrink: 0; }
-
-/* deploy-button: legacy alias */
-.deploy-button { display: flex; align-items: center; gap: 7px; padding: 0 13px; height: 34px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,255,255,0.06); color: #fff; font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: background var(--ease); white-space: nowrap; }
-.deploy-button:hover { background: rgba(255,255,255,0.12); }
-.deploy-button:disabled, .deploy-button.is-busy { opacity: 0.55; cursor: not-allowed; }
-
-/* Bridge status dot */
-.bridge-dot {
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--danger, #ff8383);
-  flex-shrink: 0;
-  transition: background 0.4s ease;
-}
-.bridge-dot.is-on {
-  background: var(--good, #8ef4b7);
-  box-shadow: 0 0 5px rgba(142, 244, 183, 0.6);
-}
-
-/* deploy-toast: fixed — renders outside shell-card overflow:hidden */
-.deploy-toast {
-  position: fixed;
-  top: 78px;
-  right: 20px;
-  min-width: 220px;
-  max-width: 380px;
-  background: rgba(10, 12, 22, 0.97);
-  border: 1px solid var(--line-strong);
-  border-radius: 10px;
-  padding: 10px 14px;
-  font-size: 0.72rem;
-  font-family: 'SF Mono', 'Consolas', monospace;
-  color: var(--text-muted);
-  white-space: pre;
-  z-index: 2000;
-  pointer-events: none;
-  opacity: 0;
-  transform: translateY(-6px);
-  transition: opacity 0.18s ease, transform 0.18s ease;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.55);
-}
-.deploy-toast.is-visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-/* player save/load bar */
-.player-save-load-bar {
-  display: flex;
-  gap: 6px;
-  margin-left: auto;
-}
-
-  .debug-reload-tab {
+  .debug-reload-tab {
     top: 18vh;
   }
 }
