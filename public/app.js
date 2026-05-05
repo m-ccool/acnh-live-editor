@@ -3,19 +3,22 @@
 let bridgeInventorySyncInFlight = false;
 
 function clearLiveGameDataDisplay() {
-  state.player = {
-    ...state.player,
-    name: '',
-    town: '',
-    wallet: 0,
-    bank: 0,
-    miles: 0,
-    avatar: '/assets/items/Bob_NH.png'
-  };
+  // Retain last known player data when bridge goes offline (only clear if never loaded)
+  if (!state.hasEverLoadedBridgeData) {
+    state.player = {
+      ...state.player,
+      name: '',
+      town: '',
+      wallet: 0,
+      bank: 0,
+      miles: 0,
+      avatar: '/assets/items/Bob_NH.png'
+    };
+    renderPlayer();
+  }
   state.inventory = buildInventoryFromBridgeSlots([]);
   state.hasUserSelectedSlot = false;
   state.selectedSlotIndex = findFirstEmptySlotIndex(state.inventory);
-  renderPlayer();
   renderInventory();
   renderSelectedPreview();
   renderClipboardState();
@@ -153,6 +156,7 @@ async function refreshBridgeGameData() {
     }
 
     if (payload && payload.player && typeof payload.player === 'object') {
+      state.hasEverLoadedBridgeData = true;
       state.player = {
         ...state.player,
         name: sanitizeText(payload.player.name, state.player.name),
@@ -163,6 +167,7 @@ async function refreshBridgeGameData() {
         avatar: sanitizeText(payload.player.avatar, state.player.avatar)
       };
       renderPlayer();
+      if (typeof updateSaveLoadButtons === 'function') updateSaveLoadButtons();
     }
 
     if (Array.isArray(payload && payload.slots)) {

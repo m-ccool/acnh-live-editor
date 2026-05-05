@@ -6,7 +6,7 @@
     name="viewport"
     content="width=device-width, initial-scale=1.0, viewport-fit=cover"
   />
-  <title>ACNH Live Editor</title>
+  <title>Data Dash: Animal Crossing</title>
   <meta
     name="description"
     content="ACNH Live Editor — offline inventory MVP for SteamOS and Ryujinx workflow."
@@ -14,7 +14,7 @@
   <link rel="icon" type="image/png" href="/assets/icons/Apple_NL_Icon.png" />
   <link rel="manifest" href="./manifest.webmanifest" />
   <meta name="theme-color" content="#09090b" />
-  <link rel="stylesheet" href="./styles.css?v=87" />
+  <link rel="stylesheet" href="./styles.css?v=88" />
 </head>
 <body>
   <div id="loading-screen" class="loading-screen" aria-hidden="true">
@@ -47,34 +47,46 @@
   <div id="app-root" class="app-shell app-hidden">
     <header class="topbar shell-card">
       <div class="topbar-main">
-        <div class="brand-title">ACNH Live Editor</div>
+        <div class="brand-title">Data Dash: <span class="brand-title-sub">Animal Crossing</span></div>
 
         <div class="brand-subline">
-          <span>Catalog</span>
-          <span id="catalog-status" class="status-pair is-ok">✓</span>
-          <span id="catalog-status-label" class="status-copy">Local</span>
-          <span id="ryujinx-status-chip" class="status-chip is-warn" title="Ryujinx status unknown">Ryujinx: Unknown</span>
-          <span id="acnh-data-status-chip" class="status-chip is-warn" title="ACNH data status unknown">ACNH Data: Unknown</span>
+          <span id="status-pill-api" class="status-pill is-warn" title="API status unknown">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span class="status-pill-label">API</span>
+          </span>
+          <span id="status-pill-system" class="status-pill is-warn" title="Ryujinx status unknown">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span class="status-pill-label">System: Ryujinx</span>
+          </span>
+          <span id="status-pill-game" class="status-pill is-warn" title="Game data unknown">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span class="status-pill-label">Game</span>
+          </span>
         </div>
 
         <div class="brand-datetime" aria-live="polite">
-          <span id="date-display" class="meta-chip">Loading date</span>
-          <span id="time-display" class="meta-chip">Loading time</span>
+          <span id="date-display" class="console-date">Loading date</span>
+          <span id="time-display" class="console-time">Loading time</span>
         </div>
       </div>
 
       <div class="topbar-actions">
         <button
           id="deploy-button"
-          class="deploy-button"
+          class="action-pill"
           type="button"
           aria-label="Connect Steam Deck bridge"
           title="Reconnect Steam Deck bridge via SSH"
         >
           <span id="connect-bridge-dot" class="bridge-dot" aria-hidden="true"></span>
-          <span id="deploy-button-label">⚡ Connect Bridge</span>
+          <img
+            src="/assets/icons/codicon--debug-connect.svg"
+            alt=""
+            class="icon-img icon-white action-pill-icon-img"
+            onerror="this.style.display='none';"
+          />
+          <span id="deploy-button-label">Connect</span>
         </button>
-        <div id="deploy-toast" class="deploy-toast" aria-live="polite"></div>
 
         <button
           id="theme-toggle"
@@ -101,19 +113,22 @@
 
         <button
           id="settings-button"
-          class="icon-button settings-button"
+          class="action-pill action-pill-icon-only"
           type="button"
           aria-label="Open settings"
+          title="Settings"
         >
           <img
             src="/assets/icons/line-md--cog-loop.svg"
             alt=""
-            class="icon-img icon-white"
+            class="icon-img icon-white action-pill-icon-img"
             onerror="this.style.display='none';this.parentNode.textContent='⚙';"
           />
         </button>
       </div>
     </header>
+
+    <div id="deploy-toast" class="deploy-toast" aria-live="polite"></div>
 
     <section class="log-panel shell-card">
       <div class="log-panel-head">
@@ -342,6 +357,40 @@
           <span class="search-glyph">⌕</span>
           <span>Search</span>
         </button>
+
+        <div class="player-save-load-bar">
+          <button
+            id="player-load-btn"
+            class="action-pill action-pill-sm"
+            type="button"
+            aria-label="Load last saved player data"
+            title="Restore player data from last saved state"
+          >
+            <img
+              src="/assets/icons/line-md--downloading.svg"
+              alt=""
+              class="icon-img icon-white action-pill-icon-img"
+              onerror="this.style.display='none';"
+            />
+            <span>Load</span>
+          </button>
+          <button
+            id="player-save-btn"
+            class="action-pill action-pill-sm"
+            type="button"
+            disabled
+            aria-label="Save current player edits"
+            title="Save current player data edits"
+          >
+            <img
+              src="/assets/icons/line-md--uploading-loop.svg"
+              alt=""
+              class="icon-img icon-white action-pill-icon-img"
+              onerror="this.style.display='none';"
+            />
+            <span>Save</span>
+          </button>
+        </div>
       </div>
 
         <div class="inventory-area">
@@ -1062,12 +1111,12 @@
   <script defer src="./react/components/ModalFilterButtons.js?v=47"></script>
   <script defer src="./react/components/ModalResultsList.js?v=47"></script>
   <script defer src="./react/components/MusicLibraryOptions.js?v=47"></script>
-  <script defer src="./react/components/VillagerModal.js?v=87"></script>
+  <script defer src="./react/components/VillagerModal.js?v=88"></script>
   <script defer src="./react/renderers.js?v=47"></script>
-  <script defer src="./app-core.js?v=87"></script>
+  <script defer src="./app-core.js?v=88"></script>
   <script defer src="./app-music.js?v=47"></script>
-  <script defer src="./app-workspaces.js?v=87"></script>
-  <script defer src="./app.js?v=87"></script>
+  <script defer src="./app-workspaces.js?v=88"></script>
+  <script defer src="./app.js?v=88"></script>
 </body>
 </html>
 

@@ -3,7 +3,7 @@
 const TOTAL_SLOTS = 40;
 const STORAGE_KEY = 'acnh-live-editor-state-v5';
 const REPO_URL = 'https://github.com/m-ccool/acnh-live-editor';
-const SERVICE_WORKER_VERSION = '87';
+const SERVICE_WORKER_VERSION = '88';
 const PLAY_ICON_PATH = '/assets/icons/line-md--pause-to-play-filled-transition.svg';
 const PAUSE_ICON_PATH = '/assets/icons/line-md--pause.svg';
 const CONSOLE_CONNECTED_ICON_PATH = '/assets/icons/codicon--debug-connect.svg';
@@ -207,7 +207,8 @@ const state = {
     ...DEFAULT_MUSIC_STATE,
     library: DEFAULT_MUSIC_LIBRARY.tracks.slice()
   },
-  bridgePollIntervalId: null
+  bridgePollIntervalId: null,
+  hasEverLoadedBridgeData: false
 };
 
 const el = {};
@@ -290,11 +291,12 @@ function cacheDom() {
   el.dateDisplay = document.getElementById('date-display');
   el.timeDisplay = document.getElementById('time-display');
 
-  el.catalogStatus = document.getElementById('catalog-status');
-  el.catalogStatusLabel = document.getElementById('catalog-status-label');
+  el.statusPillApi = document.getElementById('status-pill-api');
+  el.statusPillSystem = document.getElementById('status-pill-system');
+  el.statusPillGame = document.getElementById('status-pill-game');
   el.bridgeStatusInline = document.getElementById('bridge-status-inline');
-  el.ryujinxStatusChip = document.getElementById('ryujinx-status-chip');
-  el.acnhDataStatusChip = document.getElementById('acnh-data-status-chip');
+  el.playerSaveBtn = document.getElementById('player-save-btn');
+  el.playerLoadBtn = document.getElementById('player-load-btn');
   el.bridgeStatus = document.getElementById('bridge-status');
   el.logPanelResizeHandle = document.getElementById('log-panel-resize-handle');
   el.ipDisplay = document.getElementById('ip-display');
@@ -691,6 +693,13 @@ function bindEvents() {
   document.addEventListener('keydown', registerMusicInteraction);
 
   window.setInterval(updateClock, 30000);
+
+  if (el.playerSaveBtn) {
+    el.playerSaveBtn.addEventListener('click', savePlayerSnapshot);
+  }
+  if (el.playerLoadBtn) {
+    el.playerLoadBtn.addEventListener('click', loadPlayerSnapshot);
+  }
   state.bridgePollIntervalId = window.setInterval(pollBridgeStatus, 4000);
   window.setInterval(refreshCatalogStatus, 15000);
   window.addEventListener('resize', renderMusicRibbonPosition, { passive: true });
@@ -1052,15 +1061,14 @@ function renderBridge() {
   const catalogReady = state.catalog.searchableCount > 0 || state.items.length > 0;
   const catalogGlyph = getCatalogIndicatorGlyph();
 
-  el.catalogStatus.textContent = catalogGlyph;
-  el.catalogStatus.classList.toggle('is-ok', state.catalog.connectionState === 'live');
-  el.catalogStatus.classList.toggle('is-warn', state.catalog.connectionState === 'syncing' || state.catalog.connectionState === 'cached' || state.catalog.connectionState === 'fallback');
-  el.catalogStatus.classList.toggle('is-bad', state.catalog.connectionState === 'offline');
-  el.catalogStatus.title = state.catalog.message || '';
-
-  if (el.catalogStatusLabel) {
-    el.catalogStatusLabel.textContent = state.catalog.label || 'Local';
-    el.catalogStatusLabel.title = state.catalog.message || '';
+  if (el.statusPillApi) {
+    const apiOk = state.catalog.connectionState === 'live';
+    const apiWarn = ['syncing', 'cached', 'fallback'].includes(state.catalog.connectionState);
+    const apiBad = state.catalog.connectionState === 'offline';
+    el.statusPillApi.classList.toggle('is-ok', apiOk);
+    el.statusPillApi.classList.toggle('is-warn', apiWarn && !apiOk);
+    el.statusPillApi.classList.toggle('is-bad', apiBad);
+    el.statusPillApi.title = state.catalog.message || (apiOk ? 'API live' : (apiBad ? 'API offline' : 'API syncing'));
   }
 
   if (el.bridgeStatusInline) {
@@ -1070,66 +1078,27 @@ function renderBridge() {
     el.bridgeStatusInline.classList.remove('is-warn');
   }
 
-  if (el.ryujinxStatusChip) {
-    let chipText = 'Ryujinx: Unknown';
-    let chipTitle = 'Ryujinx status unknown';
-    let chipClass = 'is-warn';
-
-    if (!state.bridge.connected) {
-      chipText = 'Ryujinx: Disconnected';
-      chipTitle = 'Bridge is disconnected';
-      chipClass = 'is-warn';
-    } else if (state.bridge.ryujinxRunning === true) {
-      chipText = 'Ryujinx: Running';
-      chipTitle = `Ryujinx process detected${state.bridge.ryujinxMatchCount ? ` (${state.bridge.ryujinxMatchCount})` : ''}`;
-      chipClass = 'is-ok';
-    } else if (state.bridge.ryujinxRunning === false) {
-      chipText = 'Ryujinx: Stopped';
-      chipTitle = 'Bridge connected, but no Ryujinx process match was found';
-      chipClass = 'is-bad';
-    }
-
-    el.ryujinxStatusChip.textContent = chipText;
-    el.ryujinxStatusChip.title = chipTitle;
-    el.ryujinxStatusChip.classList.toggle('is-ok', chipClass === 'is-ok');
-    el.ryujinxStatusChip.classList.toggle('is-bad', chipClass === 'is-bad');
-    el.ryujinxStatusChip.classList.toggle('is-warn', chipClass === 'is-warn');
+  if (el.statusPillSystem) {
+    let cls = 'is-warn', title = 'Ryujinx status unknown';
+    if (!state.bridge.connected) { cls = 'is-warn'; title = 'Bridge disconnected'; }
+    else if (state.bridge.ryujinxRunning === true) { cls = 'is-ok'; title = 'Ryujinx running'; }
+    else if (state.bridge.ryujinxRunning === false) { cls = 'is-bad'; title = 'Ryujinx not found'; }
+    el.statusPillSystem.className = 'status-pill ' + cls;
+    const lbl = el.statusPillSystem.querySelector('.status-pill-label');
+    if (lbl) lbl.textContent = 'System: Ryujinx';
+    el.statusPillSystem.title = title;
   }
 
-  if (el.acnhDataStatusChip) {
-    let chipText = 'ACNH Data: Unknown';
-    let chipTitle = 'ACNH data source unknown';
-    let chipClass = 'is-warn';
-
-    if (!state.bridge.connected) {
-      chipText = 'ACNH Data: Offline';
-      chipTitle = 'Bridge not connected';
-      chipClass = 'is-warn';
-    } else if (
-      state.bridge.gameDataSource === 'unavailable' ||
-      state.bridge.gameDataSource === 'none' ||
-      state.bridge.gameDataSource === 'bridge-fallback' ||
-      state.bridge.gameDataSource === 'bridge-memory-tool' ||
-      state.bridge.gameDataSource === 'adapter-memory'
-    ) {
-      chipText = 'ACNH Data: Unavailable';
-      chipTitle = 'Live ACNH game-data is not available from the bridge';
-      chipClass = 'is-warn';
-    } else if (state.bridge.gameDataSource === 'error') {
-      chipText = 'ACNH Data: Error';
-      chipTitle = state.bridge.lastError || 'Data read error';
-      chipClass = 'is-bad';
-    } else if (state.bridge.gameDataSource) {
-      chipText = 'ACNH Data: Live';
-      chipTitle = `Reading ${state.bridge.gameDataSource}`;
-      chipClass = 'is-ok';
-    }
-
-    el.acnhDataStatusChip.textContent = chipText;
-    el.acnhDataStatusChip.title = chipTitle;
-    el.acnhDataStatusChip.classList.toggle('is-ok', chipClass === 'is-ok');
-    el.acnhDataStatusChip.classList.toggle('is-bad', chipClass === 'is-bad');
-    el.acnhDataStatusChip.classList.toggle('is-warn', chipClass === 'is-warn');
+  if (el.statusPillGame) {
+    let cls = 'is-warn', title = 'Game data unknown';
+    if (!state.bridge.connected) { cls = 'is-bad'; title = 'Bridge disconnected'; }
+    else if (state.bridge.gameDataSource === 'error') { cls = 'is-bad'; title = state.bridge.lastError || 'Data error'; }
+    else if (['unavailable', 'none', 'bridge-fallback', 'bridge-memory-tool', 'adapter-memory'].includes(state.bridge.gameDataSource)) { cls = 'is-warn'; title = 'Game data unavailable'; }
+    else if (state.bridge.gameDataSource) { cls = 'is-ok'; title = 'Reading ' + state.bridge.gameDataSource; }
+    el.statusPillGame.className = 'status-pill ' + cls;
+    const lbl = el.statusPillGame.querySelector('.status-pill-label');
+    if (lbl) lbl.textContent = 'Game';
+    el.statusPillGame.title = title;
   }
 
   if (el.connectBridgeDot) {
