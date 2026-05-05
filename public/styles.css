@@ -917,6 +917,112 @@ body.modal-open .app-shell {
   gap: 8px;
 }
 
+.theme-switch {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+  transition: transform 0.18s var(--ease);
+}
+
+.theme-switch:hover {
+  transform: translateY(-1px);
+}
+
+.theme-switch-track {
+  position: relative;
+  min-width: 166px;
+  min-height: 50px;
+  padding: 6px 16px 6px 52px;
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid var(--glass-edge);
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.015)),
+    rgba(255,255,255,0.02);
+  display: flex;
+  align-items: center;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.1),
+    inset 0 -1px 0 rgba(255,255,255,0.015),
+    0 10px 24px rgba(16, 12, 28, 0.08);
+  transition:
+    border-color 0.24s var(--ease),
+    background 0.24s var(--ease),
+    box-shadow 0.24s var(--ease),
+    padding 0.3s var(--ease);
+}
+
+.theme-switch-thumb {
+  position: absolute;
+  top: 5px;
+  left: 6px;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.2), rgba(255,255,255,0.04)),
+    rgba(255,255,255,0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.12),
+    0 10px 26px rgba(18, 14, 28, 0.16);
+  transition: transform 0.34s var(--ease), background 0.24s var(--ease);
+}
+
+.theme-switch-icon {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.theme-switch-copy {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+}
+
+.theme-switch-label {
+  font-size: 0.92rem;
+  color: var(--text);
+}
+
+.theme-switch-hint {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.theme-switch.is-night .theme-switch-track {
+  padding: 6px 52px 6px 18px;
+}
+
+.theme-switch.is-night .theme-switch-thumb {
+  transform: translateX(116px);
+}
+
+body[data-theme='night'] .theme-switch-track {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)),
+    rgba(24, 22, 41, 0.36);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    0 12px 30px rgba(18, 14, 32, 0.18);
+}
+
+body[data-theme='night'] .theme-switch-thumb {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04)),
+    rgba(40, 34, 72, 0.6);
+}
+
+body[data-theme='night'] .theme-switch-hint {
+  color: var(--accent-violet);
+}
+
 .quick-cheat-btn:hover,
 .quick-cheat-btn:focus-visible {
   opacity: 0.82;
@@ -4443,7 +4549,8 @@ body:not([data-theme='night']) .action-btn-solid {
   .music-ribbon {
     --music-ribbon-width: min(430px, calc(100vw - 28px));
   }
-  .debug-reload-tab {
+
+  .debug-reload-tab {
     top: 18vh;
   }
 }
