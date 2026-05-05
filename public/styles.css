@@ -2440,18 +2440,50 @@ body[data-theme='night'] .selected-item-artbox {
   margin-left: 6px;
 }
 
+/* Preset buttons — compact chips with category color tint */
 .preset-btn {
-  min-width: 64px;
-  min-height: 32px;
-  font-size: 0.78rem;
-  padding: 0 12px;
+  min-width: unset;
+  min-height: 28px;
+  height: 28px;
+  padding: 0 9px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.82);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--ease), opacity var(--ease);
 }
+.preset-btn:hover { background: rgba(255,255,255,0.13); }
+.preset-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Per-category color tints */
+.preset-btn[id="preset-tools-btn"]     { background: rgba(255, 180,  60, 0.12); border-color: rgba(255, 180,  60, 0.22); }
+.preset-btn[id="preset-tools-btn"]:hover { background: rgba(255, 180, 60, 0.22); }
+.preset-btn[id="preset-gold-btn"]      { background: rgba(255, 215,   0, 0.12); border-color: rgba(255, 215,   0, 0.22); }
+.preset-btn[id="preset-gold-btn"]:hover  { background: rgba(255, 215,  0, 0.22); }
+.preset-btn[id="preset-materials-btn"] { background: rgba( 98, 214, 111, 0.10); border-color: rgba( 98, 214, 111, 0.20); }
+.preset-btn[id="preset-materials-btn"]:hover { background: rgba(98, 214, 111, 0.20); }
+.preset-btn[id="preset-dye-btn"]       { background: rgba(200,  90, 220, 0.10); border-color: rgba(200,  90, 220, 0.22); }
+.preset-btn[id="preset-dye-btn"]:hover { background: rgba(200, 90, 220, 0.20); }
+.preset-btn[id="preset-trees-btn"]     { background: rgba( 80, 180,  80, 0.10); border-color: rgba( 80, 180,  80, 0.20); }
+.preset-btn[id="preset-trees-btn"]:hover { background: rgba(80, 180,  80, 0.20); }
+.preset-btn[id="preset-bushes-btn"]    { background: rgba( 60, 160, 100, 0.10); border-color: rgba( 60, 160, 100, 0.20); }
+.preset-btn[id="preset-bushes-btn"]:hover { background: rgba(60, 160, 100, 0.20); }
+.preset-btn[id="preset-roses-btn"]     { background: rgba(220,  60,  80, 0.10); border-color: rgba(220,  60,  80, 0.22); }
+.preset-btn[id="preset-roses-btn"]:hover { background: rgba(220, 60,  80, 0.20); }
+.preset-btn[id="preset-tulips-btn"]    { background: rgba(255, 120, 160, 0.10); border-color: rgba(255, 120, 160, 0.22); }
+.preset-btn[id="preset-tulips-btn"]:hover { background: rgba(255, 120, 160, 0.20); }
 
 .preset-btn-add {
-  min-width: 32px;
-  padding: 0 8px;
-  opacity: 0.5;
+  min-width: 28px;
+  width: 28px;
+  padding: 0;
+  opacity: 0.45;
   cursor: not-allowed;
+  font-size: 0.9rem;
 }
 
 .action-btn {

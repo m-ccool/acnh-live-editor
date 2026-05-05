@@ -188,7 +188,7 @@ const INVENTORY_PRESETS = {
     { itemId: 'Golden Slingshot',    count: 1, uses: 0, flag0: 0, flag1: 0 },
     { itemId: 'Golden Watering Can', count: 1, uses: 0, flag0: 0, flag1: 0 },
   ],
-  gold: Array.from({ length: 10 }, (_, i) => ({ itemId: '99k Bells', count: 1, uses: 0, flag0: 0, flag1: 0 })),
+  gold: Array.from({ length: 10 }, () => ({ itemId: '99k Bells', count: 1, uses: 0, flag0: 0, flag1: 0 })),
   materials: [
     { itemId: 'Wood',        count: 30, uses: 0, flag0: 0, flag1: 0 },
     { itemId: 'Softwood',    count: 30, uses: 0, flag0: 0, flag1: 0 },
@@ -196,7 +196,52 @@ const INVENTORY_PRESETS = {
     { itemId: 'Clay',        count: 30, uses: 0, flag0: 0, flag1: 0 },
     { itemId: 'Iron Nugget', count: 30, uses: 0, flag0: 0, flag1: 0 },
     { itemId: 'Gold Nugget', count: 30, uses: 0, flag0: 0, flag1: 0 },
-  ]
+  ],
+  dye: [
+    { itemId: 'Red dye',    count: 5, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Orange dye', count: 5, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Yellow dye', count: 5, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Green dye',  count: 5, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Blue dye',   count: 5, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Purple dye', count: 5, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Pink dye',   count: 5, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Black dye',  count: 5, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'White dye',  count: 5, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Brown dye',  count: 5, uses: 0, flag0: 0, flag1: 0 },
+  ],
+  trees: [
+    { itemId: 'Sapling',       count: 10, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Cedar sapling', count: 10, uses: 0, flag0: 0, flag1: 0 },
+  ],
+  bushes: [
+    { itemId: 'Azalea starts',           count: 5, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Camellia starts',         count: 5, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Hibiscus starts',         count: 5, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Holly starts',            count: 5, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Hydrangea starts',        count: 5, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Sweet olive starts',      count: 5, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Tea olive starts',        count: 5, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Osmanthus starts',        count: 5, uses: 0, flag0: 0, flag1: 0 },
+  ],
+  roses: [
+    { itemId: 'Red-rose bag',    count: 5, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'White-rose bag',  count: 5, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Yellow-rose bag', count: 5, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Pink-rose bag',   count: 5, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Orange-rose bag', count: 5, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Purple-rose bag', count: 5, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Black-rose bag',  count: 5, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Blue-rose bag',   count: 5, uses: 0, flag0: 0, flag1: 0 },
+  ],
+  tulips: [
+    { itemId: 'Red-tulip bag',    count: 5, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'White-tulip bag',  count: 5, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Yellow-tulip bag', count: 5, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Pink-tulip bag',   count: 5, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Orange-tulip bag', count: 5, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Purple-tulip bag', count: 5, uses: 0, flag0: 0, flag1: 0 },
+    { itemId: 'Black-tulip bag',  count: 5, uses: 0, flag0: 0, flag1: 0 },
+  ],
 };
 
 async function applyInventoryPreset(presetKey) {

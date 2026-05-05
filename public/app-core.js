@@ -3,7 +3,7 @@
 const TOTAL_SLOTS = 40;
 const STORAGE_KEY = 'acnh-live-editor-state-v5';
 const REPO_URL = 'https://github.com/m-ccool/acnh-live-editor';
-const SERVICE_WORKER_VERSION = '89';
+const SERVICE_WORKER_VERSION = '90';
 const PLAY_ICON_PATH = '/assets/icons/line-md--pause-to-play-filled-transition.svg';
 const PAUSE_ICON_PATH = '/assets/icons/line-md--pause.svg';
 const CONSOLE_CONNECTED_ICON_PATH = '/assets/icons/codicon--debug-connect.svg';
@@ -439,6 +439,16 @@ function bindEvents() {
   if (presetToolsBtn) presetToolsBtn.addEventListener('click', () => applyInventoryPreset('tools'));
   if (presetGoldBtn) presetGoldBtn.addEventListener('click', () => applyInventoryPreset('gold'));
   if (presetMaterialsBtn) presetMaterialsBtn.addEventListener('click', () => applyInventoryPreset('materials'));
+  const presetDyeBtn = document.getElementById('preset-dye-btn');
+  const presetTreesBtn = document.getElementById('preset-trees-btn');
+  const presetBushesBtn = document.getElementById('preset-bushes-btn');
+  const presetRosesBtn = document.getElementById('preset-roses-btn');
+  const presetTulipsBtn = document.getElementById('preset-tulips-btn');
+  if (presetDyeBtn) presetDyeBtn.addEventListener('click', () => applyInventoryPreset('dye'));
+  if (presetTreesBtn) presetTreesBtn.addEventListener('click', () => applyInventoryPreset('trees'));
+  if (presetBushesBtn) presetBushesBtn.addEventListener('click', () => applyInventoryPreset('bushes'));
+  if (presetRosesBtn) presetRosesBtn.addEventListener('click', () => applyInventoryPreset('roses'));
+  if (presetTulipsBtn) presetTulipsBtn.addEventListener('click', () => applyInventoryPreset('tulips'));
   el.settingsButton.addEventListener('click', () => {
     openModal(el.settingsModal);
     refreshCatalogDiagnostics();
@@ -1070,7 +1080,9 @@ function renderBridge() {
   el.catalogStatus.title = state.catalog.message || '';
 
   if (el.catalogStatusLabel) {
-    el.catalogStatusLabel.textContent = state.catalog.label || 'Local';
+    // Suppress label text when live — the green dot is sufficient
+    const rawLabel = state.catalog.label || 'Local';
+    el.catalogStatusLabel.textContent = rawLabel === 'Live' ? '' : rawLabel;
     el.catalogStatusLabel.title = state.catalog.message || '';
   }
 

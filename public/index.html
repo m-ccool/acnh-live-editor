@@ -6,7 +6,7 @@
     name="viewport"
     content="width=device-width, initial-scale=1.0, viewport-fit=cover"
   />
-  <title>Data Dash: Animal Crossing</title>
+  <title>DOXUi: ACNH</title>
   <meta
     name="description"
     content="ACNH Live Editor — offline inventory MVP for SteamOS and Ryujinx workflow."
@@ -14,7 +14,7 @@
   <link rel="icon" type="image/png" href="/assets/icons/Apple_NL_Icon.png" />
   <link rel="manifest" href="./manifest.webmanifest" />
   <meta name="theme-color" content="#09090b" />
-  <link rel="stylesheet" href="./styles.css?v=89" />
+  <link rel="stylesheet" href="./styles.css?v=90" />
 </head>
 <body>
   <div id="loading-screen" class="loading-screen" aria-hidden="true">
@@ -47,7 +47,7 @@
   <div id="app-root" class="app-shell app-hidden">
     <header class="topbar shell-card">
       <div class="topbar-main">
-        <div class="brand-title">Data Dash: Animal Crossing</div>
+        <div class="brand-title">DOXUi: ACNH</div>
 
         <div class="brand-subline">
           <span id="api-status-pill" class="status-pill is-warn" title="API / Catalog status">
@@ -370,7 +370,12 @@
         <button type="button" class="action-btn preset-btn" id="preset-tools-btn">Tools</button>
         <button type="button" class="action-btn preset-btn" id="preset-gold-btn">Gold</button>
         <button type="button" class="action-btn preset-btn" id="preset-materials-btn">Materials</button>
-        <button type="button" class="action-btn preset-btn preset-btn-add" id="preset-custom-btn" title="Custom preset (coming soon)">+</button>
+        <button type="button" class="action-btn preset-btn" id="preset-dye-btn">Dye</button>
+        <button type="button" class="action-btn preset-btn" id="preset-trees-btn">Trees</button>
+        <button type="button" class="action-btn preset-btn" id="preset-bushes-btn">Bushes</button>
+        <button type="button" class="action-btn preset-btn" id="preset-roses-btn">Roses</button>
+        <button type="button" class="action-btn preset-btn" id="preset-tulips-btn">Tulips</button>
+        <button type="button" class="action-btn preset-btn preset-btn-add" id="preset-custom-btn" title="Custom preset">+</button>
       </div>
 
         <div class="inventory-area">
@@ -1087,9 +1092,9 @@
   <script defer src="./react/components/MusicLibraryOptions.js?v=47"></script>
   <script defer src="./react/components/VillagerModal.js?v=89"></script>
   <script defer src="./react/renderers.js?v=47"></script>
-  <script defer src="./app-core.js?v=89"></script>
+  <script defer src="./app-core.js?v=90"></script>
   <script defer src="./app-music.js?v=47"></script>
-  <script defer src="./app-workspaces.js?v=89"></script>
+  <script defer src="./app-workspaces.js?v=90"></script>
   <script defer src="./app.js?v=88"></script>
 </body>
 </html>
