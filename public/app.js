@@ -3,22 +3,19 @@
 let bridgeInventorySyncInFlight = false;
 
 function clearLiveGameDataDisplay() {
-  // Retain last known player data when bridge goes offline (only clear if never loaded)
-  if (!state.hasEverLoadedBridgeData) {
-    state.player = {
-      ...state.player,
-      name: '',
-      town: '',
-      wallet: 0,
-      bank: 0,
-      miles: 0,
-      avatar: '/assets/items/Bob_NH.png'
-    };
-    renderPlayer();
-  }
+  state.player = {
+    ...state.player,
+    name: '',
+    town: '',
+    wallet: 0,
+    bank: 0,
+    miles: 0,
+    avatar: '/assets/items/Bob_NH.png'
+  };
   state.inventory = buildInventoryFromBridgeSlots([]);
   state.hasUserSelectedSlot = false;
   state.selectedSlotIndex = findFirstEmptySlotIndex(state.inventory);
+  renderPlayer();
   renderInventory();
   renderSelectedPreview();
   renderClipboardState();
@@ -107,7 +104,7 @@ async function refreshBridgeGameData() {
     state.bridge.gameDataSource = 'none';
     state.bridge.lastGameSaveAt = null;
     state.bridge.lastGameDataFilePath = null;
-    clearLiveGameDataDisplay();
+    // Retain last known player/inventory data for offline editing — do not clear
     return false;
   }
 
@@ -156,7 +153,6 @@ async function refreshBridgeGameData() {
     }
 
     if (payload && payload.player && typeof payload.player === 'object') {
-      state.hasEverLoadedBridgeData = true;
       state.player = {
         ...state.player,
         name: sanitizeText(payload.player.name, state.player.name),
@@ -166,8 +162,9 @@ async function refreshBridgeGameData() {
         miles: normalizeWholeNumber(payload.player.miles, state.player.miles),
         avatar: sanitizeText(payload.player.avatar, state.player.avatar)
       };
+      state.playerSaveSnapshot = { ...state.player };
       renderPlayer();
-      if (typeof updateSaveLoadButtons === 'function') updateSaveLoadButtons();
+      if (typeof renderSaveLoadButtons === 'function') renderSaveLoadButtons();
     }
 
     if (Array.isArray(payload && payload.slots)) {

@@ -47,19 +47,20 @@
   <div id="app-root" class="app-shell app-hidden">
     <header class="topbar shell-card">
       <div class="topbar-main">
-        <div class="brand-title">Data Dash: <span class="brand-title-sub">Animal Crossing</span></div>
+        <div class="brand-title">Data Dash: Animal Crossing</div>
 
         <div class="brand-subline">
-          <span id="status-pill-api" class="status-pill is-warn" title="API status unknown">
-            <span class="status-dot" aria-hidden="true"></span>
+          <span id="api-status-pill" class="status-pill is-warn" title="API / Catalog status">
+            <span class="status-pill-dot"></span>
             <span class="status-pill-label">API</span>
+            <span id="catalog-status-label" class="status-pill-value">Local</span>
           </span>
-          <span id="status-pill-system" class="status-pill is-warn" title="Ryujinx status unknown">
-            <span class="status-dot" aria-hidden="true"></span>
+          <span id="ryujinx-status-chip" class="status-pill is-warn" title="System: Ryujinx status unknown">
+            <span class="status-pill-dot"></span>
             <span class="status-pill-label">System: Ryujinx</span>
           </span>
-          <span id="status-pill-game" class="status-pill is-warn" title="Game data unknown">
-            <span class="status-dot" aria-hidden="true"></span>
+          <span id="acnh-data-status-chip" class="status-pill is-warn" title="ACNH data status unknown">
+            <span class="status-pill-dot"></span>
             <span class="status-pill-label">Game</span>
           </span>
         </div>
@@ -73,19 +74,13 @@
       <div class="topbar-actions">
         <button
           id="deploy-button"
-          class="action-pill"
+          class="deploy-button"
           type="button"
           aria-label="Connect Steam Deck bridge"
           title="Reconnect Steam Deck bridge via SSH"
         >
           <span id="connect-bridge-dot" class="bridge-dot" aria-hidden="true"></span>
-          <img
-            src="/assets/icons/codicon--debug-connect.svg"
-            alt=""
-            class="icon-img icon-white action-pill-icon-img"
-            onerror="this.style.display='none';"
-          />
-          <span id="deploy-button-label">Connect</span>
+          <span id="deploy-button-label">🔌 Connect Bridge</span>
         </button>
 
         <button
@@ -113,22 +108,21 @@
 
         <button
           id="settings-button"
-          class="action-pill action-pill-icon-only"
+          class="action-pill-btn"
           type="button"
           aria-label="Open settings"
-          title="Settings"
         >
           <img
             src="/assets/icons/line-md--cog-loop.svg"
             alt=""
-            class="icon-img icon-white action-pill-icon-img"
+            class="icon-img icon-white"
             onerror="this.style.display='none';this.parentNode.textContent='⚙';"
           />
         </button>
+
+        <div id="deploy-toast" class="deploy-toast" aria-live="polite"></div>
       </div>
     </header>
-
-    <div id="deploy-toast" class="deploy-toast" aria-live="polite"></div>
 
     <section class="log-panel shell-card">
       <div class="log-panel-head">
@@ -347,6 +341,22 @@
         </div>
       </div>
 
+      <div class="player-save-load-bar">
+        <button
+          id="player-load-btn"
+          class="action-btn"
+          type="button"
+          aria-label="Load from save file"
+        >Load</button>
+        <button
+          id="player-save-btn"
+          class="action-btn"
+          type="button"
+          aria-label="Save changes to file"
+          disabled
+        >Save</button>
+      </div>
+
       <div class="player-actions-bar">
         <button
           id="open-selected-search-button"
@@ -357,40 +367,6 @@
           <span class="search-glyph">⌕</span>
           <span>Search</span>
         </button>
-
-        <div class="player-save-load-bar">
-          <button
-            id="player-load-btn"
-            class="action-pill action-pill-sm"
-            type="button"
-            aria-label="Load last saved player data"
-            title="Restore player data from last saved state"
-          >
-            <img
-              src="/assets/icons/line-md--downloading.svg"
-              alt=""
-              class="icon-img icon-white action-pill-icon-img"
-              onerror="this.style.display='none';"
-            />
-            <span>Load</span>
-          </button>
-          <button
-            id="player-save-btn"
-            class="action-pill action-pill-sm"
-            type="button"
-            disabled
-            aria-label="Save current player edits"
-            title="Save current player data edits"
-          >
-            <img
-              src="/assets/icons/line-md--uploading-loop.svg"
-              alt=""
-              class="icon-img icon-white action-pill-icon-img"
-              onerror="this.style.display='none';"
-            />
-            <span>Save</span>
-          </button>
-        </div>
       </div>
 
         <div class="inventory-area">

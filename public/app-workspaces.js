@@ -119,6 +119,62 @@ function renderPlayer() {
   el.playerAvatar.src = state.player.avatar
     ? state.player.avatar
     : '/assets/icons/player-silhouette.svg';
+  renderSaveLoadButtons();
+}
+
+function _hasPlayerSaveChanges() {
+  const snap = state.playerSaveSnapshot;
+  if (!snap) return false;
+  const p = state.player;
+  return (
+    String(p.name || '') !== String(snap.name || '') ||
+    String(p.town || '') !== String(snap.town || '') ||
+    Number(p.wallet) !== Number(snap.wallet) ||
+    Number(p.bank) !== Number(snap.bank) ||
+    Number(p.miles) !== Number(snap.miles)
+  );
+}
+
+function renderSaveLoadButtons() {
+  if (!el.playerSaveBtn || !el.playerLoadBtn) return;
+  const hasSnapshot = !!state.playerSaveSnapshot;
+  const hasChanges = _hasPlayerSaveChanges();
+  el.playerSaveBtn.disabled = !hasChanges || !hasSnapshot;
+  el.playerLoadBtn.disabled = false;
+}
+
+async function handlePlayerLoadClick() {
+  if (el.playerLoadBtn) {
+    el.playerLoadBtn.disabled = true;
+    el.playerLoadBtn.textContent = '⏳ Loading…';
+  }
+  try {
+    await refreshBridgeGameData();
+    renderBridge();
+  } catch (e) {
+    console.error(e);
+  }
+  if (el.playerLoadBtn) {
+    el.playerLoadBtn.disabled = false;
+    el.playerLoadBtn.textContent = 'Load';
+  }
+  renderSaveLoadButtons();
+}
+
+async function handlePlayerSaveClick() {
+  if (!_hasPlayerSaveChanges() || !state.playerSaveSnapshot) return;
+  if (el.playerSaveBtn) {
+    el.playerSaveBtn.disabled = true;
+    el.playerSaveBtn.textContent = '⏳ Saving…';
+  }
+  const ok = await writePlayerChanges(state.player, 'Player values saved');
+  if (ok) {
+    state.playerSaveSnapshot = { ...state.player };
+  }
+  if (el.playerSaveBtn) {
+    el.playerSaveBtn.textContent = 'Save';
+  }
+  renderSaveLoadButtons();
 }
 
 function renderSelectedPreview() {
@@ -1648,69 +1704,4 @@ function initVillagersTab() {
   setInterval(() => {
     if (state.activeTab === 'map') refreshBridgeStatus('Map tab auto-refresh');
   }, 30000);
-}
-
-/* ── Player Snapshot Save / Load ─────────────────────────────────────────── */
-const PLAYER_SNAPSHOT_KEY = 'acnh-player-snapshot-v1';
-
-function savePlayerSnapshot() {
-  const snap = {
-    name: state.player.name,
-    town: state.player.town,
-    wallet: state.player.wallet,
-    bank: state.player.bank,
-    miles: state.player.miles,
-    savedAt: new Date().toISOString()
-  };
-  try {
-    localStorage.setItem(PLAYER_SNAPSHOT_KEY, JSON.stringify(snap));
-  } catch (e) {
-    console.error('[save-snapshot]', e);
-  }
-  updateSaveLoadButtons();
-}
-
-function loadPlayerSnapshot() {
-  try {
-    const raw = localStorage.getItem(PLAYER_SNAPSHOT_KEY);
-    if (!raw) return;
-    const snap = JSON.parse(raw);
-    state.player = {
-      ...state.player,
-      name: snap.name != null ? String(snap.name) : state.player.name,
-      town: snap.town != null ? String(snap.town) : state.player.town,
-      wallet: snap.wallet != null ? Number(snap.wallet) : state.player.wallet,
-      bank: snap.bank != null ? Number(snap.bank) : state.player.bank,
-      miles: snap.miles != null ? Number(snap.miles) : state.player.miles
-    };
-    renderPlayer();
-    persistLocalState();
-  } catch (e) {
-    console.error('[load-snapshot]', e);
-  }
-  updateSaveLoadButtons();
-}
-
-function updateSaveLoadButtons() {
-  if (!el.playerSaveBtn || !el.playerLoadBtn) return;
-  const raw = localStorage.getItem(PLAYER_SNAPSHOT_KEY);
-  const snap = raw ? (() => { try { return JSON.parse(raw); } catch (_) { return null; } })() : null;
-  const currentHash = JSON.stringify({
-    name: state.player.name,
-    town: state.player.town,
-    wallet: state.player.wallet,
-    bank: state.player.bank,
-    miles: state.player.miles
-  });
-  const snapHash = snap ? JSON.stringify({
-    name: snap.name,
-    town: snap.town,
-    wallet: snap.wallet,
-    bank: snap.bank,
-    miles: snap.miles
-  }) : null;
-  const hasData = state.hasEverLoadedBridgeData || snap !== null;
-  const hasChanges = snapHash === null || currentHash !== snapHash;
-  el.playerSaveBtn.disabled = !(hasData && hasChanges);
-  el.playerLoadBtn.disabled = snap === null;
 }
