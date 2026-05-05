@@ -2460,31 +2460,228 @@ body[data-theme='night'] .selected-item-artbox {
 .preset-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
 /* Per-category color tints */
-.preset-btn[id="preset-tools-btn"]     { background: rgba(255, 180,  60, 0.12); border-color: rgba(255, 180,  60, 0.22); }
-.preset-btn[id="preset-tools-btn"]:hover { background: rgba(255, 180, 60, 0.22); }
-.preset-btn[id="preset-gold-btn"]      { background: rgba(255, 215,   0, 0.12); border-color: rgba(255, 215,   0, 0.22); }
-.preset-btn[id="preset-gold-btn"]:hover  { background: rgba(255, 215,  0, 0.22); }
-.preset-btn[id="preset-materials-btn"] { background: rgba( 98, 214, 111, 0.10); border-color: rgba( 98, 214, 111, 0.20); }
-.preset-btn[id="preset-materials-btn"]:hover { background: rgba(98, 214, 111, 0.20); }
-.preset-btn[id="preset-dye-btn"]       { background: rgba(200,  90, 220, 0.10); border-color: rgba(200,  90, 220, 0.22); }
-.preset-btn[id="preset-dye-btn"]:hover { background: rgba(200, 90, 220, 0.20); }
-.preset-btn[id="preset-trees-btn"]     { background: rgba( 80, 180,  80, 0.10); border-color: rgba( 80, 180,  80, 0.20); }
-.preset-btn[id="preset-trees-btn"]:hover { background: rgba(80, 180,  80, 0.20); }
-.preset-btn[id="preset-bushes-btn"]    { background: rgba( 60, 160, 100, 0.10); border-color: rgba( 60, 160, 100, 0.20); }
-.preset-btn[id="preset-bushes-btn"]:hover { background: rgba(60, 160, 100, 0.20); }
-.preset-btn[id="preset-roses-btn"]     { background: rgba(220,  60,  80, 0.10); border-color: rgba(220,  60,  80, 0.22); }
-.preset-btn[id="preset-roses-btn"]:hover { background: rgba(220, 60,  80, 0.20); }
-.preset-btn[id="preset-tulips-btn"]    { background: rgba(255, 120, 160, 0.10); border-color: rgba(255, 120, 160, 0.22); }
-.preset-btn[id="preset-tulips-btn"]:hover { background: rgba(255, 120, 160, 0.20); }
+.preset-btn[data-preset="tools"]     { background: rgba(255, 180,  60, 0.12); border-color: rgba(255, 180,  60, 0.22); }
+.preset-btn[data-preset="tools"]:hover { background: rgba(255, 180, 60, 0.22); }
+.preset-btn[data-preset="gold"]      { background: rgba(255, 215,   0, 0.12); border-color: rgba(255, 215,   0, 0.22); }
+.preset-btn[data-preset="gold"]:hover  { background: rgba(255, 215,  0, 0.22); }
+.preset-btn[data-preset="materials"] { background: rgba( 98, 214, 111, 0.10); border-color: rgba( 98, 214, 111, 0.20); }
+.preset-btn[data-preset="materials"]:hover { background: rgba(98, 214, 111, 0.20); }
+.preset-btn[data-preset="dye"]       { background: rgba(200,  90, 220, 0.10); border-color: rgba(200,  90, 220, 0.22); }
+.preset-btn[data-preset="dye"]:hover { background: rgba(200, 90, 220, 0.20); }
+.preset-btn[data-preset="trees"]     { background: rgba( 80, 180,  80, 0.10); border-color: rgba( 80, 180,  80, 0.20); }
+.preset-btn[data-preset="trees"]:hover { background: rgba(80, 180,  80, 0.20); }
+.preset-btn[data-preset="bushes"]    { background: rgba( 60, 160, 100, 0.10); border-color: rgba( 60, 160, 100, 0.20); }
+.preset-btn[data-preset="bushes"]:hover { background: rgba(60, 160, 100, 0.20); }
+.preset-btn[data-preset="roses"]     { background: rgba(220,  60,  80, 0.10); border-color: rgba(220,  60,  80, 0.22); }
+.preset-btn[data-preset="roses"]:hover { background: rgba(220, 60,  80, 0.20); }
+.preset-btn[data-preset="tulips"]    { background: rgba(255, 120, 160, 0.10); border-color: rgba(255, 120, 160, 0.22); }
+.preset-btn[data-preset="tulips"]:hover { background: rgba(255, 120, 160, 0.20); }
 
 .preset-btn-add {
   min-width: 28px;
   width: 28px;
   padding: 0;
-  opacity: 0.45;
-  cursor: not-allowed;
   font-size: 0.9rem;
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.18);
 }
+.preset-btn-add:hover { background: rgba(255,255,255,0.16); }
+
+/* Hidden preset (unpinned from shortcut bar) */
+.preset-btn-hidden { display: none !important; }
+
+/* Long-hold visual feedback */
+@keyframes preset-hold-pulse {
+  0%   { transform: scale(1); }
+  60%  { transform: scale(0.88); }
+  100% { transform: scale(0.88); }
+}
+.preset-btn.is-holding {
+  animation: preset-hold-pulse 0.65s ease forwards;
+  outline: 2px solid rgba(255,255,255,0.35);
+  outline-offset: 2px;
+}
+
+/* ── Preset Manager Modal ─────────────────────────── */
+.modal-card-preset-manager {
+  width: min(560px, 100%);
+}
+.pm-body {
+  padding: 18px 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+  max-height: calc(80vh - 60px);
+}
+.pm-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pm-section-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.pm-hint-inline {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  opacity: 0.65;
+}
+.pm-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 32px;
+  align-items: center;
+}
+.pm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.07);
+  color: rgba(255,255,255,0.82);
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--ease);
+}
+.pm-chip:hover { background: rgba(255,255,255,0.14); }
+.pm-chip-pinned { border-color: rgba(255,255,255,0.26); background: rgba(255,255,255,0.10); }
+.pm-chip-pinned .pm-chip-x { opacity: 0.55; font-size: 0.65rem; }
+.pm-chip-pinned:hover .pm-chip-x { opacity: 1; }
+.pm-chip-available .pm-chip-plus { opacity: 0.7; font-size: 0.8rem; color: var(--good); }
+.pm-empty { font-size: 0.74rem; color: var(--text-muted); opacity: 0.6; font-style: italic; }
+
+/* Create form */
+.pm-create-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.pm-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pm-row-col {
+  flex-direction: column;
+  align-items: flex-start;
+}
+.pm-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  min-width: 48px;
+  white-space: nowrap;
+}
+.pm-input {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  color: rgba(255,255,255,0.9);
+  font-size: 0.8rem;
+  padding: 5px 9px;
+  outline: none;
+  min-width: 0;
+  flex: 1;
+}
+.pm-input:focus { border-color: rgba(255,255,255,0.32); }
+
+/* Color swatches */
+.pm-swatches {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.pm-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background-color: var(--sw-color);
+  cursor: pointer;
+  transition: transform var(--ease), border-color var(--ease);
+}
+.pm-swatch:hover { transform: scale(1.15); }
+.pm-swatch.is-selected {
+  border-color: rgba(255,255,255,0.9);
+  transform: scale(1.2);
+}
+
+/* Item list */
+.pm-item-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  max-height: 140px;
+  overflow-y: auto;
+}
+.pm-item-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.04);
+  font-size: 0.76rem;
+}
+.pm-item-name { flex: 1; color: rgba(255,255,255,0.85); }
+.pm-item-qty  { color: var(--text-muted); font-size: 0.72rem; }
+.pm-item-remove {
+  background: none;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0 2px;
+  opacity: 0.6;
+}
+.pm-item-remove:hover { opacity: 1; }
+
+/* Add item row */
+.pm-item-add-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  margin-top: 6px;
+}
+.pm-item-search-wrap {
+  position: relative;
+  flex: 1;
+}
+.pm-item-query { width: 100%; }
+.pm-item-qty { width: 58px; flex: none; }
+
+/* Autocomplete suggestions */
+.pm-suggestions {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 0;
+  right: 0;
+  z-index: 200;
+  background: rgba(18, 22, 32, 0.97);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+}
+.pm-suggestion-item {
+  padding: 6px 10px;
+  font-size: 0.76rem;
+  color: rgba(255,255,255,0.82);
+  cursor: pointer;
+}
+.pm-suggestion-item:hover { background: rgba(255,255,255,0.09); }
 
 .action-btn {
   min-width: 92px;

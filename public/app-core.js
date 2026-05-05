@@ -3,7 +3,7 @@
 const TOTAL_SLOTS = 40;
 const STORAGE_KEY = 'acnh-live-editor-state-v5';
 const REPO_URL = 'https://github.com/m-ccool/acnh-live-editor';
-const SERVICE_WORKER_VERSION = '90';
+const SERVICE_WORKER_VERSION = '91';
 const PLAY_ICON_PATH = '/assets/icons/line-md--pause-to-play-filled-transition.svg';
 const PAUSE_ICON_PATH = '/assets/icons/line-md--pause.svg';
 const CONSOLE_CONNECTED_ICON_PATH = '/assets/icons/codicon--debug-connect.svg';
@@ -209,7 +209,9 @@ const state = {
   },
   bridgePollIntervalId: null,
   playerSaveSnapshot: null,
-  villagers: []
+  villagers: [],
+  pinnedPresets: JSON.parse(localStorage.getItem('acnh-pinned-presets') || 'null') || ['tools','gold','materials','dye','trees','bushes','roses','tulips'],
+  customPresets: JSON.parse(localStorage.getItem('acnh-custom-presets') || '[]'),
 };
 
 const el = {};
@@ -268,6 +270,7 @@ document.addEventListener('DOMContentLoaded', init);
 async function init() {
   cacheDom();
   bindEvents();
+  renderPresetBar();
   updateClock();
 
   await loadData();
@@ -362,6 +365,8 @@ function cacheDom() {
   el.settingsDebugRefresh = document.getElementById('settings-debug-refresh');
   el.settingsGithubButton = document.getElementById('settings-github-button');
 
+  el.presetManagerModal = document.getElementById('preset-manager-modal');
+
   el.backupsModal = document.getElementById('backups-modal');
   el.backupsList = document.getElementById('backups-list');
   el.backupsCreateBtn = document.getElementById('backups-create-btn');
@@ -429,26 +434,308 @@ function cacheDom() {
   el.tabSessionJson = document.getElementById('tab-session-json');
 }
 
+// ── Preset Manager ─────────────────────────────────────────────────────────
+
+const BUILTIN_PRESET_KEYS = ['tools','gold','materials','dye','trees','bushes','roses','tulips'];
+const BUILTIN_PRESET_LABELS = { tools:'Tools', gold:'Gold', materials:'Materials', dye:'Dye', trees:'Trees', bushes:'Bushes', roses:'Roses', tulips:'Tulips' };
+const PM_SWATCHES = [
+  { label:'Amber',  color:'#ffca50', rgba:'rgba(255,202,80,0.13)'  },
+  { label:'Green',  color:'#62d66f', rgba:'rgba(98,214,111,0.13)'  },
+  { label:'Blue',   color:'#64a0ff', rgba:'rgba(100,160,255,0.13)' },
+  { label:'Purple', color:'#c85adc', rgba:'rgba(200,90,220,0.13)'  },
+  { label:'Pink',   color:'#ff78a0', rgba:'rgba(255,120,160,0.13)' },
+  { label:'Red',    color:'#ff6446', rgba:'rgba(255,100,70,0.13)'  },
+  { label:'Gold',   color:'#ffd700', rgba:'rgba(255,215,0,0.13)'   },
+  { label:'Grey',   color:'#b4b4b4', rgba:'rgba(180,180,180,0.10)' },
+];
+let pmSelectedSwatch = PM_SWATCHES[0];
+let pmItemRows = [];
+
+function savePinnedPresets() {
+  localStorage.setItem('acnh-pinned-presets', JSON.stringify(state.pinnedPresets));
+}
+
+function saveCustomPresets() {
+  localStorage.setItem('acnh-custom-presets', JSON.stringify(state.customPresets));
+}
+
+function getPresetLabel(key) {
+  if (BUILTIN_PRESET_LABELS[key]) return BUILTIN_PRESET_LABELS[key];
+  if (key.startsWith('custom:')) {
+    const cp = state.customPresets.find(p => p.id === key.slice(7));
+    return cp ? cp.name : key;
+  }
+  return key;
+}
+
+function renderPresetBar() {
+  // Show/hide built-in buttons
+  BUILTIN_PRESET_KEYS.forEach(key => {
+    const btn = document.getElementById(`preset-${key}-btn`);
+    if (btn) btn.classList.toggle('preset-btn-hidden', !state.pinnedPresets.includes(key));
+  });
+  // Render custom preset buttons dynamically
+  const container = document.getElementById('preset-custom-bar-items');
+  if (!container) return;
+  container.innerHTML = '';
+  state.pinnedPresets.filter(k => k.startsWith('custom:')).forEach(key => {
+    const id = key.slice(7);
+    const cp = state.customPresets.find(p => p.id === id);
+    if (!cp) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'action-btn preset-btn preset-btn-custom';
+    btn.dataset.preset = key;
+    btn.id = `preset-${key}-btn`;
+    btn.textContent = cp.name;
+    if (cp.swatch) {
+      btn.style.background = cp.swatch.rgba;
+      btn.style.borderColor = cp.swatch.color + '44';
+    }
+    bindPresetLongPress(btn);
+    container.appendChild(btn);
+  });
+}
+
+function bindPresetLongPress(btn) {
+  let lpTimer = null;
+  let lpFired = false;
+  btn.addEventListener('pointerdown', () => {
+    lpFired = false;
+    lpTimer = setTimeout(() => {
+      lpFired = true;
+      btn.classList.remove('is-holding');
+      const key = btn.dataset.preset;
+      const label = getPresetLabel(key);
+      state.pinnedPresets = state.pinnedPresets.filter(k => k !== key);
+      savePinnedPresets();
+      renderPresetBar();
+      showToast(`"${label}" removed — tap + to re-add`);
+    }, 650);
+    btn.classList.add('is-holding');
+  });
+  btn.addEventListener('pointerup', () => {
+    clearTimeout(lpTimer);
+    btn.classList.remove('is-holding');
+    if (!lpFired) applyInventoryPreset(btn.dataset.preset);
+    lpFired = false;
+  });
+  btn.addEventListener('pointerleave', () => {
+    clearTimeout(lpTimer);
+    btn.classList.remove('is-holding');
+    lpFired = false;
+  });
+  btn.addEventListener('contextmenu', e => e.preventDefault());
+}
+
+function initPresetBar() {
+  // Attach long-press + click to all static built-in buttons
+  BUILTIN_PRESET_KEYS.forEach(key => {
+    const btn = document.getElementById(`preset-${key}-btn`);
+    if (btn) bindPresetLongPress(btn);
+  });
+  // "+" opens preset manager
+  const customBtn = document.getElementById('preset-custom-btn');
+  if (customBtn) customBtn.addEventListener('click', openPresetManagerModal);
+}
+
+function openPresetManagerModal() {
+  if (!el.presetManagerModal) return;
+  pmItemRows = [];
+  pmSelectedSwatch = PM_SWATCHES[0];
+  renderPresetManagerModal();
+  openModal(el.presetManagerModal);
+  initPresetItemSearch();
+  initPresetSaveBtn();
+  const closeBtn = document.getElementById('preset-manager-close');
+  if (closeBtn) closeBtn.onclick = () => closeModal(el.presetManagerModal);
+}
+
+function renderPresetManagerModal() {
+  const pinnedContainer = document.getElementById('pm-pinned-chips');
+  const availableContainer = document.getElementById('pm-available-chips');
+
+  // Pinned chips
+  if (pinnedContainer) {
+    pinnedContainer.innerHTML = '';
+    if (state.pinnedPresets.length === 0) {
+      pinnedContainer.innerHTML = '<span class="pm-empty">No presets pinned</span>';
+    } else {
+      state.pinnedPresets.forEach(key => {
+        const label = getPresetLabel(key);
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'pm-chip pm-chip-pinned';
+        chip.dataset.preset = key;
+        chip.innerHTML = `${escapeHtml(label)} <span class="pm-chip-x">✕</span>`;
+        chip.addEventListener('click', () => {
+          state.pinnedPresets = state.pinnedPresets.filter(k => k !== key);
+          savePinnedPresets();
+          renderPresetBar();
+          renderPresetManagerModal();
+        });
+        pinnedContainer.appendChild(chip);
+      });
+    }
+  }
+
+  // Available (unpinned) chips
+  if (availableContainer) {
+    availableContainer.innerHTML = '';
+    const allKeys = [
+      ...BUILTIN_PRESET_KEYS,
+      ...state.customPresets.map(p => `custom:${p.id}`),
+    ];
+    const unpinned = allKeys.filter(k => !state.pinnedPresets.includes(k));
+    if (unpinned.length === 0) {
+      availableContainer.innerHTML = '<span class="pm-empty">All presets are on the shortcut bar</span>';
+    } else {
+      unpinned.forEach(key => {
+        const label = getPresetLabel(key);
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'pm-chip pm-chip-available';
+        chip.innerHTML = `<span class="pm-chip-plus">+</span> ${escapeHtml(label)}`;
+        chip.addEventListener('click', () => {
+          if (!state.pinnedPresets.includes(key)) {
+            state.pinnedPresets.push(key);
+            savePinnedPresets();
+            renderPresetBar();
+            renderPresetManagerModal();
+          }
+        });
+        availableContainer.appendChild(chip);
+      });
+    }
+  }
+
+  renderPresetSwatches();
+}
+
+function renderPresetSwatches() {
+  const container = document.getElementById('pm-swatches');
+  if (!container) return;
+  container.innerHTML = '';
+  PM_SWATCHES.forEach(sw => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'pm-swatch' + (sw === pmSelectedSwatch ? ' is-selected' : '');
+    btn.style.setProperty('--sw-color', sw.color);
+    btn.title = sw.label;
+    btn.addEventListener('click', () => {
+      pmSelectedSwatch = sw;
+      renderPresetSwatches();
+    });
+    container.appendChild(btn);
+  });
+}
+
+function initPresetItemSearch() {
+  const queryInput = document.getElementById('pm-item-query');
+  const suggestionsEl = document.getElementById('pm-item-suggestions');
+  const addBtn = document.getElementById('pm-item-add-btn');
+  if (!queryInput || !suggestionsEl || !addBtn) return;
+
+  // Remove old listeners by replacing elements
+  const newQuery = queryInput.cloneNode(true);
+  queryInput.parentNode.replaceChild(newQuery, queryInput);
+  const newAdd = addBtn.cloneNode(true);
+  addBtn.parentNode.replaceChild(newAdd, addBtn);
+
+  newQuery.addEventListener('input', () => {
+    const q = newQuery.value.trim().toLowerCase();
+    if (q.length < 2) { suggestionsEl.innerHTML = ''; return; }
+    const items = typeof getKnownCatalogItems === 'function'
+      ? getKnownCatalogItems().filter(i => (i.name || '').toLowerCase().includes(q)).slice(0, 12)
+      : [];
+    if (items.length === 0) { suggestionsEl.innerHTML = ''; return; }
+    suggestionsEl.innerHTML = '';
+    items.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'pm-suggestion-item';
+      div.textContent = item.name;
+      div.addEventListener('mousedown', e => {
+        e.preventDefault();
+        newQuery.value = item.name;
+        suggestionsEl.innerHTML = '';
+      });
+      suggestionsEl.appendChild(div);
+    });
+  });
+
+  newQuery.addEventListener('blur', () => {
+    setTimeout(() => { suggestionsEl.innerHTML = ''; }, 160);
+  });
+
+  newAdd.addEventListener('click', () => {
+    const itemId = newQuery.value.trim();
+    if (!itemId) return;
+    if (pmItemRows.length >= 40) { showToast('Max 40 slots'); return; }
+    const qtyInput = document.getElementById('pm-item-qty');
+    const qty = Math.max(1, Math.min(99, parseInt(qtyInput?.value || '1', 10)));
+    pmItemRows.push({ itemId, count: qty, uses: 0, flag0: 0, flag1: 0 });
+    newQuery.value = '';
+    if (qtyInput) qtyInput.value = '1';
+    renderPresetItemList();
+  });
+}
+
+function renderPresetItemList() {
+  const container = document.getElementById('pm-item-list');
+  if (!container) return;
+  container.innerHTML = '';
+  if (pmItemRows.length === 0) {
+    container.innerHTML = '<span class="pm-empty">No items added yet</span>';
+    return;
+  }
+  pmItemRows.forEach((row, i) => {
+    const div = document.createElement('div');
+    div.className = 'pm-item-row';
+    div.innerHTML = `
+      <span class="pm-item-name">${escapeHtml(row.itemId)}</span>
+      <span class="pm-item-qty">×${row.count}</span>
+      <button type="button" class="pm-item-remove" aria-label="Remove">✕</button>
+    `;
+    div.querySelector('.pm-item-remove').addEventListener('click', () => {
+      pmItemRows.splice(i, 1);
+      renderPresetItemList();
+    });
+    container.appendChild(div);
+  });
+}
+
+function initPresetSaveBtn() {
+  const saveBtn = document.getElementById('pm-save-btn');
+  if (!saveBtn) return;
+  const newSave = saveBtn.cloneNode(true);
+  saveBtn.parentNode.replaceChild(newSave, saveBtn);
+  newSave.addEventListener('click', () => {
+    const nameInput = document.getElementById('pm-new-name');
+    const name = nameInput?.value.trim();
+    if (!name) { showToast('Enter a preset name'); return; }
+    if (pmItemRows.length === 0) { showToast('Add at least one item'); return; }
+    const id = `cp_${Date.now()}`;
+    state.customPresets.push({ id, name, swatch: pmSelectedSwatch, slots: [...pmItemRows] });
+    saveCustomPresets();
+    state.pinnedPresets.push(`custom:${id}`);
+    savePinnedPresets();
+    renderPresetBar();
+    pmItemRows = [];
+    pmSelectedSwatch = PM_SWATCHES[0];
+    if (nameInput) nameInput.value = '';
+    renderPresetManagerModal();
+    renderPresetItemList();
+    showToast(`Preset "${escapeHtml(name)}" saved`);
+  });
+}
+
+// ── End Preset Manager ──────────────────────────────────────────────────────
+
 function bindEvents() {
   if (el.deployButton) el.deployButton.addEventListener('click', handleConnectBridgeClick);
   if (el.playerLoadBtn) el.playerLoadBtn.addEventListener('click', handlePlayerLoadClick);
   if (el.playerSaveBtn) el.playerSaveBtn.addEventListener('click', handlePlayerSaveClick);
-  const presetToolsBtn = document.getElementById('preset-tools-btn');
-  const presetGoldBtn = document.getElementById('preset-gold-btn');
-  const presetMaterialsBtn = document.getElementById('preset-materials-btn');
-  if (presetToolsBtn) presetToolsBtn.addEventListener('click', () => applyInventoryPreset('tools'));
-  if (presetGoldBtn) presetGoldBtn.addEventListener('click', () => applyInventoryPreset('gold'));
-  if (presetMaterialsBtn) presetMaterialsBtn.addEventListener('click', () => applyInventoryPreset('materials'));
-  const presetDyeBtn = document.getElementById('preset-dye-btn');
-  const presetTreesBtn = document.getElementById('preset-trees-btn');
-  const presetBushesBtn = document.getElementById('preset-bushes-btn');
-  const presetRosesBtn = document.getElementById('preset-roses-btn');
-  const presetTulipsBtn = document.getElementById('preset-tulips-btn');
-  if (presetDyeBtn) presetDyeBtn.addEventListener('click', () => applyInventoryPreset('dye'));
-  if (presetTreesBtn) presetTreesBtn.addEventListener('click', () => applyInventoryPreset('trees'));
-  if (presetBushesBtn) presetBushesBtn.addEventListener('click', () => applyInventoryPreset('bushes'));
-  if (presetRosesBtn) presetRosesBtn.addEventListener('click', () => applyInventoryPreset('roses'));
-  if (presetTulipsBtn) presetTulipsBtn.addEventListener('click', () => applyInventoryPreset('tulips'));
+  initPresetBar();
   el.settingsButton.addEventListener('click', () => {
     openModal(el.settingsModal);
     refreshCatalogDiagnostics();
@@ -666,7 +953,7 @@ function bindEvents() {
     });
   });
 
-  [el.settingsModal, el.playerModal, el.itemModal, el.backupsModal].forEach((modal) => {
+  [el.settingsModal, el.playerModal, el.itemModal, el.backupsModal, el.presetManagerModal].forEach((modal) => {
     if (!modal) return;
     modal.addEventListener('click', (event) => {
       if (event.target === modal) closeModal(modal);
@@ -685,6 +972,7 @@ function bindEvents() {
       closeModal(el.playerModal);
       closeModal(el.itemModal);
       closeModal(el.backupsModal);
+      closeModal(el.presetManagerModal);
       if (el.villagerModal && !el.villagerModal.classList.contains('hidden') && typeof closeVillagerModal === 'function') {
         closeVillagerModal();
       }
@@ -776,7 +1064,7 @@ function handlePageDragEnd(event) {
 }
 
 function hasOpenModal() {
-  return [el.settingsModal, el.playerModal, el.itemModal, el.backupsModal, el.villagerModal].some((modal) => {
+  return [el.settingsModal, el.playerModal, el.itemModal, el.backupsModal, el.villagerModal, el.presetManagerModal].some((modal) => {
     return modal && !modal.classList.contains('hidden');
   });
 }

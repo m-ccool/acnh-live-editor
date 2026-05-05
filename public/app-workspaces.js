@@ -245,17 +245,23 @@ const INVENTORY_PRESETS = {
 };
 
 async function applyInventoryPreset(presetKey) {
-  const preset = INVENTORY_PRESETS[presetKey];
+  let preset = INVENTORY_PRESETS[presetKey];
+  let label = presetKey;
+  if (!preset && presetKey.startsWith('custom:')) {
+    const cp = state.customPresets.find(p => p.id === presetKey.slice(7));
+    if (cp) { preset = cp.slots; label = cp.name; }
+  }
   if (!preset) return;
   const btn = document.getElementById(`preset-${presetKey}-btn`);
+  const origText = btn ? btn.textContent : '';
   if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
   try {
     for (let i = 0; i < preset.length; i++) {
       const slot = { slot: i + 1, ...preset[i] };
-      await writeSlotToBridge(slot, `Preset: ${presetKey} slot ${i + 1}`);
+      await writeSlotToBridge(slot, `Preset: ${label} slot ${i + 1}`);
     }
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = presetKey.charAt(0).toUpperCase() + presetKey.slice(1); }
+    if (btn) { btn.disabled = false; btn.textContent = origText || label; }
   }
 }
 

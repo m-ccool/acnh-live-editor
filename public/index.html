@@ -14,7 +14,7 @@
   <link rel="icon" type="image/png" href="/assets/icons/Apple_NL_Icon.png" />
   <link rel="manifest" href="./manifest.webmanifest" />
   <meta name="theme-color" content="#09090b" />
-  <link rel="stylesheet" href="./styles.css?v=90" />
+  <link rel="stylesheet" href="./styles.css?v=91" />
 </head>
 <body>
   <div id="loading-screen" class="loading-screen" aria-hidden="true">
@@ -367,15 +367,16 @@
           <span>Search</span>
         </button>
         <span class="presets-label">Presets:</span>
-        <button type="button" class="action-btn preset-btn" id="preset-tools-btn">Tools</button>
-        <button type="button" class="action-btn preset-btn" id="preset-gold-btn">Gold</button>
-        <button type="button" class="action-btn preset-btn" id="preset-materials-btn">Materials</button>
-        <button type="button" class="action-btn preset-btn" id="preset-dye-btn">Dye</button>
-        <button type="button" class="action-btn preset-btn" id="preset-trees-btn">Trees</button>
-        <button type="button" class="action-btn preset-btn" id="preset-bushes-btn">Bushes</button>
-        <button type="button" class="action-btn preset-btn" id="preset-roses-btn">Roses</button>
-        <button type="button" class="action-btn preset-btn" id="preset-tulips-btn">Tulips</button>
-        <button type="button" class="action-btn preset-btn preset-btn-add" id="preset-custom-btn" title="Custom preset">+</button>
+        <button type="button" class="action-btn preset-btn" data-preset="tools" id="preset-tools-btn">Tools</button>
+        <button type="button" class="action-btn preset-btn" data-preset="gold" id="preset-gold-btn">Gold</button>
+        <button type="button" class="action-btn preset-btn" data-preset="materials" id="preset-materials-btn">Materials</button>
+        <button type="button" class="action-btn preset-btn" data-preset="dye" id="preset-dye-btn">Dye</button>
+        <button type="button" class="action-btn preset-btn" data-preset="trees" id="preset-trees-btn">Trees</button>
+        <button type="button" class="action-btn preset-btn" data-preset="bushes" id="preset-bushes-btn">Bushes</button>
+        <button type="button" class="action-btn preset-btn" data-preset="roses" id="preset-roses-btn">Roses</button>
+        <button type="button" class="action-btn preset-btn" data-preset="tulips" id="preset-tulips-btn">Tulips</button>
+        <span id="preset-custom-bar-items"></span>
+        <button type="button" class="action-btn preset-btn preset-btn-add" data-preset="custom" id="preset-custom-btn" title="Manage Presets">+</button>
       </div>
 
         <div class="inventory-area">
@@ -1087,14 +1088,62 @@
   <script defer src="./react/components/ShortcutButtons.js?v=47"></script>
   <script defer src="./react/components/QuickCheatButtons.js?v=47"></script>
   <script defer src="./react/components/CategoryList.js?v=47"></script>
+  <!-- Preset Manager Modal -->
+  <div id="preset-manager-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="pm-modal-title" aria-hidden="true">
+    <div class="modal-card modal-card-preset-manager modal-fade">
+      <div class="modal-head">
+        <h2 id="pm-modal-title">Preset Manager</h2>
+        <button type="button" class="icon-button modal-close" id="preset-manager-close" aria-label="Close preset manager">×</button>
+      </div>
+      <div class="pm-body">
+        <div class="pm-section">
+          <div class="pm-section-label">Shortcut Bar <span class="pm-hint-inline">— long-hold a button to remove it</span></div>
+          <div id="pm-pinned-chips" class="pm-chip-row"></div>
+        </div>
+        <div class="pm-section">
+          <div class="pm-section-label">Available Presets</div>
+          <div id="pm-available-chips" class="pm-chip-row"></div>
+        </div>
+        <div class="pm-section">
+          <div class="pm-section-label">Create New Preset</div>
+          <div class="pm-create-form">
+            <div class="pm-row">
+              <label class="pm-label" for="pm-new-name">Name</label>
+              <input type="text" id="pm-new-name" class="pm-input" maxlength="20" placeholder="My Preset" />
+            </div>
+            <div class="pm-row">
+              <label class="pm-label">Color</label>
+              <div id="pm-swatches" class="pm-swatches"></div>
+            </div>
+            <div class="pm-row pm-row-col">
+              <label class="pm-label">Items <span class="pm-hint-inline">(max 40 slots)</span></label>
+              <div id="pm-item-list" class="pm-item-list"></div>
+              <div class="pm-item-add-row">
+                <div class="pm-item-search-wrap">
+                  <input type="text" id="pm-item-query" class="pm-input pm-item-query" placeholder="Search item…" autocomplete="off" />
+                  <div id="pm-item-suggestions" class="pm-suggestions"></div>
+                </div>
+                <input type="number" id="pm-item-qty" class="pm-input pm-item-qty" value="1" min="1" max="99" />
+                <button type="button" class="action-btn" id="pm-item-add-btn">Add</button>
+              </div>
+            </div>
+            <div class="pm-row">
+              <button type="button" class="action-btn" id="pm-save-btn">Save Preset</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script defer src="./react/components/ModalFilterButtons.js?v=47"></script>
   <script defer src="./react/components/ModalResultsList.js?v=47"></script>
   <script defer src="./react/components/MusicLibraryOptions.js?v=47"></script>
   <script defer src="./react/components/VillagerModal.js?v=89"></script>
   <script defer src="./react/renderers.js?v=47"></script>
-  <script defer src="./app-core.js?v=90"></script>
+  <script defer src="./app-core.js?v=91"></script>
   <script defer src="./app-music.js?v=47"></script>
-  <script defer src="./app-workspaces.js?v=90"></script>
+  <script defer src="./app-workspaces.js?v=91"></script>
   <script defer src="./app.js?v=88"></script>
 </body>
 </html>
