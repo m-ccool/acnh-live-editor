@@ -210,7 +210,7 @@ const state = {
   bridgePollIntervalId: null,
   playerSaveSnapshot: null,
   villagers: [],
-  pinnedPresets: JSON.parse(localStorage.getItem('acnh-pinned-presets') || 'null') || ['tools','gold','materials','dye','trees','bushes','roses','tulips'],
+  pinnedPresets: JSON.parse(localStorage.getItem('acnh-pinned-presets') || 'null') || ['tools','materials'],
   customPresets: JSON.parse(localStorage.getItem('acnh-custom-presets') || '[]'),
 };
 
@@ -265,6 +265,14 @@ function showDeployToast(data) {
   el._toastTimeout = setTimeout(() => { if (el.deployToast) el.deployToast.classList.remove('is-visible'); }, 7000);
 }
 
+function showToast(message, duration) {
+  if (!el.deployToast) return;
+  el.deployToast.textContent = message;
+  el.deployToast.classList.add('is-visible');
+  clearTimeout(el._toastTimeout);
+  el._toastTimeout = setTimeout(() => { if (el.deployToast) el.deployToast.classList.remove('is-visible'); }, duration || 3000);
+}
+
 document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
@@ -313,7 +321,6 @@ function cacheDom() {
   el.themeToggleHint = document.getElementById('theme-toggle-hint');
   el.bridgeToggle = document.getElementById('bridge-toggle');
   el.logRefreshButton = document.getElementById('log-refresh-button');
-  el.debugReloadButton = document.getElementById('debug-reload-button');
   el.musicRibbon = document.getElementById('music-ribbon');
   el.musicRibbonDrawer = document.getElementById('music-ribbon-drawer');
   el.musicRibbonToggle = document.getElementById('music-ribbon-toggle');
@@ -510,14 +517,13 @@ function bindPresetLongPress(btn) {
       state.pinnedPresets = state.pinnedPresets.filter(k => k !== key);
       savePinnedPresets();
       renderPresetBar();
-      showToast(`"${label}" removed — tap + to re-add`);
+      showToast(`✓ "${label}" removed — tap + to re-add`);
     }, 650);
     btn.classList.add('is-holding');
   });
   btn.addEventListener('pointerup', () => {
     clearTimeout(lpTimer);
     btn.classList.remove('is-holding');
-    if (!lpFired) applyInventoryPreset(btn.dataset.preset);
     lpFired = false;
   });
   btn.addEventListener('pointerleave', () => {
@@ -525,7 +531,12 @@ function bindPresetLongPress(btn) {
     btn.classList.remove('is-holding');
     lpFired = false;
   });
+  btn.addEventListener('dblclick', () => {
+    if (!lpFired) applyInventoryPreset(btn.dataset.preset);
+  });
   btn.addEventListener('contextmenu', e => e.preventDefault());
+  const label = getPresetLabel(btn.dataset.preset);
+  btn.title = `Double-click to inject "${label}" preset · Hold to remove`;
 }
 
 function initPresetBar() {
@@ -536,7 +547,10 @@ function initPresetBar() {
   });
   // "+" opens preset manager
   const customBtn = document.getElementById('preset-custom-btn');
-  if (customBtn) customBtn.addEventListener('click', openPresetManagerModal);
+  if (customBtn) {
+    customBtn.addEventListener('click', openPresetManagerModal);
+    customBtn.title = 'Manage presets — add or remove from the bar';
+  }
 }
 
 function openPresetManagerModal() {
@@ -670,7 +684,7 @@ function initPresetItemSearch() {
   newAdd.addEventListener('click', () => {
     const itemId = newQuery.value.trim();
     if (!itemId) return;
-    if (pmItemRows.length >= 40) { showToast('Max 40 slots'); return; }
+    if (pmItemRows.length >= 40) { showToast('✗ Max 40 slots'); return; }
     const qtyInput = document.getElementById('pm-item-qty');
     const qty = Math.max(1, Math.min(99, parseInt(qtyInput?.value || '1', 10)));
     pmItemRows.push({ itemId, count: qty, uses: 0, flag0: 0, flag1: 0 });
@@ -712,8 +726,8 @@ function initPresetSaveBtn() {
   newSave.addEventListener('click', () => {
     const nameInput = document.getElementById('pm-new-name');
     const name = nameInput?.value.trim();
-    if (!name) { showToast('Enter a preset name'); return; }
-    if (pmItemRows.length === 0) { showToast('Add at least one item'); return; }
+    if (!name) { showToast('✗ Enter a preset name'); return; }
+    if (pmItemRows.length === 0) { showToast('✗ Add at least one item'); return; }
     const id = `cp_${Date.now()}`;
     state.customPresets.push({ id, name, swatch: pmSelectedSwatch, slots: [...pmItemRows] });
     saveCustomPresets();
@@ -725,7 +739,7 @@ function initPresetSaveBtn() {
     if (nameInput) nameInput.value = '';
     renderPresetManagerModal();
     renderPresetItemList();
-    showToast(`Preset "${escapeHtml(name)}" saved`);
+    showToast(`✓ Preset "${escapeHtml(name)}" saved`);
   });
 }
 
@@ -747,9 +761,6 @@ function bindEvents() {
   el.settingsGithubButton.addEventListener('click', () => {
     window.open(REPO_URL, '_blank', 'noopener');
   });
-  if (el.debugReloadButton) {
-    el.debugReloadButton.addEventListener('click', reloadAppShell);
-  }
   if (el.logPanelResizeHandle) {
     el.logPanelResizeHandle.addEventListener('pointerdown', handleLogPanelResizeStart);
   }
@@ -1147,11 +1158,6 @@ function renderLogPanelSize() {
 }
 
 async function reloadAppShell() {
-  if (el.debugReloadButton) {
-    el.debugReloadButton.classList.add('is-reloading');
-    el.debugReloadButton.setAttribute('aria-busy', 'true');
-  }
-
   try {
     if ('serviceWorker' in navigator) {
       const registrations = await navigator.serviceWorker.getRegistrations();

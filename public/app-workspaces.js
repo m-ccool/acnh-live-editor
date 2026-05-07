@@ -255,13 +255,16 @@ async function applyInventoryPreset(presetKey) {
   const btn = document.getElementById(`preset-${presetKey}-btn`);
   const origText = btn ? btn.textContent : '';
   if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+  let ok = true;
   try {
     for (let i = 0; i < preset.length; i++) {
       const slot = { slot: i + 1, ...preset[i] };
-      await writeSlotToBridge(slot, `Preset: ${label} slot ${i + 1}`);
+      const wrote = await writeSlotToBridge(slot, `Preset: ${label} slot ${i + 1}`);
+      if (!wrote) ok = false;
     }
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = origText || label; }
+    showToast(ok ? `✓ "${label}" preset applied` : `✗ "${label}" preset — some slots failed`);
   }
 }
 
@@ -521,6 +524,8 @@ function toggleQuickCheat(cheatId) {
   renderBridge();
   renderDerivedPanels();
   persistLocalState();
+  const active = isQuickCheatActive(cheatId);
+  showToast(`${active ? '✓' : '◎'} ${getQuickCheatLabel(cheatId)} ${active ? 'enabled' : 'disabled'}`, 2500);
 }
 
 function isQuickCheatActive(cheatId) {
@@ -756,9 +761,11 @@ function renderWorkspacePanels() {
     el.tabBridgeState.textContent = 'Connected (Ryujinx unknown)';
   }
 
-  el.tabBridgeMode.textContent = state.bridge.inventoryAdapter
-    ? `${state.bridge.mode} / ${state.bridge.inventoryAdapter}`
-    : state.bridge.mode;
+  el.tabBridgeMode.textContent = state.bridge.connected
+    ? (state.bridge.inventoryAdapter
+      ? `${state.bridge.mode} / ${state.bridge.inventoryAdapter}`
+      : state.bridge.mode)
+    : 'offline';
   el.tabStorageState.textContent = isLocalStorageAvailable() ? 'Saved locally' : 'Unavailable';
   el.tabSessionJson.textContent = JSON.stringify(buildSelectedSlotPayload(slot), null, 2);
 }
@@ -1764,9 +1771,27 @@ function renderVillagersPanel(villagers) {
 
 async function loadVillagersFromBridge() {
   const roster = document.getElementById('villager-roster');
-  if (roster) roster.innerHTML = '<p class="villager-placeholder">Loading…</p>';
+  const isFirstLoad = !state.villagers || state.villagers.length === 0;
+
+  // Start the fetch immediately so network time runs in parallel with skeleton display
+  const fetchPromise = fetch('/api/bridge/read-villagers');
+
+  if (isFirstLoad && roster) {
+    // Show shimmer skeleton cards while data is in flight.
+    // Promise.all with a 500ms minimum ensures the skeleton is visible long
+    // enough for the browser to paint and the user to see it.
+    roster.innerHTML = Array.from({ length: 10 }, () =>
+      '<article class="villager-card villager-card-skeleton"><div class="villager-skel-avatar skeleton-block"></div><div class="villager-skel-body"><div class="villager-skel-name skeleton-block"></div><div class="villager-skel-line skeleton-block"></div><div class="villager-skel-line skeleton-block"></div></div></article>'
+    ).join('');
+    await Promise.all([
+      new Promise(r => setTimeout(r, 500)),
+      fetchPromise.catch(() => null), // suppress rejection; handled below
+    ]);
+  }
+
+  // On background refresh, keep existing cards visible — no DOM wipe
   try {
-    const res = await fetch('/api/bridge/read-villagers');
+    const res = await fetchPromise;
     const data = await res.json();
     if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
     const villagers = (data.payload && data.payload.villagers) ? data.payload.villagers : (data.villagers || []);
@@ -1782,16 +1807,45 @@ async function loadVillagersFromBridge() {
   }
 }
 
+const VILLAGER_REFRESH_KEY = 'acnh-villager-refresh-ms';
+function getVillagerRefreshMs() {
+  const v = parseInt(localStorage.getItem(VILLAGER_REFRESH_KEY) || '30000', 10);
+  return isNaN(v) || v < 0 ? 30000 : v;
+}
+
+let _villagerRefreshTimer = null;
+function scheduleVillagerRefresh() {
+  clearInterval(_villagerRefreshTimer);
+  const ms = getVillagerRefreshMs();
+  if (ms > 0) {
+    _villagerRefreshTimer = setInterval(() => {
+      if (state.activeTab === 'villagers' && !hasOpenModal()) loadVillagersFromBridge();
+    }, ms);
+  }
+}
+
 function initVillagersTab() {
   const btn = document.getElementById('refresh-villagers-btn');
   if (btn) {
     btn.addEventListener('click', loadVillagersFromBridge);
     btn.style.display = 'none';
   }
+
+  // Restore saved interval preference into the settings select
+  const refreshSelect = document.getElementById('settings-villager-refresh');
+  if (refreshSelect) {
+    const saved = localStorage.getItem(VILLAGER_REFRESH_KEY);
+    if (saved && refreshSelect.querySelector(`option[value="${saved}"]`)) {
+      refreshSelect.value = saved;
+    }
+    refreshSelect.addEventListener('change', () => {
+      localStorage.setItem(VILLAGER_REFRESH_KEY, refreshSelect.value);
+      scheduleVillagerRefresh();
+    });
+  }
+
   loadVillagersFromBridge();
-  setInterval(() => {
-    if (state.activeTab === 'villagers' && !hasOpenModal()) loadVillagersFromBridge();
-  }, 30000);
+  scheduleVillagerRefresh();
   setInterval(() => {
     if (state.activeTab === 'village') refreshBridgeGameData();
   }, 30000);

@@ -574,25 +574,6 @@
     </footer>
   </div>
 
-  <button
-    id="debug-reload-button"
-    class="debug-reload-tab"
-    type="button"
-    aria-label="Reload app"
-    title="Reload app"
-  >
-    <span class="debug-reload-orbit" aria-hidden="true">
-      <img
-        src="/assets/icons/line-md--loading-loop-circle.svg"
-        alt=""
-        class="debug-reload-orbit-icon"
-      />
-    </span>
-    <span class="debug-reload-core">
-      <span class="debug-reload-icon" aria-hidden="true"></span>
-    </span>
-  </button>
-
   <div id="music-ribbon" class="music-ribbon" aria-live="polite">
     <button
       id="music-ribbon-toggle"
@@ -767,6 +748,23 @@
         <div class="settings-debug-stack">
           <strong class="settings-debug-title">Catalog diagnostics</strong>
           <pre id="settings-catalog-output" class="settings-debug-pre">Waiting for diagnostics</pre>
+        </div>
+      </div>
+
+      <div class="settings-debug-box settings-debug-box-secondary">
+        <div class="settings-debug-stack">
+          <strong class="settings-debug-title">Villager refresh interval</strong>
+          <div class="settings-field-row">
+            <label for="settings-villager-refresh" class="settings-field-label">Auto-refresh every</label>
+            <select id="settings-villager-refresh" class="settings-select">
+              <option value="15000">15 seconds</option>
+              <option value="30000" selected>30 seconds</option>
+              <option value="60000">1 minute</option>
+              <option value="120000">2 minutes</option>
+              <option value="300000">5 minutes</option>
+              <option value="0">Off</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -1139,11 +1137,11 @@
   <script defer src="./react/components/ModalFilterButtons.js?v=47"></script>
   <script defer src="./react/components/ModalResultsList.js?v=47"></script>
   <script defer src="./react/components/MusicLibraryOptions.js?v=47"></script>
-  <script defer src="./react/components/VillagerModal.js?v=89"></script>
+  <script defer src="./react/components/VillagerModal.js?v=95"></script>
   <script defer src="./react/renderers.js?v=47"></script>
-  <script defer src="./app-core.js?v=91"></script>
+  <script defer src="./app-core.js?v=92"></script>
   <script defer src="./app-music.js?v=47"></script>
-  <script defer src="./app-workspaces.js?v=91"></script>
+  <script defer src="./app-workspaces.js?v=92"></script>
   <script defer src="./app.js?v=88"></script>
 </body>
 </html>

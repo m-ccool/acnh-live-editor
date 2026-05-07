@@ -236,18 +236,38 @@
 
   // ── SubviewFooter ─────────────────────────────────────────────────────────
 
-  function SubviewFooter({ name, type, dumpData: data, onBack }) {
+  function SubviewFooter({ name, type, dumpData: data, onBack, onSave }) {
+    const [saveState, setSaveState] = useState('idle'); // idle | saving | ok | error
+    const handleSave = async () => {
+      if (onSave) {
+        setSaveState('saving');
+        try {
+          await onSave();
+          setSaveState('ok');
+          setTimeout(onBack, 700);
+        } catch (e) {
+          setSaveState('error');
+          setTimeout(() => setSaveState('idle'), 2500);
+        }
+      } else {
+        onBack();
+      }
+    };
+    const saveDot = saveState !== 'idle'
+      ? h('span', { className: `vmod-save-dot vmod-save-dot--${saveState}`, 'aria-hidden': 'true' })
+      : null;
     return h('div', { className: 'villager-modal-footer vmod-subview-footer' },
       h('div', { className: 'vmod-footer-left' },
         h('button', { type: 'button', className: 'action-btn vmod-btn-sm', onClick: () => dumpData(name, type, data) }, 'Dump'),
         h('button', { type: 'button', className: 'action-btn vmod-btn-sm', onClick: openBackupsFolder }, 'Load'),
-        h('button', { type: 'button', className: 'action-btn vmod-btn-sm', onClick: onBack }, 'Cancel'),
+        h('button', { type: 'button', className: 'action-btn vmod-btn-sm', onClick: onBack, disabled: saveState === 'saving' }, 'Cancel'),
       ),
       h('button', {
         type: 'button',
-        className: 'action-btn action-btn-solid vmod-btn-sm',
-        onClick: () => { console.log(`[${type}-save]`, data); onBack(); },
-      }, 'Save')
+        className: 'action-btn action-btn-solid vmod-btn-sm vmod-save-btn',
+        onClick: handleSave,
+        disabled: saveState === 'saving' || saveState === 'ok',
+      }, 'Save', saveDot)
     );
   }
 
@@ -354,9 +374,21 @@
     const initFields = {};
     HOUSE_FIELDS.forEach(f => { initFields[f.key] = house[f.key] != null ? house[f.key] : f.def; });
     const [fields, setFields] = useState(initFields);
-    const iconUrl = v.imageUrl || `/api/villager-icon/${encodeURIComponent(v.name || '')}?v=4`;((key, val) => {
+    const iconUrl = `/api/villager-icon/${encodeURIComponent(v.name || '')}?v=4`;
+    const setField = useCallback((key, val) => {
       setFields(prev => ({ ...prev, [key]: val }));
     }, []);
+
+    const handleSave = useCallback(async () => {
+      const villagerWithHouse = { ...v, house: { ...(v.house || {}), ...fields } };
+      const res = await fetch('/api/villager/backup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ villager: villagerWithHouse }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'Backup failed');
+    }, [v, fields]);
 
     return h('div', { className: 'vmod-house-view' },
       h('div', { className: 'vmod-subview-title vmod-edit-title' },
@@ -381,7 +413,7 @@
           )
         )
       ),
-      h(SubviewFooter, { name: v.name, type: 'house', dumpData: fields, onBack })
+      h(SubviewFooter, { name: v.name, type: 'house', dumpData: fields, onBack, onSave: handleSave })
     );
   }
 
@@ -397,7 +429,22 @@
     const selected = VILLAGER_FLAGS[selectedIdx];
     const selectedValue = flagValues[selectedIdx] != null ? flagValues[selectedIdx] : 0;
 
-    const iconUrl = v.imageUrl || `/api/villager-icon/${encodeURIComponent(v.name || '')}?v=4`;
+    const iconUrl = `/api/villager-icon/${encodeURIComponent(v.name || '')}?v=4`;
+
+    const handleSave = useCallback(async () => {
+      const allFlags = Array.isArray(v.flags) ? [...v.flags] : [];
+      Object.entries(flagValues).forEach(([idx, val]) => { allFlags[Number(idx)] = val; });
+      const villagerWithFlags = { ...v, flags: allFlags };
+      const res = await fetch('/api/villager/backup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ villager: villagerWithFlags }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'Backup failed');
+    }, [v, flagValues]);
+
+    return h('div', { className: 'vmod-flags-view' },
       h('div', { className: 'vmod-subview-title vmod-edit-title' },
         h('img', { className: 'vmod-edit-icon', src: iconUrl, alt: v.name, onError(e) { e.target.style.display = 'none'; } }),
         h('span', null, `Flags — ${v.name || 'Villager'}`)
@@ -439,7 +486,7 @@
           }, 'Original')
         )
       ),
-      h(SubviewFooter, { name: v.name, type: 'flags', dumpData: flagValues, onBack })
+      h(SubviewFooter, { name: v.name, type: 'flags', dumpData: flagValues, onBack, onSave: handleSave })
     );
   }
 
@@ -451,6 +498,7 @@
     );
     const [selectedSlot, setSelectedSlot] = useState(0);
     const sel = slots[selectedSlot];
+    const selIsEmpty = !sel || sel.itemId === '0xFFFE' || sel.itemId === '0xFFFF';
     const [count, setCount]   = useState(sel ? (sel.count  || 0) : 0);
     const [uses,  setUses]    = useState(sel ? (sel.uses   || 0) : 0);
     const [flag0, setFlag0]   = useState(sel ? (sel.flag0  || 0) : 0);
@@ -471,7 +519,7 @@
             },
               slot && !isEmpty && (slot.count > 1) ? h('span', { className: 'vedit-inv-count' }, String(slot.count)) : null,
               slot && !isEmpty && slot.imageUrl
-                ? h('img', { className: 'vedit-inv-img', src: slot.imageUrl, alt: slot.name || '' })
+                ? h('img', { className: 'vedit-inv-img', src: slot.imageUrl, alt: slot.name || '', onLoad(e) { e.target.classList.add('is-loaded'); }, onError(e) { e.target.classList.add('is-loaded'); } })
                 : slot && !isEmpty
                   ? h('span', { className: 'vedit-inv-slot-label' }, slot.name || slot.itemId || '')
                   : null
@@ -484,9 +532,13 @@
         )
       ),
       h('div', { className: 'vedit-inv-detail' },
-        h('div', { className: 'vedit-inv-preview' }),
+        h('div', { className: 'vedit-inv-preview' },
+          sel && !selIsEmpty && sel.imageUrl
+            ? h('img', { className: 'vedit-inv-preview-img', src: sel.imageUrl, alt: sel.name || '', onLoad(e) { e.target.classList.add('is-loaded'); }, onError(e) { e.target.classList.add('is-loaded'); } })
+            : null
+        ),
         h('div', { className: 'vedit-inv-name-row' },
-          h('span', { className: 'vedit-inv-name-text' }, sel ? (sel.name || sel.itemId || '(None)') : '(None)')
+          h('span', { className: 'vedit-inv-name-text' }, sel && !selIsEmpty ? (sel.name || sel.itemId || '(None)') : '(None)')
         ),
         [['Count', count, setCount], ['Uses', uses, setUses], ['Flag0', flag0, setFlag0], ['Flag1', flag1, setFlag1]].map(([label, val, setter]) =>
           h('div', { key: label, className: 'vedit-inv-field-row' },
@@ -506,52 +558,54 @@
 
   // ── ClothesPanel ──────────────────────────────────────────────────────────
 
-  const CLOTHES_SLOTS = [
-    'Hat', 'Accessory', 'Top', 'Bottom', 'Socks', 'Shoes', 'Bag', 'Umbrella', 'Wand', 'Dress Code',
-  ];
-  const CLOTHES_COLS = 5;
+  const CLOTHES_COUNT = 24;
+  const CLOTHES_COLS  = 8;
 
   function ClothesPanel({ clothes }) {
-    const slots = Array.from({ length: CLOTHES_SLOTS.length }, (_, i) =>
+    const slots = Array.from({ length: CLOTHES_COUNT }, (_, i) =>
       (clothes && clothes[i]) ? clothes[i] : null
     );
     const [selectedSlot, setSelectedSlot] = useState(0);
     const sel = slots[selectedSlot];
-    const [count, setCount] = useState(sel ? (sel.count || 0) : 0);
+    const selIsEmpty = !sel || sel.itemId === '0xFFFE' || sel.itemId === '0xFFFF';
+    const allEmpty = slots.every(s => !s || s.itemId === '0xFFFE' || s.itemId === '0xFFFF');
     const [flag0, setFlag0] = useState(sel ? (sel.flag0 || 0) : 0);
     const [flag1, setFlag1] = useState(sel ? (sel.flag1 || 0) : 0);
 
     return h('div', { className: 'vedit-inv-shell' },
       h('div', { className: 'vedit-inv-left' },
-        h('div', {
-          className: 'vedit-inv-grid vedit-clothes-grid',
-          style: { gridTemplateColumns: `repeat(${CLOTHES_COLS}, minmax(0, 1fr))` },
-        },
-          slots.map((slot, i) => {
-            const isEmpty = !slot || slot.itemId === '0xFFFE' || slot.itemId === '0xFFFF';
-            return h('div', { key: i, className: 'vedit-clothes-slot-wrap', onClick: () => setSelectedSlot(i) },
-              h('span', { className: 'vedit-clothes-slot-label' }, CLOTHES_SLOTS[i]),
-              h('div', { className: `vedit-inv-slot${selectedSlot === i ? ' is-selected' : ''}${isEmpty ? ' is-empty-slot' : ''}` },
-                slot && !isEmpty && slot.imageUrl
-                  ? h('img', { className: 'vedit-inv-img vedit-clothes-img', src: slot.imageUrl, alt: slot.name || '' })
-                  : slot && !isEmpty
-                    ? h('span', { className: 'vedit-inv-slot-label' }, slot.name || slot.itemId || '')
-                    : null
-              )
-            );
-          })
-        ),
-        h('div', { className: 'vedit-inv-left-actions' },
-          h('button', { type: 'button', className: 'action-btn vmod-btn-sm' }, 'Clear'),
-        )
+        allEmpty
+          ? h('div', { className: 'vedit-inv-empty-state' }, 'Wardrobe is empty — gift clothing items to this villager to populate their wardrobe.')
+          : h('div', {
+              className: 'vedit-inv-grid',
+              style: { gridTemplateColumns: `repeat(${CLOTHES_COLS}, minmax(0, 1fr))` },
+            },
+              slots.map((slot, i) => {
+                const isEmpty = !slot || slot.itemId === '0xFFFE' || slot.itemId === '0xFFFF';
+                return h('div', {
+                  key: i,
+                  className: `vedit-inv-slot${selectedSlot === i ? ' is-selected' : ''}${isEmpty ? ' is-empty-slot' : ''}`,
+                  onClick: () => setSelectedSlot(i),
+                },
+                  slot && !isEmpty && slot.imageUrl
+                    ? h('img', { className: 'vedit-inv-img', src: slot.imageUrl, alt: slot.name || '', onLoad(e) { e.target.classList.add('is-loaded'); }, onError(e) { e.target.classList.add('is-loaded'); } })
+                    : slot && !isEmpty
+                      ? h('span', { className: 'vedit-inv-slot-label' }, slot.name || slot.itemId || '')
+                      : null
+                );
+              })
+            )
       ),
       h('div', { className: 'vedit-inv-detail' },
-        h('div', { className: 'vedit-inv-preview' }),
-        h('div', { className: 'vedit-inv-name-row' },
-          h('span', { className: 'vedit-inv-name-text' }, sel ? (sel.name || sel.itemId || '(None)') : '(None)')
+        h('div', { className: 'vedit-inv-preview' },
+          sel && !selIsEmpty && sel.imageUrl
+            ? h('img', { className: 'vedit-inv-preview-img', src: sel.imageUrl, alt: sel.name || '', onLoad(e) { e.target.classList.add('is-loaded'); }, onError(e) { e.target.classList.add('is-loaded'); } })
+            : null
         ),
-        h('div', { className: 'vedit-clothes-slot-type' }, CLOTHES_SLOTS[selectedSlot] || ''),
-        [['ItemID', count, setCount], ['Flag0', flag0, setFlag0], ['Flag1', flag1, setFlag1]].map(([label, val, setter]) =>
+        h('div', { className: 'vedit-inv-name-row' },
+          h('span', { className: 'vedit-inv-name-text' }, sel && !selIsEmpty ? (sel.name || sel.itemId || '(None)') : '(None)')
+        ),
+        [['Flag0', flag0, setFlag0], ['Flag1', flag1, setFlag1]].map(([label, val, setter]) =>
           h('div', { key: label, className: 'vedit-inv-field-row' },
             h('span', { className: 'vmod-label vedit-inv-field-label' }, `${label}:`),
             h('input', {
@@ -807,8 +861,28 @@
 
   function EditView({ v, onBack }) {
     const [activeTab, setActiveTab] = useState('furniture');
-    const iconUrl = v.imageUrl || `/api/villager-icon/${encodeURIComponent(v.name || '')}?v=4`;
+    const [saveState, setSaveState] = useState('idle'); // idle | saving | ok | error
+    const iconUrl = `/api/villager-icon/${encodeURIComponent(v.name || '')}?v=4`;
+    const friendshipVal = v.friendship || 0;
     const friendshipBarPct = friendshipVal === 0 ? 5 : Math.round((friendshipVal / 255) * 100);
+
+    const handleSave = useCallback(async () => {
+      setSaveState('saving');
+      try {
+        const res = await fetch('/api/villager/backup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ villager: v }),
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Backup failed');
+        setSaveState('ok');
+        setTimeout(onBack, 700);
+      } catch (e) {
+        setSaveState('error');
+        setTimeout(() => setSaveState('idle'), 2500);
+      }
+    }, [v, onBack]);
 
     return h('div', { className: 'vmod-edit-view' },
       h('div', { className: 'vmod-subview-title vmod-edit-title' },
@@ -850,9 +924,17 @@
       ),
       h('div', { className: 'villager-modal-footer vmod-subview-footer' },
         h('div', { className: 'vmod-footer-left' },
-          h('button', { type: 'button', className: 'action-btn vmod-btn-sm', onClick: onBack }, 'Back'),
+          h('button', { type: 'button', className: 'action-btn vmod-btn-sm', onClick: onBack, disabled: saveState === 'saving' }, 'Back'),
         ),
-        h('button', { type: 'button', className: 'action-btn action-btn-solid vmod-btn-sm', onClick: onBack }, 'Save')
+        h('button', {
+          type: 'button',
+          className: 'action-btn action-btn-solid vmod-btn-sm vmod-save-btn',
+          onClick: handleSave,
+          disabled: saveState === 'saving' || saveState === 'ok',
+        },
+          'Save',
+          saveState !== 'idle' ? h('span', { className: `vmod-save-dot vmod-save-dot--${saveState}`, 'aria-hidden': 'true' }) : null
+        )
       )
     );
   }

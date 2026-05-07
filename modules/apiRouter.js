@@ -369,22 +369,26 @@ function createApiRouter(options = {}) {
     }).on('error', () => res.status(502).end())
   })
 
-  // Proxy villager full-body art via Nookipedia API (used in edit modal).
+  // Proxy villager full-body art via Wikia CDN (same hash approach as villager-icon).
   router.get('/api/villager-art/:name', (req, res) => {
     const name = req.params.name.replace(/[^a-zA-Z0-9 _'\-]/g, '').trim()
     if (!name) return res.status(400).end()
     const https = require('https')
+    const crypto = require('crypto')
 
-    _fetchNookVillager(name).then(({ image_url }) => {
-      if (!image_url) return res.status(404).end()
-      https.get(image_url, { headers: { 'User-Agent': 'acnh-live-editor/1.0' } }, (upstream) => {
-        const ct = upstream.headers['content-type'] || ''
-        if (!ct.startsWith('image/')) { upstream.resume(); return res.status(404).end() }
-        res.setHeader('Content-Type', ct)
-        res.setHeader('Cache-Control', 'public, max-age=86400')
-        upstream.pipe(res)
-      }).on('error', () => res.status(502).end())
-    }).catch(() => res.status(404).end())
+    const capitalName = name.charAt(0).toUpperCase() + name.slice(1)
+    const filename = `${capitalName}_NH.png`
+    const hash = crypto.createHash('md5').update(filename).digest('hex')
+    const d1 = hash[0]
+    const d2 = hash.slice(0, 2)
+    const artUrl = `https://dodo.ac/np/images/${d1}/${d2}/${encodeURIComponent(filename)}`
+
+    https.get(artUrl, { headers: { 'User-Agent': 'acnh-live-editor/1.0' } }, (upstream) => {
+      if (upstream.statusCode !== 200) { upstream.resume(); return res.status(404).end() }
+      res.setHeader('Content-Type', upstream.headers['content-type'] || 'image/png')
+      res.setHeader('Cache-Control', 'public, max-age=86400')
+      upstream.pipe(res)
+    }).on('error', () => res.status(502).end())
   })
 
   // Save villager data as an .nhv backup file in data/villager-backups/

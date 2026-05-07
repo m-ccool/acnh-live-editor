@@ -366,6 +366,7 @@ This order is optimized for smaller diffs, lower context cost, and faster Codex 
 - [ ] Shrink [server.js](C:/Users/mccoo/OneDrive/Developer/acnh-live-editor/server.js) by moving routes and service logic into separate backend modules.
 - [ ] Harden the external-data path in [modules/nookipediaCatalog.js](C:/Users/mccoo/OneDrive/Developer/acnh-live-editor/modules/nookipediaCatalog.js) and the music/catalog fetch logic in [server.js](C:/Users/mccoo/OneDrive/Developer/acnh-live-editor/server.js).
 - [ ] Decide the client direction: either remove unused `react` / `react-dom` dependencies or commit to a real React build path.
+- [ ] Add skeleton/shimmer loading UI to all async-loaded panels (villager list, modal art, furniture/clothes grids). See [Return TODOs](#return-todos) for implementation note.
 - [ ] Keep the README/runbook current as the MVP scope gets completed.
 
 ### Known Bugs
@@ -390,6 +391,7 @@ This order is optimized for smaller diffs, lower context cost, and faster Codex 
 - [ ] Begin the framework for import mods.
 - [ ] Add an `Edit Skin` button on Edit Player.
 - [ ] Add an `Edit Skin` button on Villager Edit.
+- [ ] **Skeleton/shimmer loading animations** — Add CSS-only shimmer skeleton screens for: villager card list (while bridge read is in flight), VillagerModal full-body art image (while CDN image loads), and furniture/clothes inventory grids (while enrichment resolves). Implementation: use a `@keyframes shimmer` CSS animation that slides a light gradient left-to-right over a placeholder element at the same dimensions as the real content, then swap to the real content on load. In React components (`VillagerModal.js`), drive the placeholder with `useState(false)` for `loaded` and an `onLoad` handler on `<img>`. Reference: [React useState](https://react.dev/reference/react/useState), [React useEffect](https://react.dev/reference/react/useEffect).
 
 ## MVP Outline Status
 
@@ -429,3 +431,33 @@ Pinned bug:
 
 - [SysBot.ACNHOrders](https://github.com/berichan/SysBot.ACNHOrders) — ACNH live memory layout reference (runtime pointer chains and live Switch VA offsets)
 - [NHSE](https://github.com/kwsch/NHSE) — ACNH save file format reference (Villager2 struct layout, field offsets)
+- [React Hooks API Reference — useState](https://react.dev/reference/react/useState) — state management used throughout VillagerModal
+- [React Hooks API Reference — useEffect](https://react.dev/reference/react/useEffect) — side-effect wiring for bridge reads and villager data binding
+
+## CDN Asset Filename Reference
+
+Images are served via the Wikia/Fandom media CDN at `https://dodo.ac/np/images/{d1}/{d2}/{filename}` where `d1` = first hex char of MD5(filename) and `d2` = first two hex chars of MD5(filename).
+
+Known-good confirmed filenames (verified via 200 response + file size):
+
+| Asset type | Filename pattern | Confirmed example | Approx size |
+|---|---|---|---|
+| Villager icon | `{Name}_NH_Villager_Icon.png` | `Bob_NH_Villager_Icon.png` | ~20 KB |
+| Villager full-body art | `{Name}_NH.png` | `Bob_NH.png` | ~620 KB |
+| Villager full-body art | `{Name}_NH.png` | `Rolf_NH.png` | ~1,016 KB |
+
+Name capitalization rule: first letter uppercase, rest as-is (e.g. `Bob`, `Rolf`). Multi-word names follow the same pattern (first word capitalized, separated by underscore if needed — verify per villager).
+
+Proxy endpoints in `modules/apiRouter.js`:
+
+- `GET /api/villager-icon/:name` — serves `{Name}_NH_Villager_Icon.png`, 1-hour cache
+- `GET /api/villager-art/:name` — serves `{Name}_NH.png`, 24-hour cache
+
+If a CDN image breaks, verify the MD5 hash path with:
+
+```js
+const crypto = require('crypto');
+const filename = 'Bob_NH_Villager_Icon.png';
+const hash = crypto.createHash('md5').update(filename).digest('hex');
+console.log(`d1=${hash[0]}  d2=${hash.slice(0,2)}  url=https://dodo.ac/np/images/${hash[0]}/${hash.slice(0,2)}/${encodeURIComponent(filename)}`);
+```

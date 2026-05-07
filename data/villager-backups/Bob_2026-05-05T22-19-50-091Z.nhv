@@ -1,0 +1,477 @@
+{
+  "slot": 2,
+  "empty": false,
+  "name": "Bob",
+  "internalId": "cat00",
+  "species": 4,
+  "speciesName": "Cat",
+  "variant": 0,
+  "personality": 0,
+  "personalityName": "Lazy",
+  "gender": "M",
+  "catchphrase": "cardio",
+  "friendship": 0,
+  "friendshipTier": "Live only",
+  "playerName": "",
+  "townName": "",
+  "movingOut": false,
+  "flags": [
+    143,
+    0,
+    1,
+    0,
+    0,
+    1,
+    0,
+    10,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    1,
+    1,
+    0,
+    1,
+    1,
+    0,
+    2,
+    0,
+    0,
+    0,
+    0,
+    10,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    2,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "house": {
+    "extension": "nhvh2",
+    "houseLevel": 2,
+    "houseStatus": 2,
+    "wallUniqueId": 70,
+    "roofUniqueId": 48,
+    "doorUniqueId": 79,
+    "orderWallUniqueId": 70,
+    "orderRoofUniqueId": 48,
+    "orderDoorUniqueId": 79,
+    "npc1": 1,
+    "npc2": -1,
+    "buildPlayer": -1,
+    "doorDecoItemName": "0xFFFE:0x0000"
+  },
+  "imageUrl": "https://acnhcdn.com/latest/NpcIcon/Bob.png",
+  "furniture": [
+    {
+      "itemId": "0x059A",
+      "flag0": 0,
+      "flag1": 0,
+      "name": "sleeping bag",
+      "imageUrl": "https://dodo.ac/np/images/7/73/Sleeping_Bag_%28Black%29_NH_Icon.png"
+    },
+    {
+      "itemId": "0x0D6F",
+      "flag0": 0,
+      "flag1": 0,
+      "name": "wooden table",
+      "imageUrl": "https://dodo.ac/np/images/8/86/Wooden_Table_NH_DIY_Icon.png"
+    },
+    {
+      "itemId": "0x0C32",
+      "flag0": 3,
+      "flag1": 0,
+      "name": "mini DIY workbench",
+      "imageUrl": "https://dodo.ac/np/images/8/85/Mini_DIY_Workbench_NH_DIY_Icon.png"
+    },
+    {
+      "itemId": "0x0598",
+      "flag0": 0,
+      "flag1": 6,
+      "name": "lantern",
+      "imageUrl": "https://dodo.ac/np/images/b/b2/Lantern_%28Black%29_NH_Icon.png"
+    },
+    {
+      "itemId": "0x0E71",
+      "flag0": 0,
+      "flag1": 4,
+      "name": "portable radio",
+      "imageUrl": "https://dodo.ac/np/images/7/71/Portable_Radio_%28Blue%29_NH_Icon.png"
+    },
+    {
+      "itemId": "0x0D6C",
+      "flag0": 1,
+      "flag1": 0,
+      "name": "wooden wardrobe",
+      "imageUrl": "https://dodo.ac/np/images/3/3b/Wooden_Wardrobe_NH_DIY_Icon.png"
+    },
+    {
+      "itemId": "0x0FC5",
+      "flag0": 0,
+      "flag1": 0,
+      "name": "log wall-mounted clock",
+      "imageUrl": "https://dodo.ac/np/images/c/c0/Log_Wall-Mounted_Clock_NH_DIY_Icon.png"
+    },
+    {
+      "itemId": "0x0D6E",
+      "flag0": 0,
+      "flag1": 0,
+      "name": "wooden end table",
+      "imageUrl": "https://dodo.ac/np/images/f/fc/Wooden_End_Table_NH_DIY_Icon.png"
+    },
+    {
+      "itemId": "0x0779",
+      "flag0": 0,
+      "flag1": 0,
+      "name": "wooden chair",
+      "imageUrl": "https://dodo.ac/np/images/4/4e/Wooden_Chair_NH_DIY_Icon.png"
+    },
+    {
+      "itemId": "0x0F98",
+      "flag0": 0,
+      "flag1": 0,
+      "name": "key holder",
+      "imageUrl": "https://dodo.ac/np/images/a/ab/Key_Holder_NH_DIY_Icon.png"
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    }
+  ],
+  "clothes": [
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    },
+    {
+      "itemId": "0xFFFE",
+      "flag0": 0,
+      "flag1": 0
+    }
+  ],
+  "room": {
+    "accentWallDesignId": 63488,
+    "accentWallDirection": 0,
+    "wallDesignId": 63488,
+    "wallInfoBit": 64,
+    "floorDesignId": 63488,
+    "floorDirection": 16
+  },
+  "diy": {
+    "isCrafting": true,
+    "craftingUntil": "255:255:00",
+    "recipeIndex": 65535
+  },
+  "designs": [],
+  "playerMemory": [
+    {
+      "playerName": "b",
+      "townName": "the island",
+      "friendship": 26
+    },
+    {
+      "playerName": "",
+      "townName": "",
+      "friendship": 0
+    },
+    {
+      "playerName": "",
+      "townName": "",
+      "friendship": 0
+    },
+    {
+      "playerName": "",
+      "townName": "",
+      "friendship": 0
+    },
+    {
+      "playerName": "",
+      "townName": "",
+      "friendship": 0
+    },
+    {
+      "playerName": "",
+      "townName": "",
+      "friendship": 0
+    },
+    {
+      "playerName": "",
+      "townName": "",
+      "friendship": 0
+    },
+    {
+      "playerName": "",
+      "townName": "",
+      "friendship": 0
+    }
+  ]
+}

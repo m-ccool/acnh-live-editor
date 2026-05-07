@@ -93,6 +93,7 @@ function attachClient(socket) {
 
   socket.setEncoding('utf8')
   socket.setNoDelay(true)
+  socket.setKeepAlive(true, 5000)
 
   let buffer = ''
 

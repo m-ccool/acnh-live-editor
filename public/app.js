@@ -42,6 +42,15 @@ function updateClock() {
   }
 }
 
+function finalizeConnectedState() {
+  if (!state.bridge.connected) return;
+  const gameDataReady = state.bridge.gameDataSource &&
+    state.bridge.gameDataSource !== 'none' &&
+    state.bridge.gameDataSource !== 'unavailable' &&
+    state.bridge.gameDataSource !== 'error';
+  if (!gameDataReady) state.bridge.connected = false;
+}
+
 async function refreshBridgeStatus(lastAction) {
   let syncedFromBridge = false;
 
@@ -51,6 +60,7 @@ async function refreshBridgeStatus(lastAction) {
       syncBridgeStatus(await statusResponse.json());
       syncedFromBridge = await refreshBridgeInventory({ reason: lastAction, force: true });
       await refreshBridgeGameData();
+      finalizeConnectedState();
     }
   } catch (error) {
     console.error(error);
@@ -74,7 +84,8 @@ async function pollBridgeStatus() {
       syncBridgeStatus(await statusResponse.json());
       await refreshBridgeInventory({ reason: 'Background inventory sync' });
       await refreshBridgeGameData();
-      
+      finalizeConnectedState();
+
       const playerChanged = hasPlayerDataChanged();
       const inventoryChanged = hasInventoryChanged();
       
@@ -506,7 +517,9 @@ function normalizeCategory(value) {
 }
 
 function syncBridgeStatus(status) {
-  state.bridge.connected = !!status.connected;
+  const remoteRyujinx = status && status.remoteStatus && status.remoteStatus.ryujinx;
+  const ryujinxKnownRunning = remoteRyujinx != null && Boolean(remoteRyujinx.running);
+  state.bridge.connected = !!status.connected && ryujinxKnownRunning;
   state.bridge.mode = String(status.bridge || state.bridge.mode || 'pending');
   state.bridge.ip = getBridgeIp(status);
   state.bridge.listenerIp = status && status.listenerIp ? String(status.listenerIp) : null;
