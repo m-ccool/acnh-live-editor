@@ -14,7 +14,7 @@
   <link rel="icon" type="image/png" href="/assets/icons/Apple_NL_Icon.png" />
   <link rel="manifest" href="./manifest.webmanifest" />
   <meta name="theme-color" content="#09090b" />
-  <link rel="stylesheet" href="./styles.css?v=91" />
+  <link rel="stylesheet" href="./styles.css?v=92" />
 </head>
 <body>
   <div id="loading-screen" class="loading-screen" aria-hidden="true">
@@ -73,6 +73,18 @@
 
       <div class="topbar-actions">
         <button
+          id="theme-toggle"
+          class="action-pill-btn theme-toggle-btn"
+          type="button"
+          aria-label="Switch to Night"
+          aria-pressed="false"
+          title="Toggle Day / Night theme"
+        >
+          <img id="theme-toggle-icon-day" src="/assets/icons/line-md--sun-rising-filled-loop.svg" alt="" class="icon-img icon-white theme-icon-day" onerror="this.style.display='none';"/>
+          <img id="theme-toggle-icon-night" src="/assets/icons/line-md--sunny-filled-loop-to-moon-filled-alt-loop-transition.svg" alt="" class="icon-img icon-white theme-icon-night" onerror="this.style.display='none';"/>
+        </button>
+
+        <button
           id="deploy-button"
           class="deploy-button"
           type="button"
@@ -81,29 +93,6 @@
         >
           <span id="connect-bridge-dot" class="bridge-dot" aria-hidden="true"></span>
           <span id="deploy-button-label">🔌 Connect Bridge</span>
-        </button>
-
-        <button
-          id="theme-toggle"
-          class="theme-switch"
-          type="button"
-          aria-label="Switch to Night theme"
-        >
-          <span class="theme-switch-track">
-            <span class="theme-switch-thumb">
-              <img
-                id="theme-toggle-icon"
-                src="/assets/icons/line-md--sun-rising-filled-loop.svg"
-                alt=""
-                class="theme-switch-icon"
-                onerror="this.style.display='none';this.parentNode.textContent='☼';"
-              />
-            </span>
-            <span class="theme-switch-copy">
-              <span id="theme-toggle-label" class="theme-switch-label">Sun rise</span>
-              <span id="theme-toggle-hint" class="theme-switch-hint">Switch to Night</span>
-            </span>
-          </span>
         </button>
 
         <button
@@ -205,53 +194,57 @@
             <span>Quick cheats</span>
           </div>
 
+          <span class="player-toolbar-inject-label">inject:</span>
           <div id="quick-cheat-controls" class="player-toolbar-actions" role="group" aria-label="Quick cheat toggles">
             <button
               type="button"
-              class="toolbar-icon-btn quick-cheat-btn"
+              class="quick-cheat-btn"
               data-quick-cheat="halfSpeed"
-              data-tooltip="Slow the island clock to 0.5x for relaxed testing."
+              title="Slow the island clock to 0.5x for relaxed testing."
               aria-label="Toggle half-speed cheat"
               aria-pressed="false"
             >
               <img
                 src="/assets/icons/material-symbols--speed-0-5x.svg"
                 alt=".5x"
-                class="icon-img icon-white"
-                onerror="this.style.display='none';this.parentNode.textContent='.5X';"
+                class="icon-img icon-white quick-cheat-icon"
+                onerror="this.style.display='none';"
               />
+              <span class="quick-cheat-label">0.5x</span>
             </button>
 
             <button
               type="button"
-              class="toolbar-icon-btn quick-cheat-btn"
+              class="quick-cheat-btn"
               data-quick-cheat="doubleSpeed"
-              data-tooltip="Run the island clock at 2x to fast-forward routines."
+              title="Run the island clock at 2x to fast-forward routines."
               aria-label="Toggle double-speed cheat"
               aria-pressed="false"
             >
               <img
                 src="/assets/icons/material-symbols--speed-2x.svg"
                 alt="2x"
-                class="icon-img icon-white"
-                onerror="this.style.display='none';this.parentNode.textContent='2X';"
+                class="icon-img icon-white quick-cheat-icon"
+                onerror="this.style.display='none';"
               />
+              <span class="quick-cheat-label">2x</span>
             </button>
 
             <button
               type="button"
-              class="toolbar-icon-btn quick-cheat-btn"
+              class="quick-cheat-btn"
               data-quick-cheat="wallWalk"
-              data-tooltip="Phase through collision edges for movement testing."
+              title="Phase through collision edges for movement testing."
               aria-label="Toggle wall walk cheat"
               aria-pressed="false"
             >
               <img
                 src="/assets/icons/line-md--map-marker-radius.svg"
                 alt="Wall walk"
-                class="icon-img icon-white"
-                onerror="this.style.display='none';this.parentNode.textContent='◎';"
+                class="icon-img icon-white quick-cheat-icon"
+                onerror="this.style.display='none';"
               />
+              <span class="quick-cheat-label">wall walk</span>
             </button>
           </div>
         </div>
@@ -285,7 +278,7 @@
 
           </div>
 
-          <div class="player-meta">
+          <div class="player-meta" style="display:none">
             <div class="meta-row">
               <span class="meta-key">Player Name:</span>
               <div class="meta-value meta-reload-wrap">
@@ -356,32 +349,34 @@
         </div>
       </div>
 
-      <div class="player-actions-bar">
-        <button
-          id="open-selected-search-button"
-          class="toolbar-icon-btn action-btn"
-          type="button"
-          aria-label="Search selected item"
-        >
-          <span class="search-glyph">⌕</span>
-          <span>Search</span>
-        </button>
-        <span class="presets-label">Presets:</span>
-        <button type="button" class="action-btn preset-btn" data-preset="tools" id="preset-tools-btn">Tools</button>
-        <button type="button" class="action-btn preset-btn" data-preset="gold" id="preset-gold-btn">Gold</button>
-        <button type="button" class="action-btn preset-btn" data-preset="materials" id="preset-materials-btn">Materials</button>
-        <button type="button" class="action-btn preset-btn" data-preset="dye" id="preset-dye-btn">Dye</button>
-        <button type="button" class="action-btn preset-btn" data-preset="trees" id="preset-trees-btn">Trees</button>
-        <button type="button" class="action-btn preset-btn" data-preset="bushes" id="preset-bushes-btn">Bushes</button>
-        <button type="button" class="action-btn preset-btn" data-preset="roses" id="preset-roses-btn">Roses</button>
-        <button type="button" class="action-btn preset-btn" data-preset="tulips" id="preset-tulips-btn">Tulips</button>
-        <span id="preset-custom-bar-items"></span>
-        <button type="button" class="action-btn preset-btn preset-btn-add" data-preset="custom" id="preset-custom-btn" title="Manage Presets">+</button>
-      </div>
-
+        <div class="inventory-search-bar">
+          <button
+            id="open-selected-search-button"
+            class="preset-btn preset-btn-search"
+            type="button"
+            aria-label="Search selected item"
+            title="Search for the selected item"
+          >
+            <span class="search-glyph">⌕</span>
+            <span>Search</span>
+          </button>
+        </div>
         <div class="inventory-area">
           <div id="inventory-card" class="inventory-card">
             <div id="inventory-grid" class="inventory-grid"></div>
+          </div>
+          <div class="inventory-sidebar">
+            <div class="inventory-sidebar-label">inject:</div>
+            <button type="button" class="preset-btn" data-preset="tools" id="preset-tools-btn">Tools</button>
+            <button type="button" class="preset-btn" data-preset="gold" id="preset-gold-btn">Gold</button>
+            <button type="button" class="preset-btn" data-preset="materials" id="preset-materials-btn">Materials</button>
+            <button type="button" class="preset-btn" data-preset="dye" id="preset-dye-btn">Dye</button>
+            <button type="button" class="preset-btn" data-preset="trees" id="preset-trees-btn">Trees</button>
+            <button type="button" class="preset-btn" data-preset="bushes" id="preset-bushes-btn">Bushes</button>
+            <button type="button" class="preset-btn" data-preset="roses" id="preset-roses-btn">Roses</button>
+            <button type="button" class="preset-btn" data-preset="tulips" id="preset-tulips-btn">Tulips</button>
+            <span id="preset-custom-bar-items"></span>
+            <button type="button" class="preset-btn preset-btn-add" data-preset="custom" id="preset-custom-btn" title="Manage Presets">+</button>
           </div>
         </div>
       </section>
@@ -1079,6 +1074,7 @@
     </div>
   </div>
 
+  <script defer src="./config.js"></script>
   <script defer src="./vendor/react/react.production.min.js"></script>
   <script defer src="./vendor/react-dom/react-dom.production.min.js"></script>
   <script defer src="./react/runtime.js?v=47"></script>
@@ -1139,7 +1135,7 @@
   <script defer src="./react/components/MusicLibraryOptions.js?v=47"></script>
   <script defer src="./react/components/VillagerModal.js?v=95"></script>
   <script defer src="./react/renderers.js?v=47"></script>
-  <script defer src="./app-core.js?v=92"></script>
+  <script defer src="./app-core.js?v=93"></script>
   <script defer src="./app-music.js?v=47"></script>
   <script defer src="./app-workspaces.js?v=92"></script>
   <script defer src="./app.js?v=88"></script>

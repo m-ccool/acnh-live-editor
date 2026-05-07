@@ -154,7 +154,7 @@
 
   async function backupVillager(v) {
     try {
-      const res = await fetch('/api/villager/backup', {
+      const res = await apiFetch('/api/villager/backup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ villager: v }),
@@ -172,7 +172,7 @@
 
   async function openBackupsFolder() {
     try {
-      await fetch('/api/villager/open-backups', { method: 'POST' });
+      await apiFetch('/api/villager/open-backups', { method: 'POST' });
     } catch (e) {
       console.warn('[villager] open-backups error:', e);
     }
@@ -374,14 +374,14 @@
     const initFields = {};
     HOUSE_FIELDS.forEach(f => { initFields[f.key] = house[f.key] != null ? house[f.key] : f.def; });
     const [fields, setFields] = useState(initFields);
-    const iconUrl = `/api/villager-icon/${encodeURIComponent(v.name || '')}?v=4`;
+    const iconUrl = apiUrl(`/api/villager-icon/${encodeURIComponent(v.name || "")}?v=4`);
     const setField = useCallback((key, val) => {
       setFields(prev => ({ ...prev, [key]: val }));
     }, []);
 
     const handleSave = useCallback(async () => {
       const villagerWithHouse = { ...v, house: { ...(v.house || {}), ...fields } };
-      const res = await fetch('/api/villager/backup', {
+      const res = await apiFetch('/api/villager/backup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ villager: villagerWithHouse }),
@@ -429,13 +429,13 @@
     const selected = VILLAGER_FLAGS[selectedIdx];
     const selectedValue = flagValues[selectedIdx] != null ? flagValues[selectedIdx] : 0;
 
-    const iconUrl = `/api/villager-icon/${encodeURIComponent(v.name || '')}?v=4`;
+    const iconUrl = apiUrl(`/api/villager-icon/${encodeURIComponent(v.name || "")}?v=4`);
 
     const handleSave = useCallback(async () => {
       const allFlags = Array.isArray(v.flags) ? [...v.flags] : [];
       Object.entries(flagValues).forEach(([idx, val]) => { allFlags[Number(idx)] = val; });
       const villagerWithFlags = { ...v, flags: allFlags };
-      const res = await fetch('/api/villager/backup', {
+      const res = await apiFetch('/api/villager/backup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ villager: villagerWithFlags }),
@@ -862,14 +862,14 @@
   function EditView({ v, onBack }) {
     const [activeTab, setActiveTab] = useState('furniture');
     const [saveState, setSaveState] = useState('idle'); // idle | saving | ok | error
-    const iconUrl = `/api/villager-icon/${encodeURIComponent(v.name || '')}?v=4`;
+    const iconUrl = apiUrl(`/api/villager-icon/${encodeURIComponent(v.name || "")}?v=4`);
     const friendshipVal = v.friendship || 0;
     const friendshipBarPct = friendshipVal === 0 ? 5 : Math.round((friendshipVal / 255) * 100);
 
     const handleSave = useCallback(async () => {
       setSaveState('saving');
       try {
-        const res = await fetch('/api/villager/backup', {
+        const res = await apiFetch('/api/villager/backup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ villager: v }),

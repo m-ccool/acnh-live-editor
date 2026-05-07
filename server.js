@@ -1,6 +1,7 @@
 const express = require('express')
 const dgram = require('dgram')
 const path = require('path')
+const fs = require('fs')
 require('dotenv').config({
   path: path.join(__dirname, '.env'),
   quiet: true
@@ -19,12 +20,34 @@ const app = express()
 const PORT = process.env.PORT || 3000
 const publicDir = path.join(__dirname, 'public')
 
-app.use(express.static(publicDir))
+// Auto cache-bust: stamp all ?v=\d+ query strings with startup time.
+// No more manual version number bumps needed.
+const STARTUP_STAMP = Date.now()
+let _indexHtml = null
+function getIndexHtml() {
+  if (!_indexHtml) {
+    const raw = fs.readFileSync(path.join(publicDir, 'index.html'), 'utf8')
+    _indexHtml = raw.replace(/\?v=\d+/g, `?v=${STARTUP_STAMP}`)
+  }
+  return _indexHtml
+}
+
+// CORS — allow GitHub Pages and any origin to call the API
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, PATCH, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  if (req.method === 'OPTIONS') return res.sendStatus(204)
+  next()
+})
+
+app.use(express.static(publicDir, { index: false }))
 app.use(express.json())
 app.use(createApiRouter({ getPreferredLocalIp }))
 
 app.get('*', (req, res) => {
-  res.sendFile(path.join(publicDir, 'index.html'))
+  res.setHeader('Content-Type', 'text/html; charset=utf-8')
+  res.send(getIndexHtml())
 })
 
 app.listen(PORT, async () => {

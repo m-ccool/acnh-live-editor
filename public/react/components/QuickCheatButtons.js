@@ -8,9 +8,9 @@
       'button',
       {
         type: 'button',
-        className: props.active ? 'toolbar-icon-btn quick-cheat-btn is-active' : 'toolbar-icon-btn quick-cheat-btn',
+        className: props.active ? 'quick-cheat-btn is-active' : 'quick-cheat-btn',
         'data-quick-cheat': props.cheatId,
-        'data-tooltip': props.tooltip,
+        title: props.tooltip,
         'aria-label': props.ariaLabel,
         'aria-pressed': props.active ? 'true' : 'false',
         onClick() {
@@ -20,19 +20,17 @@
       h('img', {
         src: props.iconSrc,
         alt: props.iconAlt,
-        className: 'icon-img icon-white',
+        className: 'icon-img icon-white quick-cheat-icon',
         onError(event) {
           event.currentTarget.style.display = 'none';
           const fallback = event.currentTarget.nextSibling;
-          if (fallback && fallback.style) {
+          if (fallback && fallback.tagName === 'SPAN' && fallback.dataset.fb) {
             fallback.style.display = 'inline';
           }
         }
       }),
-      h('span', {
-        style: { display: 'none' },
-        'aria-hidden': 'true'
-      }, props.fallbackText)
+      h('span', { 'data-fb': 'true', style: { display: 'none' }, 'aria-hidden': 'true' }, props.fallbackText),
+      h('span', { className: 'quick-cheat-label' }, props.label)
     );
   }
 

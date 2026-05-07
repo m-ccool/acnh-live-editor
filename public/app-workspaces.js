@@ -61,7 +61,7 @@ async function writePlayerChanges(nextPlayer = state.player, actionText = 'Playe
   }
 
   try {
-    const response = await fetch('/api/bridge/write-player', {
+    const response = await apiFetch('/api/bridge/write-player', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1415,7 +1415,7 @@ async function loadBackupsList() {
   setBackupsStatus('');
 
   try {
-    const res = await fetch('/api/backups');
+    const res = await apiFetch('/api/backups');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     if (data.error) throw new Error(data.error);
@@ -1525,7 +1525,7 @@ async function handleCreateBackup() {
   setBackupsStatus('Creating backup\u2026');
 
   try {
-    const res = await fetch('/api/backups', {
+    const res = await apiFetch('/api/backups', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ label: '' })
@@ -1546,7 +1546,7 @@ async function handleUpdateLabel(id, label) {
   if (!id) return;
   const input = el.backupsList && el.backupsList.querySelector(`.backup-label-input[data-id="${CSS.escape(id)}"]`);
   try {
-    const res = await fetch(`/api/backups/${encodeURIComponent(id)}/label`, {
+    const res = await apiFetch(`/api/backups/${encodeURIComponent(id)}/label`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ label: String(label).slice(0, 80) })
@@ -1576,7 +1576,7 @@ async function handleRestoreBackup(id) {
   if (restoreBtn) restoreBtn.disabled = true;
 
   try {
-    const res = await fetch(`/api/backups/${encodeURIComponent(id)}/restore`, { method: 'POST' });
+    const res = await apiFetch(`/api/backups/${encodeURIComponent(id)}/restore`, { method: 'POST' });
     const data = await res.json();
     if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
     setBackupsStatus('Restored. Restart the game to load the restored save.');
@@ -1591,7 +1591,7 @@ async function handleDeleteBackup(id) {
   setBackupsStatus('Deleting\u2026');
 
   try {
-    const res = await fetch(`/api/backups/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    const res = await apiFetch(`/api/backups/${encodeURIComponent(id)}`, { method: 'DELETE' });
     const data = await res.json();
     if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
     setBackupsStatus(`Deleted.`);
@@ -1647,14 +1647,14 @@ const PERSONALITY_COLORS = {
 function villagerImageUrl(v) {
   if (!v || !v.name) return null;
   const name = v.name.trim().replace(/[^a-zA-Z0-9_\-]/g, '');
-  return `/api/villager-icon/${encodeURIComponent(name)}?v=4`;
+  return apiUrl(`/api/villager-icon/${encodeURIComponent(name)}?v=4`);
 }
 
 // Derive full-body art URL from villager's name for the edit modal (Nookipedia).
 function villagerArtUrl(v) {
   if (!v || !v.name) return null;
   const name = v.name.trim().replace(/[^a-zA-Z0-9 _'\-]/g, '');
-  return `/api/villager-art/${encodeURIComponent(name)}`;
+  return apiUrl(`/api/villager-art/${encodeURIComponent(name)}`);
 }
 
 function openVillagerModal(v) {
@@ -1774,7 +1774,7 @@ async function loadVillagersFromBridge() {
   const isFirstLoad = !state.villagers || state.villagers.length === 0;
 
   // Start the fetch immediately so network time runs in parallel with skeleton display
-  const fetchPromise = fetch('/api/bridge/read-villagers');
+  const fetchPromise = apiFetch('/api/bridge/read-villagers');
 
   if (isFirstLoad && roster) {
     // Show shimmer skeleton cards while data is in flight.

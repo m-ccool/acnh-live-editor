@@ -3,7 +3,7 @@ services:
     name: acnh-live-editor-demo
     runtime: node
     plan: free
-    branch: master
+    branch: dev
     buildCommand: npm install
     startCommand: npm start
     autoDeploy: true

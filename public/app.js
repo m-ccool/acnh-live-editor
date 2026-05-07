@@ -55,7 +55,7 @@ async function refreshBridgeStatus(lastAction) {
   let syncedFromBridge = false;
 
   try {
-    const statusResponse = await fetch('/api/status', { cache: 'no-store' });
+    const statusResponse = await apiFetch('/api/status', { cache: 'no-store' });
     if (statusResponse.ok) {
       syncBridgeStatus(await statusResponse.json());
       syncedFromBridge = await refreshBridgeInventory({ reason: lastAction, force: true });
@@ -79,7 +79,7 @@ async function refreshBridgeStatus(lastAction) {
 
 async function pollBridgeStatus() {
   try {
-    const statusResponse = await fetch('/api/status', { cache: 'no-store' });
+    const statusResponse = await apiFetch('/api/status', { cache: 'no-store' });
     if (statusResponse.ok) {
       syncBridgeStatus(await statusResponse.json());
       await refreshBridgeInventory({ reason: 'Background inventory sync' });
@@ -120,7 +120,7 @@ async function refreshBridgeGameData() {
   }
 
   try {
-    const response = await fetch('/api/bridge/read-game-data', { cache: 'no-store' });
+    const response = await apiFetch('/api/bridge/read-game-data', { cache: 'no-store' });
     const body = await response.json().catch(() => ({}));
 
     if (!response.ok || body.ok === false) {
@@ -576,7 +576,7 @@ async function refreshBridgeInventory(options = {}) {
   bridgeInventorySyncInFlight = true;
 
   try {
-    const response = await fetch('/api/bridge/read-inventory', { cache: 'no-store' });
+    const response = await apiFetch('/api/bridge/read-inventory', { cache: 'no-store' });
     const body = await response.json().catch(() => ({}));
 
     if (!response.ok || body.ok === false) {
@@ -633,7 +633,7 @@ async function hydrateBridgeCatalogItems(bridgeSlots) {
   }
 
   try {
-    const response = await fetch('/api/items/lookup', {
+    const response = await apiFetch('/api/items/lookup', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -780,7 +780,7 @@ async function writeSlotToBridge(slot, actionText) {
   renderInventory();
 
   try {
-    const response = await fetch('/api/bridge/write-inventory-slot', {
+    const response = await apiFetch('/api/bridge/write-inventory-slot', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -817,7 +817,7 @@ async function writeSlotToBridge(slot, actionText) {
 
 async function refreshCatalogStatus() {
   try {
-    const response = await fetch('/api/catalog/status', { cache: 'no-store' });
+    const response = await apiFetch('/api/catalog/status', { cache: 'no-store' });
     if (response.ok) {
       syncCatalogStatus(await response.json());
       renderBridge();
@@ -837,7 +837,7 @@ async function refreshCatalogDiagnostics() {
   renderSettingsDebug();
 
   try {
-    const response = await fetch('/api/catalog/diagnostics', { cache: 'no-store' });
+    const response = await apiFetch('/api/catalog/diagnostics', { cache: 'no-store' });
     if (response.ok) {
       state.catalog.diagnostics = await response.json();
     }
@@ -1286,7 +1286,7 @@ async function runModalSearch() {
       filter: state.modalSearchFilter || 'all',
       limit: String(MODAL_SEARCH_LIMIT)
     });
-    const response = await fetch(`/api/items/search?${params.toString()}`, { cache: 'no-store' });
+    const response = await apiFetch(`/api/items/search?${params.toString()}`, { cache: 'no-store' });
     if (!response.ok) {
       throw new Error(`Search failed with ${response.status}`);
     }
@@ -1461,30 +1461,17 @@ function renderThemeToggle() {
   if (!el.themeToggle) return;
 
   const isNight = state.theme === THEME_NIGHT;
-  const nextTheme = isNight ? THEME_SUNRISE : THEME_NIGHT;
 
   el.themeToggle.classList.toggle('is-night', isNight);
-  el.themeToggle.setAttribute('aria-label', `Switch to ${getThemeLabel(nextTheme)} theme`);
-  el.themeToggle.title = `Switch to ${getThemeLabel(nextTheme)}`;
+  el.themeToggle.setAttribute('aria-label', `Switch to ${isNight ? 'Day' : 'Night'}`);
   el.themeToggle.setAttribute('aria-pressed', isNight ? 'true' : 'false');
 
-  if (el.themeToggleLabel) {
-    el.themeToggleLabel.textContent = getThemeLabel(state.theme);
-  }
-
-  if (el.themeToggleHint) {
-    el.themeToggleHint.textContent = `Switch to ${getThemeLabel(nextTheme)}`;
-  }
-
-  if (el.themeToggleIcon) {
-    el.themeToggleIcon.src = isNight
-      ? '/assets/icons/line-md--sunny-filled-loop-to-moon-filled-alt-loop-transition.svg'
-      : '/assets/icons/line-md--sun-rising-filled-loop.svg';
-  }
+  // Icon visibility is handled via CSS class .is-night on the button — no src swap needed.
+  // See .theme-icon-day / .theme-icon-night in styles.css
 }
 
 function getThemeLabel(theme) {
-  return theme === THEME_NIGHT ? 'Night' : 'Sun rise';
+  return theme === THEME_NIGHT ? 'Night' : 'Day';
 }
 
 if ('serviceWorker' in navigator) {

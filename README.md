@@ -18,6 +18,14 @@ The project currently combines:
 - Music library loading with fallback behavior.
 - Offline shell support through a service worker.
 
+## Design Philosophy
+
+This is a **mobile-first responsive PWA**. It will be installable across devices (phone, tablet, desktop, Steam Deck) as development progresses.
+
+- Mobile-first UI and UX design must remain the forefront of all interface decisions.
+- Layout, typography, spacing, and interaction patterns should degrade gracefully from large to small screens, never the reverse.
+- Component sizing, touch targets, and responsive breakpoints must be validated at mobile widths before desktop.
+
 ## Tech Stack
 
 - Node.js
@@ -326,6 +334,68 @@ Scope guard for Steam Deck MVP:
 
 - Steam Deck launcher + bridge run scripts are wired.
 - Bridge status/read endpoints are active in the app backend.
+
+---
+
+## Distribution Options
+
+Three packaging paths, ordered by ease of use vs. portability:
+
+### Option A — Windows Executable (`pkg`)
+
+Bundles the Node.js runtime + `server.js` + all assets into a single `.exe`. No install needed on the target machine.
+
+```bash
+npm install -g pkg
+pkg . --targets node18-win-x64 --output acnh-live-editor.exe
+```
+
+Add to `package.json`:
+```json
+"pkg": {
+  "assets": ["public/**/*", "data/**/*", "modules/**/*"],
+  "scripts": ["server.js", "modules/**/*.js"]
+}
+```
+
+**Best for:** sharing with another Windows PC on the same LAN.
+
+### Option B — Docker (LAN server)
+
+Containerises the server so it runs anywhere Docker is available — including a NAS, another PC, or a Linux host.
+
+```dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --omit=dev
+COPY . .
+EXPOSE 3000 32840 32841
+CMD ["node", "server.js"]
+```
+
+```bash
+docker build -t acnh-live-editor .
+docker run -p 3000:3000 -p 32840:32840 -p 32841:32841 acnh-live-editor
+```
+
+**Best for:** always-on LAN access, works on any OS with Docker.
+
+### Option C — Electron (desktop app)
+
+Wraps the server and a Chromium window into a cross-platform desktop app. Provides the most polished UX — no browser needed.
+
+```bash
+npm install --save-dev electron electron-builder
+```
+
+Minimal `main.js` for Electron: launch the Express server in-process, then open a `BrowserWindow` pointing to `http://localhost:3000`.
+
+**Best for:** a fully self-contained app experience on Windows or macOS.
+
+---
+
+> **Current runtime target:** `http://10.0.0.25:3000` (Windows) ↔ Steam Deck bridge `10.0.0.25:32840`
 - UI panels render bridge/game-data payloads.
 - Live inventory write from Windows UI through bridge into Ryujinx memory confirmed functional (`84bdeef`, 2026-04-23). Save persists; in-game display refresh is a pinned bug (see Known Bugs).
 - Inventory slot editing UI fully wired: click slot → item modal → assign item + count → Apply writes to live memory.

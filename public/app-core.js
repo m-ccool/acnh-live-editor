@@ -224,7 +224,7 @@ async function handleConnectBridgeClick() {
   if (label) label.textContent = '⏳ Connecting…';
   let data = null;
   try {
-    const res = await fetch('/api/connect-bridge', { method: 'POST', cache: 'no-store' });
+    const res = await apiFetch('/api/connect-bridge', { method: 'POST', cache: 'no-store' });
     data = await res.json();
     if (label) label.textContent = data.ok ? '✓ Connected' : '✗ Failed';
   } catch (err) {
@@ -316,9 +316,8 @@ function cacheDom() {
   el.logConnectionIndicator = document.getElementById('log-connection-indicator');
   el.logConnectionIcon = document.getElementById('log-connection-icon');
   el.themeToggle = document.getElementById('theme-toggle');
-  el.themeToggleIcon = document.getElementById('theme-toggle-icon');
-  el.themeToggleLabel = document.getElementById('theme-toggle-label');
-  el.themeToggleHint = document.getElementById('theme-toggle-hint');
+  el.themeToggleIconDay = document.getElementById('theme-toggle-icon-day');
+  el.themeToggleIconNight = document.getElementById('theme-toggle-icon-night');
   el.bridgeToggle = document.getElementById('bridge-toggle');
   el.logRefreshButton = document.getElementById('log-refresh-button');
   el.musicRibbon = document.getElementById('music-ribbon');
@@ -764,7 +763,9 @@ function bindEvents() {
   if (el.logPanelResizeHandle) {
     el.logPanelResizeHandle.addEventListener('pointerdown', handleLogPanelResizeStart);
   }
-  el.themeToggle.addEventListener('click', toggleTheme);
+  if (el.themeToggle) {
+    el.themeToggle.addEventListener('click', toggleTheme);
+  }
   el.musicRibbonToggle.addEventListener('click', handleMusicRibbonToggleClick);
   el.musicRibbonToggle.addEventListener('pointerdown', handleMusicRibbonDragStart);
   el.musicRibbonToggle.addEventListener('pointermove', handleMusicRibbonDragMove);
@@ -1172,7 +1173,7 @@ async function reloadAppShell() {
 
 async function loadData() {
   try {
-    const itemsResponse = await fetch('/api/items', { cache: 'no-store' });
+    const itemsResponse = await apiFetch('/api/items', { cache: 'no-store' });
     if (itemsResponse.ok) {
       const items = await itemsResponse.json();
       state.items = Array.isArray(items) ? items : [];
@@ -1183,7 +1184,7 @@ async function loadData() {
   }
 
   try {
-    const catalogStatusResponse = await fetch('/api/catalog/status', { cache: 'no-store' });
+    const catalogStatusResponse = await apiFetch('/api/catalog/status', { cache: 'no-store' });
     if (catalogStatusResponse.ok) {
       syncCatalogStatus(await catalogStatusResponse.json());
     }
@@ -1192,7 +1193,7 @@ async function loadData() {
   }
 
   try {
-    const musicResponse = await fetch('/api/music/library', { cache: 'no-store' });
+    const musicResponse = await apiFetch('/api/music/library', { cache: 'no-store' });
     if (musicResponse.ok) {
       syncMusicLibrary(await musicResponse.json());
     }
@@ -1201,7 +1202,7 @@ async function loadData() {
   }
 
   try {
-    const statusResponse = await fetch('/api/status', { cache: 'no-store' });
+    const statusResponse = await apiFetch('/api/status', { cache: 'no-store' });
     if (statusResponse.ok) {
       syncBridgeStatus(await statusResponse.json());
       if (state.bridge.connected) {
@@ -1449,6 +1450,12 @@ function renderBridge() {
 
   if (el.connectBridgeDot) {
     el.connectBridgeDot.classList.toggle('is-on', state.bridge.connected);
+  }
+
+  // Update deploy button label to reflect live connection state
+  if (el.deployButton && !el.deployButton.disabled) {
+    const lbl = document.getElementById('deploy-button-label');
+    if (lbl) lbl.textContent = state.bridge.connected ? '⚡ Bridge' : '🔌 Connect Bridge';
   }
 
   if (el.bridgeToggle) {
