@@ -3,7 +3,7 @@
 const TOTAL_SLOTS = 40;
 const STORAGE_KEY = 'acnh-live-editor-state-v5';
 const REPO_URL = 'https://github.com/m-ccool/acnh-live-editor';
-const SERVICE_WORKER_VERSION = '91';
+const SERVICE_WORKER_VERSION = '92';
 const PLAY_ICON_PATH = '/assets/icons/line-md--pause-to-play-filled-transition.svg';
 const PAUSE_ICON_PATH = '/assets/icons/line-md--pause.svg';
 const CONSOLE_CONNECTED_ICON_PATH = '/assets/icons/codicon--debug-connect.svg';
@@ -444,6 +444,28 @@ function cacheDom() {
 
 const BUILTIN_PRESET_KEYS = ['tools','gold','materials','dye','trees','bushes','roses','tulips'];
 const BUILTIN_PRESET_LABELS = { tools:'Tools', gold:'Gold', materials:'Materials', dye:'Dye', trees:'Trees', bushes:'Bushes', roses:'Roses', tulips:'Tulips' };
+const BUILTIN_PRESET_COLORS = {
+  tools:     { bg: 'rgba(255,180,60,0.13)',  border: 'rgba(255,180,60,0.30)'  },
+  gold:      { bg: 'rgba(255,215,0,0.13)',   border: 'rgba(255,215,0,0.30)'   },
+  materials: { bg: 'rgba(98,214,111,0.11)',  border: 'rgba(98,214,111,0.28)'  },
+  dye:       { bg: 'rgba(200,90,220,0.11)',  border: 'rgba(200,90,220,0.28)'  },
+  trees:     { bg: 'rgba(80,180,80,0.11)',   border: 'rgba(80,180,80,0.26)'   },
+  bushes:    { bg: 'rgba(60,160,100,0.11)',  border: 'rgba(60,160,100,0.26)'  },
+  roses:     { bg: 'rgba(220,60,80,0.11)',   border: 'rgba(220,60,80,0.28)'   },
+  tulips:    { bg: 'rgba(255,120,160,0.11)', border: 'rgba(255,120,160,0.28)' },
+};
+
+function getPresetChipStyle(key) {
+  if (BUILTIN_PRESET_COLORS[key]) {
+    const c = BUILTIN_PRESET_COLORS[key];
+    return `background:${c.bg};border-color:${c.border};`;
+  }
+  if (key.startsWith('custom:')) {
+    const cp = state.customPresets.find(p => p.id === key.slice(7));
+    if (cp && cp.swatch) return `background:${cp.swatch.rgba};border-color:${cp.swatch.color}44;`;
+  }
+  return '';
+}
 const PM_SWATCHES = [
   { label:'Amber',  color:'#ffca50', rgba:'rgba(255,202,80,0.13)'  },
   { label:'Green',  color:'#62d66f', rgba:'rgba(98,214,111,0.13)'  },
@@ -580,6 +602,8 @@ function renderPresetManagerModal() {
         chip.type = 'button';
         chip.className = 'pm-chip pm-chip-pinned';
         chip.dataset.preset = key;
+        const style = getPresetChipStyle(key);
+        if (style) chip.style.cssText = style;
         chip.innerHTML = `${escapeHtml(label)} <span class="pm-chip-x">✕</span>`;
         chip.addEventListener('click', () => {
           state.pinnedPresets = state.pinnedPresets.filter(k => k !== key);
@@ -608,6 +632,8 @@ function renderPresetManagerModal() {
         const chip = document.createElement('button');
         chip.type = 'button';
         chip.className = 'pm-chip pm-chip-available';
+        const style = getPresetChipStyle(key);
+        if (style) chip.style.cssText = style;
         chip.innerHTML = `<span class="pm-chip-plus">+</span> ${escapeHtml(label)}`;
         chip.addEventListener('click', () => {
           if (!state.pinnedPresets.includes(key)) {
@@ -655,25 +681,37 @@ function initPresetItemSearch() {
   const newAdd = addBtn.cloneNode(true);
   addBtn.parentNode.replaceChild(newAdd, addBtn);
 
+  let pmSearchDebounce = null;
+
   newQuery.addEventListener('input', () => {
-    const q = newQuery.value.trim().toLowerCase();
-    if (q.length < 2) { suggestionsEl.innerHTML = ''; return; }
-    const items = typeof getKnownCatalogItems === 'function'
-      ? getKnownCatalogItems().filter(i => (i.name || '').toLowerCase().includes(q)).slice(0, 12)
-      : [];
-    if (items.length === 0) { suggestionsEl.innerHTML = ''; return; }
+    const q = newQuery.value.trim();
     suggestionsEl.innerHTML = '';
-    items.forEach(item => {
-      const div = document.createElement('div');
-      div.className = 'pm-suggestion-item';
-      div.textContent = item.name;
-      div.addEventListener('mousedown', e => {
-        e.preventDefault();
-        newQuery.value = item.name;
-        suggestionsEl.innerHTML = '';
+    clearTimeout(pmSearchDebounce);
+    if (q.length < 2) return;
+    pmSearchDebounce = setTimeout(async () => {
+      let items = [];
+      try {
+        const params = new URLSearchParams({ q, limit: '15' });
+        const res = await fetch(`/api/items/search?${params}`, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          items = Array.isArray(data.items) ? data.items : (Array.isArray(data) ? data : []);
+        }
+      } catch (_) { /* silent */ }
+      if (newQuery.value.trim() !== q) return; // stale
+      suggestionsEl.innerHTML = '';
+      items.slice(0, 15).forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'pm-suggestion-item';
+        div.textContent = item.name;
+        div.addEventListener('mousedown', e => {
+          e.preventDefault();
+          newQuery.value = item.name;
+          suggestionsEl.innerHTML = '';
+        });
+        suggestionsEl.appendChild(div);
       });
-      suggestionsEl.appendChild(div);
-    });
+    }, 220);
   });
 
   newQuery.addEventListener('blur', () => {
