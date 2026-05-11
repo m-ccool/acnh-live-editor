@@ -2663,26 +2663,37 @@ body[data-theme='night'] .selected-item-artbox {
 .pm-item-query { width: 100%; }
 .pm-item-qty { width: 58px; flex: none; }
 
-/* Autocomplete suggestions */
+/* Autocomplete suggestions — fixed to viewport to escape overflow:hidden parents */
 .pm-suggestions {
-  position: absolute;
-  top: calc(100% + 3px);
-  left: 0;
-  right: 0;
-  z-index: 200;
+  position: fixed;
+  z-index: 9999;
   background: rgba(18, 22, 32, 0.97);
   border: 1px solid rgba(255,255,255,0.14);
   border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+  overflow-y: auto;
+  max-height: 220px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.45);
+  display: none;
 }
+.pm-suggestions:not(:empty) { display: block; }
 .pm-suggestion-item {
-  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px;
   font-size: 0.76rem;
   color: rgba(255,255,255,0.82);
   cursor: pointer;
 }
 .pm-suggestion-item:hover { background: rgba(255,255,255,0.09); }
+.pm-suggestion-icon {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.pm-suggestion-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .action-btn {
   min-width: 92px;

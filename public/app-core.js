@@ -3,7 +3,7 @@
 const TOTAL_SLOTS = 40;
 const STORAGE_KEY = 'acnh-live-editor-state-v5';
 const REPO_URL = 'https://github.com/m-ccool/acnh-live-editor';
-const SERVICE_WORKER_VERSION = '92';
+const SERVICE_WORKER_VERSION = '93';
 const PLAY_ICON_PATH = '/assets/icons/line-md--pause-to-play-filled-transition.svg';
 const PAUSE_ICON_PATH = '/assets/icons/line-md--pause.svg';
 const CONSOLE_CONNECTED_ICON_PATH = '/assets/icons/codicon--debug-connect.svg';
@@ -583,7 +583,11 @@ function openPresetManagerModal() {
   initPresetItemSearch();
   initPresetSaveBtn();
   const closeBtn = document.getElementById('preset-manager-close');
-  if (closeBtn) closeBtn.onclick = () => closeModal(el.presetManagerModal);
+  if (closeBtn) closeBtn.onclick = () => {
+    const portal = document.getElementById('pm-suggestions-portal');
+    if (portal) portal.remove();
+    closeModal(el.presetManagerModal);
+  };
 }
 
 function renderPresetManagerModal() {
@@ -671,9 +675,8 @@ function renderPresetSwatches() {
 
 function initPresetItemSearch() {
   const queryInput = document.getElementById('pm-item-query');
-  const suggestionsEl = document.getElementById('pm-item-suggestions');
   const addBtn = document.getElementById('pm-item-add-btn');
-  if (!queryInput || !suggestionsEl || !addBtn) return;
+  if (!queryInput || !addBtn) return;
 
   // Remove old listeners by replacing elements
   const newQuery = queryInput.cloneNode(true);
@@ -681,13 +684,31 @@ function initPresetItemSearch() {
   const newAdd = addBtn.cloneNode(true);
   addBtn.parentNode.replaceChild(newAdd, addBtn);
 
+  // True DOM portal — append to document.body to escape backdrop-filter containing block on .modal-card
+  const oldPortal = document.getElementById('pm-suggestions-portal');
+  if (oldPortal) oldPortal.remove();
+  const portal = document.createElement('div');
+  portal.id = 'pm-suggestions-portal';
+  portal.className = 'pm-suggestions';
+  document.body.appendChild(portal);
+
+  function positionPortal() {
+    const rect = newQuery.getBoundingClientRect();
+    portal.style.left = rect.left + 'px';
+    portal.style.top = (rect.bottom + 4) + 'px';
+    portal.style.width = rect.width + 'px';
+  }
+
+  function clearPortal() { portal.innerHTML = ''; }
+
   let pmSearchDebounce = null;
 
   newQuery.addEventListener('input', () => {
     const q = newQuery.value.trim();
-    suggestionsEl.innerHTML = '';
+    clearPortal();
     clearTimeout(pmSearchDebounce);
     if (q.length < 2) return;
+    positionPortal();
     pmSearchDebounce = setTimeout(async () => {
       let items = [];
       try {
@@ -699,24 +720,43 @@ function initPresetItemSearch() {
         }
       } catch (_) { /* silent */ }
       if (newQuery.value.trim() !== q) return; // stale
-      suggestionsEl.innerHTML = '';
+      clearPortal();
+      positionPortal();
       items.slice(0, 15).forEach(item => {
         const div = document.createElement('div');
         div.className = 'pm-suggestion-item';
-        div.textContent = item.name;
+        const img = document.createElement('img');
+        img.className = 'pm-suggestion-icon';
+        img.src = item.icon_url || '';
+        img.alt = '';
+        img.setAttribute('aria-hidden', 'true');
+        img.loading = 'lazy';
+        if (!item.icon_url) img.style.visibility = 'hidden';
+        const name = document.createElement('span');
+        name.className = 'pm-suggestion-name';
+        name.textContent = item.name;
+        div.appendChild(img);
+        div.appendChild(name);
         div.addEventListener('mousedown', e => {
           e.preventDefault();
           newQuery.value = item.name;
-          suggestionsEl.innerHTML = '';
+          clearPortal();
         });
-        suggestionsEl.appendChild(div);
+        portal.appendChild(div);
       });
     }, 220);
   });
 
+  newQuery.addEventListener('focus', positionPortal);
   newQuery.addEventListener('blur', () => {
-    setTimeout(() => { suggestionsEl.innerHTML = ''; }, 160);
+    setTimeout(clearPortal, 160);
   });
+
+  // Reposition when the modal body scrolls so the dropdown tracks the input
+  const pmBody = document.querySelector('.pm-body');
+  if (pmBody) pmBody.addEventListener('scroll', () => {
+    if (portal.children.length) positionPortal();
+  }, { passive: true });
 
   newAdd.addEventListener('click', () => {
     const itemId = newQuery.value.trim();
@@ -727,6 +767,7 @@ function initPresetItemSearch() {
     pmItemRows.push({ itemId, count: qty, uses: 0, flag0: 0, flag1: 0 });
     newQuery.value = '';
     if (qtyInput) qtyInput.value = '1';
+    clearPortal();
     renderPresetItemList();
   });
 }
