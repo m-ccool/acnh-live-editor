@@ -1173,12 +1173,48 @@ function bindInjectMaxButtons() {
     const nextPlayer = { ...state.player, [playerKey]: value };
     const ok = await writePlayerChanges(nextPlayer, `Injected max ${label}`);
     if (btn) { btn.disabled = false; btn.textContent = label; }
-    if (ok) showToast(`✓ ${label} → ${value.toLocaleString()}`);
+    if (ok) {
+      showToast(`✓ ${label} → ${value.toLocaleString()}`);
+      markInjectPending(playerKey);
+    }
   }
 
   if (el.injectMaxWallet) el.injectMaxWallet.addEventListener('click', () => injectMax('injectMaxWallet', MAX_WALLET, '💰 Wallet'));
   if (el.injectMaxBank)   el.injectMaxBank.addEventListener('click',   () => injectMax('injectMaxBank',   MAX_BANK,   '🏦 Bank'));
   if (el.injectMaxMiles)  el.injectMaxMiles.addEventListener('click',  () => injectMax('injectMaxMiles',  MAX_MILES,  '🎫 Miles'));
+}
+
+const _injectPendingKeys = new Set();
+
+function markInjectPending(playerKey) {
+  const inputEl = playerKey === 'wallet' ? el.playerInputWallet : playerKey === 'bank' ? el.playerInputBank : el.playerInputMiles;
+  if (!inputEl) return;
+  const wrap = inputEl.closest('.field-wrap') || inputEl.parentElement;
+  if (!wrap) return;
+  wrap.classList.add('inject-pending');
+  if (!wrap.querySelector('.inject-pending-spinner')) {
+    const spinner = document.createElement('img');
+    spinner.className = 'inject-pending-spinner';
+    spinner.src = '/assets/icons/line-md--loading-loop-circle.svg';
+    spinner.alt = '';
+    spinner.setAttribute('aria-hidden', 'true');
+    wrap.appendChild(spinner);
+  }
+  _injectPendingKeys.add(playerKey);
+}
+
+function clearInjectPending() {
+  if (!_injectPendingKeys.size) return;
+  _injectPendingKeys.forEach(playerKey => {
+    const inputEl = playerKey === 'wallet' ? el.playerInputWallet : playerKey === 'bank' ? el.playerInputBank : el.playerInputMiles;
+    if (!inputEl) return;
+    const wrap = inputEl.closest('.field-wrap') || inputEl.parentElement;
+    if (!wrap) return;
+    wrap.classList.remove('inject-pending');
+    const spinner = wrap.querySelector('.inject-pending-spinner');
+    if (spinner) spinner.remove();
+  });
+  _injectPendingKeys.clear();
 }
 
 function bindInlinePlayerFieldEvents() {

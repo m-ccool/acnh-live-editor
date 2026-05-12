@@ -85,6 +85,11 @@ body::-webkit-scrollbar {
   display: none;
 }
 
+/* Hide all scrollbars globally except .code-block custom ones */
+*:not(.code-block)::-webkit-scrollbar { display: none; }
+* { scrollbar-width: none; }
+.code-block { scrollbar-width: thin; }
+
 .sky-layer {
   position: fixed;
   inset: 0;
@@ -836,9 +841,9 @@ body[data-theme='night'] .star--bright {
 .app-shell {
   position: relative;
   z-index: 1;
-  width: min(1110px, calc(100% - clamp(42px, 8vw, 132px)));
+  width: min(1110px, calc(100% - clamp(16px, 5vw, 132px)));
   margin: 0 auto;
-  padding: max(28px, 3vw) 0 56px;
+  padding: max(16px, 2.5vw) 0 56px;
   opacity: 1;
   transform: translateY(0);
   filter: none;
@@ -911,7 +916,7 @@ body.modal-open .app-shell {
   display: flex;
   justify-content: space-between;
   gap: 20px;
-  padding: 22px;
+  padding: clamp(14px, 2.5vw, 22px);
 }
 
 .topbar-main {
@@ -3541,7 +3546,7 @@ body[data-theme='night'] .footer-watermark {
     opacity 0.24s var(--ease),
     transform 0.24s var(--ease);
   overflow-y: auto;
-  scrollbar-gutter: stable both-edges;
+  scrollbar-width: none;
   opacity: 0;
   transform: translateY(14px) scale(0.988);
 }
@@ -5119,12 +5124,35 @@ body[data-theme='night'] .player-modal-section-btn.is-active {
   bottom: 0;
   z-index: 2;
   margin-top: 8px;
+  display: flex;
   justify-content: flex-end;
   padding: 12px 22px 18px;
   border-top: 0;
   background: transparent;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
+}
+
+.player-modal-footer #player-modal-save {
+  min-width: 120px;
+}
+
+/* Inject-pending: gray input + spinner overlay */
+.inject-pending {
+  position: relative;
+}
+.inject-pending input {
+  color: var(--text-muted) !important;
+  opacity: 0.72;
+}
+.inject-pending-spinner {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 15px;
+  height: 15px;
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 .player-modal-placeholder {
@@ -5872,10 +5900,12 @@ body:not([data-theme='night']) .action-btn-solid {
 
   .player-modal-shell {
     grid-template-columns: 1fr;
+    padding: 14px 16px 10px;
+    gap: 14px;
   }
 
   .player-modal-bust-frame {
-    min-height: 220px;
+    min-height: 160px;
   }
 
   .player-modal-nav {
@@ -6043,7 +6073,6 @@ body:not([data-theme='night']) .action-btn-solid {
   .player-avatar-wrap {
     height: auto;
   }
-  }
 
   .player-actions {
     width: 100%;
@@ -6083,9 +6112,55 @@ body:not([data-theme='night']) .action-btn-solid {
     width: min(100%, 156px);
     height: 176px;
   }
+
+  /* Mobile touch targets — 44px minimum height */
+  .field-wrap input,
+  .search-input {
+    min-height: 44px;
+  }
+
+  .action-btn {
+    min-height: 44px;
+  }
+
+  /* Player modal mobile improvements */
+  .player-modal-footer {
+    justify-content: stretch;
+    padding: 10px 14px 16px;
+  }
+
+  .player-modal-footer #player-modal-save {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .form-grid {
+    padding: 14px;
+    gap: 12px;
+  }
+
+  .player-modal-shell {
+    padding: 12px 12px 8px;
+  }
 }
 
 @media (max-width: 560px) {
+  /* Collapse bust frame on small phones — show only name + nav */
+  .player-modal-bust-frame {
+    display: none;
+  }
+
+  .player-modal-bust-copy {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 4px 2px;
+  }
+
+  .player-modal-nav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .player-card {
     grid-template-columns: 1fr;
     grid-template-areas:

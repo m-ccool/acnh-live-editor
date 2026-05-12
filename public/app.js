@@ -176,6 +176,13 @@ async function refreshBridgeGameData() {
       state.playerSaveSnapshot = { ...state.player };
       renderPlayer();
       if (typeof renderSaveLoadButtons === 'function') renderSaveLoadButtons();
+      // Clear inject-pending state: bridge read confirms game has the written values
+      if (typeof clearInjectPending === 'function') clearInjectPending();
+      // Refresh modal inputs if player modal is open
+      const playerModal = document.getElementById('player-modal');
+      if (playerModal && playerModal.classList.contains('is-visible') && typeof hydratePlayerForm === 'function') {
+        hydratePlayerForm();
+      }
     }
 
     if (Array.isArray(payload && payload.slots)) {

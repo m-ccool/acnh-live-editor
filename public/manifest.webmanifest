@@ -1,6 +1,6 @@
 {
-  "name": "ACNH Live Editor",
-  "short_name": "ACNH Editor",
+  "name": "ACNH LE",
+  "short_name": "ACNH LE",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#111111",
