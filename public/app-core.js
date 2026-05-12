@@ -3,7 +3,7 @@
 const TOTAL_SLOTS = 40;
 const STORAGE_KEY = 'acnh-live-editor-state-v5';
 const REPO_URL = 'https://github.com/m-ccool/acnh-live-editor';
-const SERVICE_WORKER_VERSION = '94';
+const SERVICE_WORKER_VERSION = '95';
 const PLAY_ICON_PATH = '/assets/icons/line-md--pause-to-play-filled-transition.svg';
 const PAUSE_ICON_PATH = '/assets/icons/line-md--pause.svg';
 const CONSOLE_CONNECTED_ICON_PATH = '/assets/icons/codicon--debug-connect.svg';
@@ -343,6 +343,9 @@ function cacheDom() {
   el.walletValue = document.getElementById('wallet-value');
   el.bankValue = document.getElementById('bank-value');
   el.milesValue = document.getElementById('miles-value');
+  el.injectMaxWallet = document.getElementById('inject-max-wallet');
+  el.injectMaxBank = document.getElementById('inject-max-bank');
+  el.injectMaxMiles = document.getElementById('inject-max-miles');
   el.playerAvatar = document.getElementById('player-avatar');
   el.pauseBridgeButton = document.getElementById('pause-bridge-button');
   el.writeBridgeButton = document.getElementById('write-bridge-button');
@@ -942,6 +945,7 @@ function bindEvents() {
 
   el.playerModalSave.addEventListener('click', applyPlayerEdits);
   bindInlinePlayerFieldEvents();
+  bindInjectMaxButtons();
   bindBackupEvents();
 
   if (el.pauseBridgeButton) {

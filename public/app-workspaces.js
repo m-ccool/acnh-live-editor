@@ -1160,6 +1160,27 @@ function _updateNameTownIconState(inputEl) {
   hint.classList.toggle('has-pending', isPending);
 }
 
+function bindInjectMaxButtons() {
+  const MAX_WALLET = 99999;
+  const MAX_BANK   = 999999999;
+  const MAX_MILES  = 999999999;
+
+  async function injectMax(field, value, label) {
+    if (!state.bridge.connected) { showToast('✗ Bridge not connected'); return; }
+    const btn = el[field];
+    if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+    const playerKey = field === 'injectMaxWallet' ? 'wallet' : field === 'injectMaxBank' ? 'bank' : 'miles';
+    const nextPlayer = { ...state.player, [playerKey]: value };
+    const ok = await writePlayerChanges(nextPlayer, `Injected max ${label}`);
+    if (btn) { btn.disabled = false; btn.textContent = label; }
+    if (ok) showToast(`✓ ${label} → ${value.toLocaleString()}`);
+  }
+
+  if (el.injectMaxWallet) el.injectMaxWallet.addEventListener('click', () => injectMax('injectMaxWallet', MAX_WALLET, '💰 Wallet'));
+  if (el.injectMaxBank)   el.injectMaxBank.addEventListener('click',   () => injectMax('injectMaxBank',   MAX_BANK,   '🏦 Bank'));
+  if (el.injectMaxMiles)  el.injectMaxMiles.addEventListener('click',  () => injectMax('injectMaxMiles',  MAX_MILES,  '🎫 Miles'));
+}
+
 function bindInlinePlayerFieldEvents() {
   [el.playerName, el.townName].filter(Boolean).forEach((field) => {
     field.addEventListener('input', () => _updateNameTownIconState(field));
