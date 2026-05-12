@@ -1044,6 +1044,7 @@ body.modal-open .app-shell {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
   position: relative;
   overflow: visible;
 }
@@ -6156,6 +6157,20 @@ body:not([data-theme='night']) .action-btn-solid {
     align-items: flex-start;
   }
 
+  .player-panel-head {
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  /* Player toolbar: left-align controls in column mode */
+  .player-toolbar-inject-label {
+    text-align: left;
+  }
+
+  .player-toolbar-actions {
+    justify-content: flex-start;
+  }
+
   .music-player-top {
     grid-template-columns: 46px 1fr;
   }
@@ -6202,35 +6217,26 @@ body:not([data-theme='night']) .action-btn-solid {
     max-height: calc(100dvh - 16px);
   }
 
-  .selected-item-artbox {
-    width: min(100%, 160px);
-    height: 160px;
-  }
-
-  .avatar-box {
-    width: 100%;
-    height: auto;
-    aspect-ratio: 1 / 1;
-  }
-
-  .player-avatar-wrap {
-    height: auto;
+  /* Player card: stack item preview + avatar vertically at ≤720px */
+  .player-card {
+    gap: 16px;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "selected"
+      "avatar"
+      "meta";
   }
 
   .player-actions {
     width: 100%;
   }
 
-  .player-card {
+  .player-left {
     gap: 16px;
   }
 
-  .selected-item-preview,
-  .player-avatar-wrap {
-    justify-self: center;
-  }
-
   .selected-item-preview {
+    width: 100%;
     align-items: center;
   }
 
@@ -6239,21 +6245,28 @@ body:not([data-theme='night']) .action-btn-solid {
     width: 100%;
   }
 
+  .selected-item-artbox {
+    width: min(100%, 180px);
+    height: auto;
+    aspect-ratio: 1 / 1;
+    align-self: center;
+  }
+
   .selected-item-actions {
     justify-content: center;
   }
 
   .player-avatar-wrap {
+    width: 180px;
+    margin-inline: auto;
+    height: auto;
     justify-content: center;
   }
 
-  .player-left {
-    gap: 16px;
-  }
-
   .avatar-box {
-    width: min(100%, 156px);
-    height: 176px;
+    width: 180px;
+    height: auto;
+    aspect-ratio: 1 / 1;
   }
 
   /* Mobile touch targets — 44px minimum height */
@@ -6312,12 +6325,8 @@ body:not([data-theme='night']) .action-btn-solid {
       "meta";
   }
 
-  .selected-item-preview,
-  .player-avatar-wrap {
-    width: 100%;
-  }
-
   .selected-item-preview {
+    width: 100%;
     align-items: stretch;
   }
 
@@ -6344,11 +6353,13 @@ body:not([data-theme='night']) .action-btn-solid {
   }
 
   .player-avatar-wrap {
+    width: 184px;
+    margin-inline: auto;
     justify-content: center;
   }
 
   .avatar-box {
-    width: min(100%, 184px);
+    width: 184px;
     height: auto;
     aspect-ratio: 1 / 1;
   }
