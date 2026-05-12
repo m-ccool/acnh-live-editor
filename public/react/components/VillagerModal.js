@@ -178,14 +178,6 @@
     }
   }
 
-  async function openBackupsFolder() {
-    try {
-      await apiFetch('/api/villager/open-backups', { method: 'POST' });
-    } catch (e) {
-      console.warn('[villager] open-backups error:', e);
-    }
-  }
-
   function formatBackupDate(ts) {
     if (!ts) return '—';
     try {
@@ -286,7 +278,7 @@
     );
   }
 
-  // ── MainView ──────────────────────────────────────────────────────────────
+  // ── ProfileView ───────────────────────────────────────────────────────────
 
   function ProfileView({ v, catchphrase, setCatchphrase, movingOut, setMovingOut, onSave }) {
     const pColor = PERSONALITY_COLORS[v.personalityName] || 'rgba(255,255,255,0.2)';
