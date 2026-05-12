@@ -3967,6 +3967,13 @@ body:not([data-theme='night']) .modal-filter-btn {
   min-width: 0;
 }
 
+/* House labels are longer than generic vmod-label — let them size to content */
+.vmod-house-fields .vmod-label {
+  width: auto;
+  min-width: 88px;
+  max-width: 148px;
+}
+
 /* Flags view */
 .vmod-flags-shell {
   display: flex;
@@ -4756,6 +4763,22 @@ body:not([data-theme='night']) .modal-filter-btn {
     padding-right: 12px;
   }
 
+  /* House: stack label above input on narrow screens */
+  .vmod-house-fields .vmod-field-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 8px 12px;
+  }
+  .vmod-house-fields .vmod-label {
+    width: auto;
+    max-width: 100%;
+    min-width: unset;
+  }
+  .vmod-house-fields .vmod-value {
+    width: 100%;
+  }
+
   /* Flags: stack list + editor vertically on narrow screens */
   .vmod-flags-shell {
     flex-direction: column;
@@ -4765,8 +4788,8 @@ body:not([data-theme='night']) .modal-filter-btn {
   }
   .vmod-flags-list {
     flex: none;
-    min-height: 120px;
-    max-height: 200px;
+    min-height: 160px;
+    max-height: clamp(180px, 40vh, 320px);
   }
   .vmod-flags-editor {
     width: 100%;
