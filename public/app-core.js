@@ -3,7 +3,7 @@
 const TOTAL_SLOTS = 40;
 const STORAGE_KEY = 'acnh-live-editor-state-v5';
 const REPO_URL = 'https://github.com/m-ccool/acnh-live-editor';
-const SERVICE_WORKER_VERSION = '93';
+const SERVICE_WORKER_VERSION = '94';
 const PLAY_ICON_PATH = '/assets/icons/line-md--pause-to-play-filled-transition.svg';
 const PAUSE_ICON_PATH = '/assets/icons/line-md--pause.svg';
 const CONSOLE_CONNECTED_ICON_PATH = '/assets/icons/codicon--debug-connect.svg';
@@ -727,7 +727,7 @@ function initPresetItemSearch() {
         div.className = 'pm-suggestion-item';
         const img = document.createElement('img');
         img.className = 'pm-suggestion-icon';
-        img.src = item.icon_url || '';
+        img.src = item.icon_url ? escapeHtml(item.icon_url) : '';
         img.alt = '';
         img.setAttribute('aria-hidden', 'true');
         img.loading = 'lazy';
@@ -737,11 +737,13 @@ function initPresetItemSearch() {
         name.textContent = item.name;
         div.appendChild(img);
         div.appendChild(name);
-        div.addEventListener('mousedown', e => {
+        const selectItem = e => {
           e.preventDefault();
           newQuery.value = item.name;
           clearPortal();
-        });
+        };
+        div.addEventListener('mousedown', selectItem);
+        div.addEventListener('touchstart', selectItem, { passive: false });
         portal.appendChild(div);
       });
     }, 220);
@@ -749,7 +751,8 @@ function initPresetItemSearch() {
 
   newQuery.addEventListener('focus', positionPortal);
   newQuery.addEventListener('blur', () => {
-    setTimeout(clearPortal, 160);
+    // Delay longer than a touchstart so mobile tap-to-select fires before portal clears
+    setTimeout(clearPortal, 220);
   });
 
   // Reposition when the modal body scrolls so the dropdown tracks the input
