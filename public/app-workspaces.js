@@ -278,11 +278,20 @@ function renderSelectedPreview() {
     el.selectedPreviewImage.src = getPreferredItemPreviewUrl(previewItem);
     el.selectedPreviewImage.alt = previewItem.name;
     el.selectedItemName.textContent = previewItem.name;
+    if (el.selectedItemStickyImg) {
+      el.selectedItemStickyImg.src = getPreferredItemPreviewUrl(previewItem);
+      el.selectedItemStickyImg.alt = previewItem.name;
+    }
+    if (el.selectedItemStickyName) el.selectedItemStickyName.textContent = previewItem.name;
   } else {
     el.selectedPreviewImage.removeAttribute('src');
     el.selectedPreviewImage.alt = '';
     el.selectedItemName.textContent = 'Empty slot';
+    if (el.selectedItemStickyImg) el.selectedItemStickyImg.removeAttribute('src');
+    if (el.selectedItemStickyName) el.selectedItemStickyName.textContent = 'Empty slot';
   }
+
+  if (typeof window._updateStickyBar === 'function') window._updateStickyBar();
 }
 
 function renderClipboardState() {

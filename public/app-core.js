@@ -3,7 +3,7 @@
 const TOTAL_SLOTS = 40;
 const STORAGE_KEY = 'acnh-live-editor-state-v5';
 const REPO_URL = 'https://github.com/m-ccool/acnh-live-editor';
-const SERVICE_WORKER_VERSION = '99';
+const SERVICE_WORKER_VERSION = '100';
 const PLAY_ICON_PATH = '/assets/icons/line-md--pause-to-play-filled-transition.svg';
 const PAUSE_ICON_PATH = '/assets/icons/line-md--pause.svg';
 const CONSOLE_CONNECTED_ICON_PATH = '/assets/icons/codicon--debug-connect.svg';
@@ -357,6 +357,44 @@ function cacheDom() {
   el.copySelectedButton = document.getElementById('copy-selected-button');
   el.copySelectedIcon = document.getElementById('copy-selected-icon');
   el.pasteSelectedButton = document.getElementById('paste-selected-button');
+
+  el.playerPanel = document.getElementById('player-panel');
+  el.playerPanelEnd = document.getElementById('player-panel-end');
+  el.cheatsMenuBtn = document.getElementById('cheats-menu-btn');
+  el.cheatsMiniModal = document.getElementById('cheats-mini-modal');
+  el.selectedItemSticky = document.getElementById('selected-item-sticky');
+  el.selectedItemStickyImg = document.getElementById('selected-item-sticky-img');
+  el.selectedItemStickyName = document.getElementById('selected-item-sticky-name');
+
+  // Cheats menu toggle
+  if (el.cheatsMenuBtn && el.cheatsMiniModal) {
+    el.cheatsMenuBtn.addEventListener('click', () => {
+      const isOpen = !el.cheatsMiniModal.hidden;
+      el.cheatsMiniModal.hidden = isOpen;
+      el.cheatsMenuBtn.setAttribute('aria-expanded', String(!isOpen));
+      el.cheatsMenuBtn.classList.toggle('is-open', !isOpen);
+    });
+  }
+
+  // Sticky selected-item bar — show when artbox scrolled off, hide when panel ends
+  if (el.selectedItemArtbox && el.playerPanelEnd && el.selectedItemSticky) {
+    let artboxVisible = true;
+    let panelEndVisible = true;
+    const updateStickyBar = () => {
+      const hasItem = el.selectedItemStickyName && el.selectedItemStickyName.textContent !== 'Empty slot';
+      const show = hasItem && !artboxVisible && panelEndVisible;
+      el.selectedItemSticky.hidden = !show;
+    };
+    new IntersectionObserver(entries => {
+      artboxVisible = entries[0].isIntersecting;
+      updateStickyBar();
+    }, { threshold: 0.1 }).observe(el.selectedItemArtbox);
+    new IntersectionObserver(entries => {
+      panelEndVisible = entries[0].isIntersecting;
+      updateStickyBar();
+    }, { threshold: 0 }).observe(el.playerPanelEnd);
+    window._updateStickyBar = updateStickyBar;
+  }
 
   el.inventoryCard = document.getElementById('inventory-card');
   el.inventoryGrid = document.getElementById('inventory-grid');

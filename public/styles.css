@@ -1999,26 +1999,94 @@ body[data-theme='night'] .log-panel {
 }
 
 .player-panel {
-  padding: 20px 18px 18px;
+  padding: 14px 16px 16px;
 }
 
 .player-panel-head {
   display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 0 0 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+/* Row 1: "Player" title + Load/Save buttons side by side */
+.player-panel-head-row {
+  display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 18px;
-  padding: 2px 2px 10px;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  gap: 10px;
 }
 
 .panel-label {
   margin: 0;
-  font-size: 1.22rem;
+  font-size: 1.1rem;
   font-weight: 600;
   letter-spacing: -0.02em;
 }
 
+/* Cheats Menu button — green tint pill */
+.cheats-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid rgba(98,214,111,0.30);
+  border-radius: var(--radius-pill);
+  background: rgba(98,214,111,0.10);
+  color: rgba(98,214,111,0.90);
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+  width: fit-content;
+}
+.cheats-menu-btn:hover,
+.cheats-menu-btn:focus-visible {
+  background: rgba(98,214,111,0.18);
+  border-color: rgba(98,214,111,0.50);
+  color: #62d66f;
+}
+.cheats-menu-btn.is-open {
+  background: rgba(98,214,111,0.18);
+  border-color: rgba(98,214,111,0.45);
+  color: #62d66f;
+  box-shadow: 0 0 12px rgba(98,214,111,0.18);
+}
+
+/* Cheats mini-modal — inline expansion below player-panel-head */
+.cheats-mini-modal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border: 1px solid rgba(98,214,111,0.20);
+  border-radius: 12px;
+  background: rgba(98,214,111,0.06);
+}
+.cheats-mini-modal-label {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: rgba(98,214,111,0.70);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  width: 100%;
+  margin-bottom: 2px;
+}
+
+/* Ensure hidden attribute always wins regardless of media query display rules */
+.selected-item-sticky[hidden],
+.cheats-mini-modal[hidden] { display: none !important; }
+
+/* player-toolbar kept for compat but no longer rendered */
 .player-toolbar {
   display: flex;
   justify-content: flex-end;
@@ -2028,34 +2096,48 @@ body[data-theme='night'] .log-panel {
   margin: 0;
 }
 
-.player-toolbar-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 999px;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015)),
-    rgba(255,255,255,0.015);
-  color: rgba(255,255,255,0.58);
-  font-size: 0.82rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.player-toolbar-speed-icon {
-  width: 18px;
-  height: 18px;
-  opacity: 0.86;
-}
-
 .player-toolbar-actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
   gap: 10px;
+}
+
+/* Sticky selected-item bar — mobile only, position:fixed so overflow:hidden doesn't trap it */
+.selected-item-sticky {
+  display: none;
+  position: fixed;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 500;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px 6px 8px;
+  border-radius: 999px;
+  background: rgba(20,16,40,0.88);
+  border: 1px solid rgba(255,255,255,0.14);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+  max-width: calc(100vw - 32px);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.selected-item-sticky-img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  border-radius: 6px;
+  flex-shrink: 0;
+  background: rgba(255,255,255,0.05);
+}
+.selected-item-sticky-name {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
 }
 
 .toolbar-icon-btn {
@@ -2399,11 +2481,12 @@ body[data-theme='night'] .selected-item-artbox {
   align-items: center;
 }
 
-.player-save-load-bar .action-btn {
-  min-width: 64px;
-  min-height: 32px;
-  font-size: 0.78rem;
-  padding: 0 12px;
+.player-save-load-bar .action-btn,
+.action-btn-sm {
+  min-width: 54px;
+  min-height: 28px;
+  font-size: 0.74rem;
+  padding: 0 10px;
 }
 
 .player-actions-bar {
@@ -6148,27 +6231,16 @@ body:not([data-theme='night']) .action-btn-solid {
     --music-ribbon-width: calc(100vw - 22px);
   }
 
-  .player-panel-head,
   .topbar,
   .log-panel-head,
-  .player-actions,
-  .player-toolbar {
+  .player-actions {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .player-panel-head {
-    gap: 10px;
-    margin-bottom: 12px;
-  }
-
-  /* Player toolbar: left-align controls in column mode */
-  .player-toolbar-inject-label {
-    text-align: left;
-  }
-
-  .player-toolbar-actions {
-    justify-content: flex-start;
+  /* Show sticky selected-item bar on mobile */
+  .selected-item-sticky {
+    display: flex;
   }
 
   .music-player-top {

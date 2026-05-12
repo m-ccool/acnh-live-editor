@@ -14,9 +14,14 @@
   <link rel="icon" type="image/png" href="/assets/icons/Apple_NL_Icon.png" />
   <link rel="manifest" href="./manifest.webmanifest" />
   <meta name="theme-color" content="#09090b" />
-  <link rel="stylesheet" href="./styles.css?v=99" />
+  <link rel="stylesheet" href="./styles.css?v=100" />
 </head>
 <body>
+  <!-- Sticky selected-item bar lives at body level so backdrop-filter on shell-card doesn't trap fixed positioning -->
+  <div id="selected-item-sticky" class="selected-item-sticky" hidden aria-live="polite">
+    <img id="selected-item-sticky-img" class="selected-item-sticky-img" alt="" />
+    <span id="selected-item-sticky-name" class="selected-item-sticky-name">Empty slot</span>
+  </div>
   <div id="loading-screen" class="loading-screen" aria-hidden="true">
     <div class="loading-center">
       <div class="loading-ring" aria-hidden="true"></div>
@@ -164,89 +169,89 @@
       </button>
     </section>
 
-    <section class="player-panel shell-card">
+    <section id="player-panel" class="player-panel shell-card">
       <div class="player-panel-head">
-        <div class="panel-label">Player</div>
-        <div class="player-save-load-bar">
-          <button
-            id="player-load-btn"
-            class="action-btn"
-            type="button"
-            aria-label="Load from save file"
-          >Load</button>
-          <button
-            id="player-save-btn"
-            class="action-btn"
-            type="button"
-            aria-label="Save changes to file"
-            disabled
-          >Save</button>
+        <div class="player-panel-head-row">
+          <div class="panel-label">Player</div>
+          <div class="player-save-load-bar">
+            <button
+              id="player-load-btn"
+              class="action-btn action-btn-sm"
+              type="button"
+              aria-label="Load from save file"
+            >Load</button>
+            <button
+              id="player-save-btn"
+              class="action-btn action-btn-sm"
+              type="button"
+              aria-label="Save changes to file"
+              disabled
+            >Save</button>
+          </div>
         </div>
+        <button
+          id="cheats-menu-btn"
+          class="cheats-menu-btn"
+          type="button"
+          aria-expanded="false"
+          aria-controls="cheats-mini-modal"
+        >Cheats Menu</button>
+      </div>
 
-        <div class="player-toolbar">
-          <div class="player-toolbar-label">
+      <!-- Cheats mini-modal — inline expansion, toggled by #cheats-menu-btn -->
+      <div id="cheats-mini-modal" class="cheats-mini-modal" hidden>
+        <span class="cheats-mini-modal-label">Inject cheats</span>
+        <div id="quick-cheat-controls" class="player-toolbar-actions" role="group" aria-label="Quick cheat toggles">
+          <button
+            type="button"
+            class="quick-cheat-btn"
+            data-quick-cheat="halfSpeed"
+            title="Slow the island clock to 0.5x for relaxed testing."
+            aria-label="Toggle half-speed cheat"
+            aria-pressed="false"
+          >
             <img
-              src="/assets/icons/line-md--speed.svg"
-              alt=""
-              class="icon-img icon-white player-toolbar-speed-icon"
-              onerror="this.style.display='none';this.parentNode.textContent='Quick cheats';"
+              src="/assets/icons/material-symbols--speed-0-5x.svg"
+              alt=".5x"
+              class="icon-img icon-white quick-cheat-icon"
+              onerror="this.style.display='none';"
             />
-            <span>Quick cheats</span>
-          </div>
+            <span class="quick-cheat-label">0.5x</span>
+          </button>
 
-          <span class="player-toolbar-inject-label">inject:</span>
-          <div id="quick-cheat-controls" class="player-toolbar-actions" role="group" aria-label="Quick cheat toggles">
-            <button
-              type="button"
-              class="quick-cheat-btn"
-              data-quick-cheat="halfSpeed"
-              title="Slow the island clock to 0.5x for relaxed testing."
-              aria-label="Toggle half-speed cheat"
-              aria-pressed="false"
-            >
-              <img
-                src="/assets/icons/material-symbols--speed-0-5x.svg"
-                alt=".5x"
-                class="icon-img icon-white quick-cheat-icon"
-                onerror="this.style.display='none';"
-              />
-              <span class="quick-cheat-label">0.5x</span>
-            </button>
+          <button
+            type="button"
+            class="quick-cheat-btn"
+            data-quick-cheat="doubleSpeed"
+            title="Run the island clock at 2x to fast-forward routines."
+            aria-label="Toggle double-speed cheat"
+            aria-pressed="false"
+          >
+            <img
+              src="/assets/icons/material-symbols--speed-2x.svg"
+              alt="2x"
+              class="icon-img icon-white quick-cheat-icon"
+              onerror="this.style.display='none';"
+            />
+            <span class="quick-cheat-label">2x</span>
+          </button>
 
-            <button
-              type="button"
-              class="quick-cheat-btn"
-              data-quick-cheat="doubleSpeed"
-              title="Run the island clock at 2x to fast-forward routines."
-              aria-label="Toggle double-speed cheat"
-              aria-pressed="false"
-            >
-              <img
-                src="/assets/icons/material-symbols--speed-2x.svg"
-                alt="2x"
-                class="icon-img icon-white quick-cheat-icon"
-                onerror="this.style.display='none';"
-              />
-              <span class="quick-cheat-label">2x</span>
-            </button>
-
-            <button
-              type="button"
-              class="quick-cheat-btn"
-              data-quick-cheat="wallWalk"
-              title="Phase through collision edges for movement testing."
-              aria-label="Toggle wall walk cheat"
-              aria-pressed="false"
-            >
-              <img
-                src="/assets/icons/line-md--map-marker-radius.svg"
-                alt="Wall walk"
-                class="icon-img icon-white quick-cheat-icon"
-                onerror="this.style.display='none';"
-              />
-              <span class="quick-cheat-label">wall walk</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            class="quick-cheat-btn"
+            data-quick-cheat="wallWalk"
+            title="Phase through collision edges for movement testing."
+            aria-label="Toggle wall walk cheat"
+            aria-pressed="false"
+          >
+            <img
+              src="/assets/icons/line-md--map-marker-radius.svg"
+              alt="Wall walk"
+              class="icon-img icon-white quick-cheat-icon"
+              onerror="this.style.display='none';"
+            />
+            <span class="quick-cheat-label">wall walk</span>
+          </button>
         </div>
       </div>
 
@@ -379,6 +384,7 @@
             <button type="button" class="preset-btn preset-btn-add" data-preset="custom" id="preset-custom-btn" title="Manage Presets">+</button>
           </div>
         </div>
+      <div id="player-panel-end" aria-hidden="true" style="height:0;pointer-events:none"></div>
       </section>
 
     <section class="tabs-panel shell-card">
