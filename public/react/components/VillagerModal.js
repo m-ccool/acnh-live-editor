@@ -119,6 +119,14 @@
 
   const EDIT_TABS = ['furniture', 'clothes', 'room', 'designs', 'memories', 'DIY timer'];
 
+  const VILLAGER_TABS = [
+    { key: 'profile',     label: 'Profile' },
+    { key: 'savemanager', label: 'Save' },
+    { key: 'house',       label: 'House' },
+    { key: 'flags',       label: 'Flags' },
+    { key: 'edit',        label: 'Edit' },
+  ];
+
   const ROOM_FIELDS = [
     { label: 'Accent Wall', designKey: 'accentWallDesignId', extraKey: 'accentWallDirection', extraLabel: 'Direction' },
     { label: 'Wall',        designKey: 'wallDesignId',       extraKey: 'wallInfoBit',          extraLabel: 'InfoBit'   },
@@ -176,6 +184,14 @@
     } catch (e) {
       console.warn('[villager] open-backups error:', e);
     }
+  }
+
+  function formatBackupDate(ts) {
+    if (!ts) return '—';
+    try {
+      const d = new Date(ts);
+      return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    } catch { return ts; }
   }
 
   function dumpData(name, type, data) {
@@ -259,7 +275,6 @@
     return h('div', { className: 'villager-modal-footer vmod-subview-footer' },
       h('div', { className: 'vmod-footer-left' },
         h('button', { type: 'button', className: 'action-btn vmod-btn-sm', onClick: () => dumpData(name, type, data) }, 'Dump'),
-        h('button', { type: 'button', className: 'action-btn vmod-btn-sm', onClick: openBackupsFolder }, 'Load'),
         h('button', { type: 'button', className: 'action-btn vmod-btn-sm', onClick: onBack, disabled: saveState === 'saving' }, 'Cancel'),
       ),
       h('button', {
@@ -273,7 +288,7 @@
 
   // ── MainView ──────────────────────────────────────────────────────────────
 
-  function MainView({ v, catchphrase, setCatchphrase, movingOut, setMovingOut, onViewChange, onSave }) {
+  function ProfileView({ v, catchphrase, setCatchphrase, movingOut, setMovingOut, onSave }) {
     const pColor = PERSONALITY_COLORS[v.personalityName] || 'rgba(255,255,255,0.2)';
     const friendshipVal = v.friendship || 0;
     const friendshipPct = Math.round((friendshipVal / 255) * 100);
@@ -282,14 +297,6 @@
       h('div', { className: 'villager-modal-name-row' },
         h('span', { className: 'villager-modal-name' }, v.name || 'Unknown'),
         h('span', { className: 'villager-modal-gender-label' }, v.gender === 'F' ? 'Female' : 'Male')
-      ),
-
-      h('div', { className: 'vmod-action-bar' },
-        h('button', { type: 'button', className: 'action-btn vmod-action-btn', onClick: () => backupVillager(v) }, 'Backup'),
-        h('button', { type: 'button', className: 'action-btn vmod-action-btn', onClick: openBackupsFolder }, 'Load'),
-        h('button', { type: 'button', className: 'action-btn vmod-action-btn', onClick: () => onViewChange('house') }, 'House'),
-        h('button', { type: 'button', className: 'action-btn vmod-action-btn', onClick: () => onViewChange('flags') }, 'Flags'),
-        h('button', { type: 'button', className: 'action-btn vmod-action-btn', onClick: () => onViewChange('edit') }, 'Edit'),
       ),
 
       h('div', { className: 'vmod-fields' },
@@ -363,6 +370,103 @@
           className: 'action-btn action-btn-solid',
           onClick: () => onSave({ catchphrase, movingOut }),
         }, 'Save')
+      )
+    );
+  }
+
+  // ── SaveManagerView ──────────────────────────────────────────────────────
+
+  function SaveManagerView({ v, onLoadBackup }) {
+    const [backups, setBackups] = useState(null);
+    const [loadError, setLoadError] = useState(null);
+    const [backupState, setBackupState] = useState('idle');
+    const [backupFilename, setBackupFilename] = useState('');
+
+    const refreshList = useCallback(() => {
+      apiFetch(`/api/villager/backups/${encodeURIComponent(v.name || '')}`)
+        .then(r => r.json())
+        .then(data => setBackups(Array.isArray(data.backups) ? data.backups : []))
+        .catch(() => setLoadError('Failed to load backups'));
+    }, [v.name]);
+
+    useEffect(() => {
+      let cancelled = false;
+      apiFetch(`/api/villager/backups/${encodeURIComponent(v.name || '')}`)
+        .then(r => r.json())
+        .then(data => { if (!cancelled) setBackups(Array.isArray(data.backups) ? data.backups : []); })
+        .catch(() => { if (!cancelled) setLoadError('Failed to load backups'); });
+      return () => { cancelled = true; };
+    }, [v.name]);
+
+    const handleCreateBackup = useCallback(async () => {
+      setBackupState('saving');
+      try {
+        const res = await apiFetch('/api/villager/backup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ villager: v }),
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Backup failed');
+        setBackupFilename(data.filename || '');
+        setBackupState('ok');
+        refreshList();
+        setTimeout(() => setBackupState('idle'), 3000);
+      } catch {
+        setBackupState('error');
+        setTimeout(() => setBackupState('idle'), 2500);
+      }
+    }, [v, refreshList]);
+
+    const backupLabel = backupState === 'saving' ? 'Saving…'
+      : backupState === 'ok'    ? '✓ Saved'
+      : backupState === 'error' ? '✗ Failed'
+      : 'Create Backup';
+
+    return h('div', { className: 'vmod-save-manager' },
+      h('div', { className: 'vmod-save-manager-section' },
+        h('div', { className: 'vmod-save-manager-heading' }, 'Create Backup'),
+        h('p', { className: 'vmod-save-manager-hint' },
+          'Snapshots all data (catchphrase, house, flags, furniture) to a local .nhv file.'
+        ),
+        h('div', { className: 'vmod-save-manager-actions' },
+          h('button', {
+            type: 'button',
+            className: 'action-btn action-btn-solid vmod-btn-sm',
+            onClick: handleCreateBackup,
+            disabled: backupState === 'saving' || backupState === 'ok',
+          }, backupLabel),
+          backupFilename
+            ? h('span', { className: 'vmod-save-manager-filename' }, backupFilename)
+            : null
+        )
+      ),
+      h('div', { className: 'vmod-save-manager-section' },
+        h('div', { className: 'vmod-save-manager-heading' }, 'Load from Backup'),
+        h('p', { className: 'vmod-save-manager-hint' },
+          'Loads catchphrase & moving-out state into the form. Click Save to write to game.'
+        ),
+        backups === null
+          ? h('div', { className: 'vmod-save-manager-loading' }, 'Loading…')
+          : loadError
+            ? h('div', { className: 'vmod-save-manager-error' }, loadError)
+            : backups.length === 0
+              ? h('div', { className: 'vmod-save-manager-empty' }, `No backups found for ${v.name || 'this villager'}.`)
+              : h('div', { className: 'vmod-backup-list' },
+                  backups.map((b, i) =>
+                    h('div', { key: b.filename || i, className: 'vmod-backup-row' },
+                      h('div', { className: 'vmod-backup-row-info' },
+                        h('span', { className: 'vmod-backup-row-date' }, formatBackupDate(b.timestamp)),
+                        h('span', { className: 'vmod-backup-row-size' }, `${b.sizeKb} KB`)
+                      ),
+                      h('button', {
+                        type: 'button',
+                        className: 'action-btn vmod-btn-sm',
+                        onClick: () => onLoadBackup(b),
+                      }, 'Load')
+                    )
+                  )
+                )
       )
     );
   }
@@ -943,7 +1047,7 @@
 
   function VillagerModal({ villager: v, artUrl, onSave }) {
     const villagerKey = v ? `${v.slot || ''}-${v.name || ''}` : '';
-    const [view, setView] = useState('main');
+    const [view, setView] = useState('profile');
     const [catchphrase, setCatchphrase] = useState(v ? (v.catchphrase || '') : '');
     const [movingOut, setMovingOut] = useState(v ? !!v.movingOut : false);
     const [isPending, startTransition] = useTransition();
@@ -954,7 +1058,7 @@
       startTransition(() => {
         setCatchphrase(v ? (v.catchphrase || '') : '');
         setMovingOut(v ? !!v.movingOut : false);
-        setView('main');
+        setView('profile');
       });
     }, [villagerKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -964,7 +1068,13 @@
       if (onSave) onSave(edits);
     }, [onSave]);
 
-    const showArt = view === 'main';
+    const handleLoadBackup = useCallback((backup) => {
+      if (backup.catchphrase != null) setCatchphrase(backup.catchphrase);
+      if (backup.movingOut   != null) setMovingOut(!!backup.movingOut);
+      setView('profile');
+    }, []);
+
+    const showArt = view === 'profile' || view === 'savemanager';
 
     // Pending UI: show shimmer skeleton while transitioning between villagers
     if (isPending) {
@@ -979,15 +1089,29 @@
       h('div', { className: `villager-modal-shell${showArt ? '' : ' vmod-fullwidth'}` },
         showArt ? h(ArtPanel, { artUrl, name: v.name }) : null,
         h('div', { className: 'villager-modal-info' },
-          view === 'main'
-            ? h(MainView, { v, catchphrase, setCatchphrase, movingOut, setMovingOut, onViewChange: setView, onSave: handleSave })
-            : view === 'house'
-              ? h(HouseView, { v, onBack: () => setView('main') })
-              : view === 'flags'
-                ? h(FlagsView, { v, onBack: () => setView('main') })
-                : view === 'edit'
-                  ? h(EditView, { v, onBack: () => setView('main') })
-                  : null
+          h('div', { className: 'vmod-tab-bar', role: 'tablist' },
+            VILLAGER_TABS.map(tab =>
+              h('button', {
+                key: tab.key,
+                type: 'button',
+                className: `tab-btn vmod-tab-btn${view === tab.key ? ' is-active' : ''}`,
+                role: 'tab',
+                'aria-selected': view === tab.key,
+                onClick: () => setView(tab.key),
+              }, tab.label)
+            )
+          ),
+          view === 'profile'
+            ? h(ProfileView, { v, catchphrase, setCatchphrase, movingOut, setMovingOut, onSave: handleSave })
+            : view === 'savemanager'
+              ? h(SaveManagerView, { v, onLoadBackup: handleLoadBackup })
+              : view === 'house'
+                ? h(HouseView, { v, onBack: () => setView('profile') })
+                : view === 'flags'
+                  ? h(FlagsView, { v, onBack: () => setView('profile') })
+                  : view === 'edit'
+                    ? h(EditView, { v, onBack: () => setView('profile') })
+                    : null
         )
       )
     );

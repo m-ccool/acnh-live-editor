@@ -405,6 +405,42 @@ function createApiRouter(options = {}) {
     res.json({ ok: true, filename })
   })
 
+  // List backup files for a specific villager (newest first, with catchphrase + movingOut extracted)
+  router.get('/api/villager/backups/:name', (req, res) => {
+    const fs = require('fs')
+    const path = require('path')
+    const name = (req.params.name || '').trim()
+    if (!name) return res.status(400).json({ ok: false, error: 'name required' })
+    const dir = path.join(__dirname, '..', 'data', 'villager-backups')
+    if (!fs.existsSync(dir)) return res.json({ ok: true, backups: [] })
+    let files
+    try { files = fs.readdirSync(dir) } catch { return res.json({ ok: true, backups: [] }) }
+    const prefix = name.toLowerCase()
+    const backups = files
+      .filter(f => f.toLowerCase().startsWith(prefix + '_') && f.endsWith('.nhv'))
+      .map(f => {
+        const fullPath = path.join(dir, f)
+        let catchphrase = null, movingOut = null, timestamp = null
+        try {
+          const raw = fs.readFileSync(fullPath, 'utf8')
+          const parsed = JSON.parse(raw)
+          catchphrase = parsed.catchphrase != null ? parsed.catchphrase : null
+          movingOut   = parsed.movingOut   != null ? parsed.movingOut   : null
+          // Extract timestamp from filename: Name_YYYY-MM-DDTHH-MM-SS-mssZ.nhv
+          const tsMatch = f.slice(name.length + 1, -4).replace(/-(?=\d{4}$)/, 'Z').replace(/(\d{4})-(\d{2})-(\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z/, '$1-$2-$3T$4:$5:$6.$7Z')
+          const stat = fs.statSync(fullPath)
+          timestamp = stat.mtime.toISOString()
+          const sizeKb = +(stat.size / 1024).toFixed(1)
+          return { filename: f, timestamp, sizeKb, catchphrase, movingOut }
+        } catch {
+          return null
+        }
+      })
+      .filter(Boolean)
+      .sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''))
+    res.json({ ok: true, backups })
+  })
+
   // Open the villager-backups folder in Windows Explorer
   router.post('/api/villager/open-backups', (req, res) => {
     const path = require('path')

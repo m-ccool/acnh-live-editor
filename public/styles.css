@@ -4081,6 +4081,126 @@ body:not([data-theme='night']) .modal-filter-btn {
   min-width: unset;
 }
 
+.vmod-edit-tab-btn {
+  font-size: 0.75rem;
+  padding: 4px 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: unset;
+}
+
+/* Villager modal top-level tab bar */
+.vmod-tab-bar {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 10px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.vmod-tab-bar::-webkit-scrollbar { display: none; }
+
+.vmod-tab-btn {
+  font-size: 0.78rem;
+  padding: 5px 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: unset;
+  min-height: 32px;
+}
+
+/* Save Manager panel */
+.vmod-save-manager {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 4px 0;
+}
+
+.vmod-save-manager-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vmod-save-manager-heading {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+
+.vmod-save-manager-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.45;
+}
+
+.vmod-save-manager-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.vmod-save-manager-filename {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  word-break: break-all;
+  opacity: 0.75;
+}
+
+.vmod-save-manager-loading,
+.vmod-save-manager-empty,
+.vmod-save-manager-error {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  padding: 8px 0;
+}
+
+.vmod-save-manager-error { color: var(--danger); }
+
+.vmod-backup-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 160px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.vmod-backup-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+
+.vmod-backup-row:last-child { border-bottom: 0; }
+
+.vmod-backup-row-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.vmod-backup-row-date {
+  font-size: 0.8rem;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.vmod-backup-row-size {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
 /* Edit subview title with icon */
 .vmod-edit-title {
   display: flex;
