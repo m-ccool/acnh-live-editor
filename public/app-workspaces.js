@@ -313,8 +313,8 @@ function renderClipboardState() {
 
   if (el.copySelectedIcon) {
     el.copySelectedIcon.src = canPaste
-      ? './assets/icons/line-md--clipboard-remove.svg'
-      : './assets/icons/line-md--clipboard.svg';
+      ? './assets/icons/line-md--trash.svg'
+      : './assets/icons/copy.svg';
   }
 
   if (el.selectedItemArtbox) {

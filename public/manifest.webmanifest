@@ -1,19 +1,19 @@
 {
   "name": "ACNH LE",
   "short_name": "ACNH LE",
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#111111",
   "theme_color": "#111111",
   "icons": [
     {
-      "src": "/icons/pwa-192.png",
-      "sizes": "192x192",
+      "src": "./assets/icons/Apple_NL_Icon.png",
+      "sizes": "32x32",
       "type": "image/png"
     },
     {
-      "src": "/icons/pwa-512.png",
-      "sizes": "512x512",
+      "src": "./assets/icons/Apple_NL_Icon.png",
+      "sizes": "32x32",
       "type": "image/png"
     }
   ]
