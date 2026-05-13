@@ -11,7 +11,7 @@
     name="description"
     content="ACNH Live Editor — offline inventory MVP for SteamOS and Ryujinx workflow."
   />
-  <link rel="icon" type="image/png" href="/assets/icons/Apple_NL_Icon.png" />
+  <link rel="icon" type="image/png" href="./assets/icons/Apple_NL_Icon.png" />
   <link rel="manifest" href="./manifest.webmanifest" />
   <meta name="theme-color" content="#09090b" />
   <link rel="stylesheet" href="./styles.css?v=100" />
@@ -26,7 +26,7 @@
     <div class="loading-center">
       <div class="loading-ring" aria-hidden="true"></div>
       <img
-        src="/assets/icons/Apple_NL_Icon.png"
+        src="./assets/icons/Apple_NL_Icon.png"
         alt=""
         class="loading-center-icon"
         aria-hidden="true"
@@ -62,8 +62,8 @@
             aria-pressed="false"
             title="Toggle Day / Night theme"
           >
-            <img id="theme-toggle-icon-day" src="/assets/icons/line-md--sun-rising-filled-loop.svg" alt="" class="icon-img icon-white theme-icon-day" onerror="this.style.display='none';"/>
-            <img id="theme-toggle-icon-night" src="/assets/icons/line-md--sunny-filled-loop-to-moon-filled-alt-loop-transition.svg" alt="" class="icon-img icon-white theme-icon-night" onerror="this.style.display='none';"/>
+            <img id="theme-toggle-icon-day" src="./assets/icons/line-md--sun-rising-filled-loop.svg" alt="" class="icon-img icon-white theme-icon-day" onerror="this.style.display='none';"/>
+            <img id="theme-toggle-icon-night" src="./assets/icons/line-md--sunny-filled-loop-to-moon-filled-alt-loop-transition.svg" alt="" class="icon-img icon-white theme-icon-night" onerror="this.style.display='none';"/>
           </button>
           <button
             id="deploy-button"
@@ -82,7 +82,7 @@
             aria-label="Open settings"
           >
             <img
-              src="/assets/icons/line-md--cog-loop.svg"
+              src="./assets/icons/line-md--cog-loop.svg"
               alt=""
               class="icon-img icon-white"
               onerror="this.style.display='none';this.parentNode.textContent='⚙';"
@@ -131,7 +131,7 @@
           >
             <img
               id="log-connection-icon"
-              src="/assets/icons/codicon--debug-disconnect.svg"
+              src="./assets/icons/codicon--debug-disconnect.svg"
               alt=""
               class="icon-img icon-white console-status-icon"
               onerror="this.style.display='none';this.parentNode.textContent='×';"
@@ -145,7 +145,7 @@
             aria-label="Refresh status"
           >
             <img
-              src="/assets/icons/line-md--downloading-loop.svg"
+              src="./assets/icons/line-md--downloading-loop.svg"
               alt=""
               class="icon-img icon-white"
               onerror="this.style.display='none';this.parentNode.textContent='↻';"
@@ -206,7 +206,7 @@
             aria-pressed="false"
           >
             <img
-              src="/assets/icons/material-symbols--speed-0-5x.svg"
+              src="./assets/icons/material-symbols--speed-0-5x.svg"
               alt=".5x"
               class="icon-img icon-white quick-cheat-icon"
               onerror="this.style.display='none';"
@@ -223,7 +223,7 @@
             aria-pressed="false"
           >
             <img
-              src="/assets/icons/material-symbols--speed-2x.svg"
+              src="./assets/icons/material-symbols--speed-2x.svg"
               alt="2x"
               class="icon-img icon-white quick-cheat-icon"
               onerror="this.style.display='none';"
@@ -240,7 +240,7 @@
             aria-pressed="false"
           >
             <img
-              src="/assets/icons/line-md--map-marker-radius.svg"
+              src="./assets/icons/line-md--map-marker-radius.svg"
               alt="Wall walk"
               class="icon-img icon-white quick-cheat-icon"
               onerror="this.style.display='none';"
@@ -264,7 +264,7 @@
               <span id="selected-item-name" class="artbox-name-overlay">Empty slot</span>
               <span class="avatar-edit-chip" aria-hidden="true">
                 <img
-                  src="/assets/icons/line-md--pencil.svg"
+                  src="./assets/icons/line-md--pencil.svg"
                   alt=""
                   class="icon-img icon-white"
                   onerror="this.style.display='none';this.parentNode.textContent='✎';"
@@ -278,14 +278,14 @@
               <span class="meta-key">Player Name:</span>
               <div class="meta-value meta-reload-wrap">
                 <input id="player-name" class="meta-input" type="text" aria-label="Player Name" maxlength="8" readonly title="Name editing temporarily disabled — safe write pending" />
-                <span class="reload-required-hint" title="Name editing temporarily disabled"><img src="/assets/icons/line-md--downloading-loop.svg" alt="reload required" class="reload-icon" /></span>
+                <span class="reload-required-hint" title="Name editing temporarily disabled"><img src="./assets/icons/line-md--downloading-loop.svg" alt="reload required" class="reload-icon" /></span>
               </div>
             </div>
             <div class="meta-row">
               <span class="meta-key">Town Name:</span>
               <div class="meta-value meta-reload-wrap">
                 <input id="town-name" class="meta-input" type="text" aria-label="Town Name" maxlength="8" readonly title="Town editing temporarily disabled — safe write pending" />
-                <span class="reload-required-hint" title="Town editing temporarily disabled"><img src="/assets/icons/line-md--downloading-loop.svg" alt="reload required" class="reload-icon" /></span>
+                <span class="reload-required-hint" title="Town editing temporarily disabled"><img src="./assets/icons/line-md--downloading-loop.svg" alt="reload required" class="reload-icon" /></span>
               </div>
             </div>
             <div class="meta-row">
@@ -313,7 +313,7 @@
             title="Mailbox feature coming later"
           >
             <img
-              src="/assets/icons/line-md--email.svg"
+              src="./assets/icons/line-md--email.svg"
               alt=""
               class="icon-img icon-white"
               onerror="this.style.display='none';this.parentNode.textContent='✉';"
@@ -330,11 +330,11 @@
               id="player-avatar"
               class="player-avatar"
               alt="Player avatar"
-              src="/assets/icons/player-silhouette.svg"
+              src="./assets/icons/player-silhouette.svg"
             />
             <span class="avatar-edit-chip" aria-hidden="true">
               <img
-                src="/assets/icons/line-md--pencil.svg"
+                src="./assets/icons/line-md--pencil.svg"
                 alt=""
                 class="icon-img icon-white"
                 onerror="this.style.display='none';this.parentNode.textContent='✎';"
@@ -536,7 +536,7 @@
 
     <footer class="footer-mark">
       <div class="footer-brand">
-        <img src="/assets/icons/NL_Logo_Japanese.png" alt="" aria-hidden="true" />
+        <img src="./assets/icons/NL_Logo_Japanese.png" alt="" aria-hidden="true" />
         <span class="footer-label">ACNH Live Editor</span>
       </div>
       <a
@@ -570,7 +570,7 @@
           <div class="music-artbox">
             <img
               id="music-artwork"
-              src="/assets/icons/Aircheck_NH_Inv_Icon.png"
+              src="./assets/icons/Aircheck_NH_Inv_Icon.png"
               alt=""
             />
           </div>
@@ -594,7 +594,7 @@
               aria-pressed="false"
             >
               <img
-                src="/assets/icons/line-md--rotate-270.svg"
+                src="./assets/icons/line-md--rotate-270.svg"
                 alt=""
                 class="music-control-icon"
                 onerror="this.style.display='none';this.parentNode.textContent='↻';"
@@ -604,7 +604,7 @@
             <button id="music-play-button" type="button" class="music-control-btn music-control-btn-primary" aria-label="Play music">
               <img
                 id="music-play-icon"
-                src="/assets/icons/line-md--pause-to-play-filled-transition.svg"
+                src="./assets/icons/line-md--pause-to-play-filled-transition.svg"
                 alt=""
                 class="music-control-icon"
               />
@@ -659,7 +659,7 @@
             class="action-btn"
             aria-label="Create new backup"
           >
-            <img src="/assets/icons/line-md--downloading-loop.svg" alt="" class="icon-img icon-white btn-icon" onerror="this.style.display='none'" />
+            <img src="./assets/icons/line-md--downloading-loop.svg" alt="" class="icon-img icon-white btn-icon" onerror="this.style.display='none'" />
             New Backup
           </button>
           <span id="backups-status-msg" class="backups-status-msg"></span>
@@ -713,7 +713,7 @@
           aria-label="Debug status"
         >
           <img
-            src="/assets/icons/line-md--downloading-loop.svg"
+            src="./assets/icons/line-md--downloading-loop.svg"
             alt=""
             class="icon-img icon-white"
             onerror="this.style.display='none';this.parentNode.textContent='↻';"
@@ -753,7 +753,7 @@
           aria-label="GitHub"
         >
           <img
-            src="/assets/icons/line-md--github.svg"
+            src="./assets/icons/line-md--github.svg"
             alt=""
             class="icon-img icon-white"
             onerror="this.style.display='none';this.parentNode.textContent='GH';"
@@ -785,7 +785,7 @@
                 id="player-modal-bust"
                 class="player-modal-bust-image"
                 alt="Player bust preview"
-                src="/assets/icons/player-silhouette.svg"
+                src="./assets/icons/player-silhouette.svg"
               />
             </div>
 
@@ -827,12 +827,12 @@
           <section id="player-modal-view-player" class="player-modal-view player-modal-form-panel tab-panel">
             <div class="form-grid player-modal-form-grid">
               <label class="field-wrap">
-                <span>Player Name <img src="/assets/icons/line-md--downloading-loop.svg" alt="reload required" class="reload-icon field-reload-icon" title="Takes effect after game reload" /></span>
+                <span>Player Name <img src="./assets/icons/line-md--downloading-loop.svg" alt="reload required" class="reload-icon field-reload-icon" title="Takes effect after game reload" /></span>
                 <input id="player-input-name" type="text" maxlength="8" readonly title="Name editing temporarily disabled — safe write pending" />
               </label>
 
               <label class="field-wrap">
-                <span>Town Name <img src="/assets/icons/line-md--downloading-loop.svg" alt="reload required" class="reload-icon field-reload-icon" title="Takes effect after game reload" /></span>
+                <span>Town Name <img src="./assets/icons/line-md--downloading-loop.svg" alt="reload required" class="reload-icon field-reload-icon" title="Takes effect after game reload" /></span>
                 <input id="player-input-town" type="text" maxlength="8" readonly title="Town editing temporarily disabled — safe write pending" />
               </label>
 
@@ -1052,7 +1052,7 @@
 
             <button id="clear-item-button" type="button" class="trash-button" aria-label="Clear slot">
               <img
-                src="/assets/icons/line-md--trash.svg"
+                src="./assets/icons/line-md--trash.svg"
                 alt=""
                 class="icon-img icon-white"
                 onerror="this.style.display='none';this.parentNode.textContent='🗑';"
