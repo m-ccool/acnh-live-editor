@@ -6,7 +6,7 @@
 (function () {
   var hostname = location.hostname;
   if (hostname.endsWith('github.io') || hostname.endsWith('github.io.')) {
-    window.API_BASE = 'https://acnh-live-editor-demo.onrender.com';
+    window.API_BASE = 'https://acnh-live-editor.onrender.com';
   } else {
     window.API_BASE = '';
   }
