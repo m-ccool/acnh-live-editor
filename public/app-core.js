@@ -3,7 +3,7 @@
 const TOTAL_SLOTS = 40;
 const STORAGE_KEY = 'acnh-live-editor-state-v5';
 const REPO_URL = 'https://github.com/m-ccool/acnh-live-editor';
-const SERVICE_WORKER_VERSION = '100';
+const SERVICE_WORKER_VERSION = '106';
 const PLAY_ICON_PATH = '/assets/icons/line-md--pause-to-play-filled-transition.svg';
 const PAUSE_ICON_PATH = '/assets/icons/line-md--pause.svg';
 const CONSOLE_CONNECTED_ICON_PATH = '/assets/icons/codicon--debug-connect.svg';
@@ -353,7 +353,9 @@ function cacheDom() {
   el.selectedItemArtbox = document.getElementById('selected-item-artbox');
   el.selectedPreviewImage = document.getElementById('selected-preview-image');
   el.selectedItemName = document.getElementById('selected-item-name');
-  el.openSelectedSearchButton = document.getElementById('open-selected-search-button');
+  el.openSelectedSearchButton = null; // replaced by inv-quick-search input
+  el.invQuickSearch = document.getElementById('inv-quick-search');
+  el.invQuickSearchResults = document.getElementById('inv-quick-search-results');
   el.copySelectedButton = document.getElementById('copy-selected-button');
   el.copySelectedIcon = document.getElementById('copy-selected-icon');
   el.pasteSelectedButton = document.getElementById('paste-selected-button');
@@ -394,6 +396,11 @@ function cacheDom() {
       updateStickyBar();
     }, { threshold: 0 }).observe(el.playerPanelEnd);
     window._updateStickyBar = updateStickyBar;
+
+    // Sticky pill click → trigger artbox click (opens edit modal)
+    el.selectedItemSticky.addEventListener('click', () => {
+      if (el.selectedItemArtbox) el.selectedItemArtbox.click();
+    });
   }
 
   el.inventoryCard = document.getElementById('inventory-card');
@@ -990,7 +997,8 @@ function bindEvents() {
     el.pauseBridgeButton.addEventListener('click', toggleBridgePoll);
   }
 
-  el.openSelectedSearchButton.addEventListener('click', () => openItemModalForSelectedSlot());
+  // inv-quick-search: inline search input with direct slot assignment
+  initInvQuickSearch();
   el.selectedItemArtbox.addEventListener('click', () => openItemModalForSelectedSlot());
 
   if (el.copySelectedButton) {
@@ -1202,6 +1210,45 @@ function handlePageDragEnd(event) {
 function hasOpenModal() {
   return [el.settingsModal, el.playerModal, el.itemModal, el.backupsModal, el.villagerModal, el.presetManagerModal].some((modal) => {
     return modal && !modal.classList.contains('hidden');
+  });
+}
+
+// ── Inventory quick-search (inline assign, no modal) ──────────────────────
+let _invQsDebounceId = null;
+let _invQsBlurTimerId = null;
+
+function initInvQuickSearch() {
+  const input = el.invQuickSearch;
+  const results = el.invQuickSearchResults;
+  if (!input || !results) return;
+
+  input.addEventListener('input', () => {
+    clearTimeout(_invQsDebounceId);
+    _invQsDebounceId = setTimeout(() => runInvQuickSearch(input.value), 200);
+  });
+
+  input.addEventListener('focus', () => {
+    clearTimeout(_invQsBlurTimerId);
+    if (input.value.trim()) {
+      results.hidden = false;
+      input.setAttribute('aria-expanded', 'true');
+    }
+  });
+
+  input.addEventListener('blur', () => {
+    _invQsBlurTimerId = setTimeout(() => {
+      results.hidden = true;
+      input.setAttribute('aria-expanded', 'false');
+    }, 180);
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      input.value = '';
+      results.hidden = true;
+      input.setAttribute('aria-expanded', 'false');
+      input.blur();
+    }
   });
 }
 
@@ -1579,7 +1626,7 @@ function renderBridge() {
   // Update deploy button label to reflect live connection state
   if (el.deployButton && !el.deployButton.disabled) {
     const lbl = document.getElementById('deploy-button-label');
-    if (lbl) lbl.textContent = state.bridge.connected ? '⚡ Bridge' : '🔌 Connect Bridge';
+    if (lbl) lbl.textContent = state.bridge.connected ? '⚡ Bridge' : 'Connect';
   }
 
   if (el.bridgeToggle) {

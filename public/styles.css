@@ -814,14 +814,16 @@ body[data-theme='night'] .star--bright {
 
 .vedit-inv-slot.is-selected .vedit-inv-img { opacity: 0.72; }
 
-.vedit-inv-slot:has(img:not(.is-loaded)):not(.is-empty-slot) {
-  background: linear-gradient(90deg,
-    rgba(255,255,255,0.02) 25%,
-    rgba(255,255,255,0.07) 50%,
-    rgba(255,255,255,0.02) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s linear infinite;
+/* Inventory slot image shimmer — pseudo-element so slot background/transition are unaffected */
+.vedit-inv-slot:has(img:not(.is-loaded)):not(.is-empty-slot)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.12) 50%, transparent 100%);
+  animation: shimmer 1.6s ease-in-out infinite;
+  will-change: transform;
+  pointer-events: none;
 }
 
 /* Preview panel image fade-in */
@@ -914,15 +916,25 @@ body.modal-open .app-shell {
 
 .topbar {
   display: flex;
-  justify-content: space-between;
-  gap: 20px;
+  flex-direction: column;
+  gap: 8px;
   padding: clamp(14px, 2.5vw, 22px);
 }
 
+/* Kept for backward compat — no longer rendered in HTML */
 .topbar-main {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* Row 1: title + action buttons inline */
+.topbar-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
 }
 
 .brand-title {
@@ -936,21 +948,26 @@ body.modal-open .app-shell {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  justify-content: space-between;
 }
 
 .brand-datetime {
   display: flex;
-  gap: 14px;
-  flex-wrap: wrap;
+  gap: 8px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
   opacity: 0.5;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 /* ── Console-style date/time (no border, monospace) ─────────────────────── */
 .console-date,
 .console-time {
   font-family: 'SF Mono', 'Consolas', 'Menlo', monospace;
-  font-size: 0.82rem;
+  font-size: 0.72rem;
   color: var(--text-muted);
   letter-spacing: 0.04em;
   display: inline-flex;
@@ -1043,8 +1060,9 @@ body.modal-open .app-shell {
 .topbar-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 8px;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
   position: relative;
   overflow: visible;
 }
@@ -1053,13 +1071,14 @@ body.modal-open .app-shell {
 .deploy-button {
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 7px 14px;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: rgba(255,255,255,0.06);
   color: #fff;
-  font-size: 0.82rem;
+  font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
   transition: background var(--ease), opacity var(--ease), box-shadow var(--ease);
@@ -1074,9 +1093,9 @@ body.modal-open .app-shell {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 38px;
-  min-height: 38px;
-  padding: 0 10px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0 6px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: rgba(255,255,255,0.06);
@@ -1085,7 +1104,7 @@ body.modal-open .app-shell {
   transition: background var(--ease), box-shadow var(--ease);
 }
 .action-pill-btn:hover { background: rgba(255,255,255,0.11); box-shadow: 0 0 0 1px rgba(255,255,255,0.1); }
-.action-pill-btn .icon-img { width: 18px; height: 18px; }
+.action-pill-btn .icon-img { width: 16px; height: 16px; }
 
 /* ── Bridge status dot ───────────────────────────────────────────────────── */
 .bridge-dot {
@@ -2003,20 +2022,18 @@ body[data-theme='night'] .log-panel {
 }
 
 .player-panel-head {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
   margin-bottom: 12px;
   padding: 0 0 10px;
   border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 
-/* Row 1: "Player" title + Load/Save buttons side by side */
+/* Single row: Player title | Cheats Menu | Load/Save */
 .player-panel-head-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
+  flex-wrap: nowrap;
 }
 
 .panel-label {
@@ -2046,6 +2063,8 @@ body[data-theme='night'] .log-panel {
     border-color var(--transition-fast),
     color var(--transition-fast);
   width: fit-content;
+  align-self: center;
+  position: relative;
 }
 .cheats-menu-btn:hover,
 .cheats-menu-btn:focus-visible {
@@ -2061,6 +2080,40 @@ body[data-theme='night'] .log-panel {
 }
 
 /* Cheats mini-modal — inline expansion below player-panel-head */
+/* Cheats badge dot */
+.cheat-dot {
+  display: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--good);
+  box-shadow: 0 0 6px rgba(98,214,111,0.6);
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  pointer-events: none;
+}
+.cheats-menu-btn.has-active .cheat-dot {
+  display: block;
+}
+
+/* Cheats badge dot */
+.cheat-dot {
+  display: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--good);
+  box-shadow: 0 0 6px rgba(98,214,111,0.6);
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  pointer-events: none;
+}
+.cheats-menu-btn.has-active .cheat-dot {
+  display: block;
+}
+
 .cheats-mini-modal {
   display: flex;
   flex-wrap: wrap;
@@ -2102,9 +2155,10 @@ body[data-theme='night'] .log-panel {
   gap: 10px;
 }
 
-/* Sticky selected-item bar — mobile only, position:fixed so overflow:hidden doesn't trap it */
+/* Sticky selected-item bar — position:fixed so overflow:hidden doesn't trap it */
+/* Visibility is controlled by the [hidden] attribute — not display:none here */
 .selected-item-sticky {
-  display: none;
+  display: flex;
   position: fixed;
   top: 8px;
   left: 50%;
@@ -2112,15 +2166,16 @@ body[data-theme='night'] .log-panel {
   z-index: 500;
   align-items: center;
   gap: 8px;
-  padding: 6px 14px 6px 8px;
-  border-radius: 999px;
-  background: rgba(20,16,40,0.88);
-  border: 1px solid rgba(255,255,255,0.14);
-  backdrop-filter: blur(16px) saturate(1.4);
-  -webkit-backdrop-filter: blur(16px) saturate(1.4);
-  box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+  padding: 8px 16px 8px 10px;
+  border-radius: 14px;
+  background: rgba(14,10,30,0.82);
+  border: 1px solid rgba(255,255,255,0.18);
+  backdrop-filter: blur(20px) saturate(1.6);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
   max-width: calc(100vw - 32px);
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: pointer;
   white-space: nowrap;
 }
 .selected-item-sticky-img {
@@ -2259,12 +2314,26 @@ body[data-theme='night'] .quick-cheat-btn.is-active {
 }
 
 .selected-item-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  font-size: 0.83rem;
-  color: var(--text-muted);
+  display: none;
+}
+
+.artbox-name-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 6px 8px 9px;
+  text-align: center;
+  font-size: 0.69rem;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: linear-gradient(transparent, rgba(0,0,0,0.52));
+  border-radius: 0 0 16px 16px;
+  pointer-events: none;
+  z-index: 2;
 }
 
 .selected-item-name {
@@ -2550,17 +2619,36 @@ body[data-theme='night'] .selected-item-artbox {
 .inventory-sidebar .preset-btn {
   min-height: 22px;
   height: auto;
-  padding: 4px 10px 4px 9px;
+  padding: 5px 10px 5px 8px;
   font-size: 0.68rem;
-  border-radius: 0 var(--radius-btn) var(--radius-btn) 0;
-  border-left: 0;
+  border-radius: 6px;
+  border-left: 2px solid;
   text-align: left;
   width: 100%;
   white-space: nowrap;
-  margin-bottom: 1px;
+  margin-bottom: 2px;
 }
 
 /* Per-category color tints */
+/* Sidebar tabs — left accent border uses border-color from the preset specifics */
+.inventory-sidebar .preset-btn[data-preset="tools"]     { background: rgba(255, 180,  60, 0.16); border-color: rgba(255, 180,  60, 0.50); color: rgba(255,210,140,0.95); }
+.inventory-sidebar .preset-btn[data-preset="tools"]:hover { background: rgba(255, 180, 60, 0.26); }
+.inventory-sidebar .preset-btn[data-preset="gold"]      { background: rgba(255, 215,   0, 0.14); border-color: rgba(255, 215,   0, 0.50); color: rgba(255,230,120,0.95); }
+.inventory-sidebar .preset-btn[data-preset="gold"]:hover  { background: rgba(255, 215,  0, 0.26); }
+.inventory-sidebar .preset-btn[data-preset="materials"] { background: rgba( 98, 214, 111, 0.14); border-color: rgba( 98, 214, 111, 0.50); color: rgba(160,240,180,0.95); }
+.inventory-sidebar .preset-btn[data-preset="materials"]:hover { background: rgba(98, 214, 111, 0.26); }
+.inventory-sidebar .preset-btn[data-preset="dye"]       { background: rgba(200,  90, 220, 0.14); border-color: rgba(200,  90, 220, 0.50); color: rgba(230,160,255,0.95); }
+.inventory-sidebar .preset-btn[data-preset="dye"]:hover { background: rgba(200, 90, 220, 0.26); }
+.inventory-sidebar .preset-btn[data-preset="trees"]     { background: rgba( 80, 180,  80, 0.14); border-color: rgba( 80, 180,  80, 0.50); color: rgba(160,230,160,0.95); }
+.inventory-sidebar .preset-btn[data-preset="trees"]:hover { background: rgba(80, 180,  80, 0.26); }
+.inventory-sidebar .preset-btn[data-preset="bushes"]    { background: rgba( 60, 160, 100, 0.14); border-color: rgba( 60, 160, 100, 0.50); color: rgba(130,220,170,0.95); }
+.inventory-sidebar .preset-btn[data-preset="bushes"]:hover { background: rgba(60, 160, 100, 0.26); }
+.inventory-sidebar .preset-btn[data-preset="roses"]     { background: rgba(220,  60,  80, 0.14); border-color: rgba(220,  60,  80, 0.50); color: rgba(255,140,150,0.95); }
+.inventory-sidebar .preset-btn[data-preset="roses"]:hover { background: rgba(220, 60,  80, 0.26); }
+.inventory-sidebar .preset-btn[data-preset="tulips"]    { background: rgba(255, 120, 160, 0.14); border-color: rgba(255, 120, 160, 0.50); color: rgba(255,180,210,0.95); }
+.inventory-sidebar .preset-btn[data-preset="tulips"]:hover { background: rgba(255, 120, 160, 0.26); }
+
+/* Non-sidebar preset buttons keep original colors */
 .preset-btn[data-preset="tools"]     { background: rgba(255, 180,  60, 0.12); border-color: rgba(255, 180,  60, 0.22); }
 .preset-btn[data-preset="tools"]:hover { background: rgba(255, 180, 60, 0.22); }
 .preset-btn[data-preset="gold"]      { background: rgba(255, 215,   0, 0.12); border-color: rgba(255, 215,   0, 0.22); }
@@ -3054,25 +3142,100 @@ body[data-theme='night'] .avatar-box {
   margin: auto;
 }
 
-/* inventory-search-bar — pill button above the inventory grid */
+/* inventory-search-bar — quick assign search input */
 .inventory-search-bar {
   display: flex;
-  justify-content: flex-end;
   margin-bottom: 6px;
 }
 
-.inventory-search-bar .preset-btn-search {
-  border-radius: var(--radius-pill);
-  border: 1px solid rgba(255,255,255,0.18);
-  background: rgba(255,255,255,0.07);
-  padding: 5px 12px;
-  font-size: 0.74rem;
-  min-height: unset;
-  height: auto;
+.inv-quick-search-wrap {
+  position: relative;
+  width: 100%;
 }
 
-.inventory-search-bar .preset-btn-search:hover {
-  background: rgba(255,255,255,0.14);
+.inv-quick-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 14px;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: var(--radius-pill);
+  background: rgba(255,255,255,0.07);
+  color: var(--text);
+  font-size: 0.80rem;
+  outline: none;
+  transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
+  appearance: none;
+  -webkit-appearance: none;
+}
+.inv-quick-search-input:focus {
+  border-color: rgba(255,255,255,0.32);
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.05);
+}
+.inv-quick-search-input::placeholder { opacity: 0.55; }
+.inv-quick-search-input::-webkit-search-cancel-button { display: none; }
+
+.inv-quick-search-results {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 5px);
+  z-index: 200;
+  max-height: 260px;
+  overflow-y: auto;
+  border-radius: 12px;
+  border: 1px solid var(--glass-edge-soft);
+  background: rgba(14,10,30,0.92);
+  backdrop-filter: blur(16px) saturate(1.5);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.45);
+  overscroll-behavior: contain;
+}
+.inv-quick-search-results[hidden] { display: none !important; }
+
+.inv-qsr-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-size: 0.80rem;
+  transition: background 0.1s;
+}
+.inv-qsr-row:last-child { border-bottom: none; }
+.inv-qsr-row:hover,
+.inv-qsr-row.is-focused { background: rgba(255,255,255,0.09); }
+
+.inv-qsr-img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  flex-shrink: 0;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.04);
+}
+
+.inv-qsr-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.inv-qsr-cat {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  opacity: 0.65;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.inv-qsr-empty {
+  padding: 12px;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  opacity: 0.6;
 }
 
 .inventory-area {
@@ -3355,9 +3518,84 @@ body[data-theme='night'] .tab-btn.is-active {
     border-color 0.82s cubic-bezier(.16,.84,.28,1);
 }
 
-.tab-panel[hidden] {
-  opacity: 0;
-  transform: translateY(4px);
+/* ── Tab compact bar (Village tab) ─────────────────────────────────────── */
+.tab-compact-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  padding: 10px 0 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+
+.tab-compact-field {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 0.78rem;
+}
+
+.tcf-label {
+  color: var(--text-muted);
+  opacity: 0.7;
+  white-space: nowrap;
+}
+
+.tab-compact-field strong {
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 120px;
+  text-overflow: ellipsis;
+  display: inline-block;
+  vertical-align: baseline;
+}
+
+.tab-hidden-source { display: none !important; }
+
+/* ── Tab category details/summary ───────────────────────────────────────── */
+.tab-category-details {
+  border: 1px solid var(--glass-edge-soft);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.tab-category-summary {
+  padding: 9px 14px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.tab-category-summary::-webkit-details-marker { display: none; }
+.tab-category-details[open] .tab-category-summary {
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.tab-category-details .tab-list {
+  padding: 10px 14px;
+}
+
+/* ── Tab status dot (Villagers / future tabs) ───────────────────────────── */
+.tab-status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: transparent;
+  margin-left: 5px;
+  vertical-align: middle;
+  flex-shrink: 0;
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+.tab-status-dot.is-ok {
+  background: var(--good, #8ef4b7);
+  box-shadow: 0 0 5px rgba(142, 244, 183, 0.6);
+}
+.tab-status-dot.is-error {
+  background: var(--danger, #ff8383);
+  box-shadow: 0 0 5px rgba(255, 131, 131, 0.6);
 }
 
 .tab-panel-copy h3 {
@@ -3694,7 +3932,10 @@ body:not([data-theme='night']) .modal-filter-btn {
 /* ── Villager edit modal ───────────────────────────── */
 .modal-card-villager {
   width: min(580px, 100%);
-  overflow: hidden;
+  overflow-x: hidden;
+  height: min(92vh, calc(100svh - 24px));
+  max-height: min(92vh, calc(100svh - 24px));
+  --vmod-inset: 20px;
 }
 
 /* React body mount fills the card below the modal-head */
@@ -3717,12 +3958,9 @@ body:not([data-theme='night']) .modal-filter-btn {
   overflow: hidden;
 }
 
-/* Full-width sub-views (house/flags/edit) — no art aside */
+/* Full-width sub-views (house/flags/edit) — no art aside; children self-inset via --vmod-inset */
 .villager-modal-shell.vmod-fullwidth {
-  padding-top: 8px;
-}
-.villager-modal-shell.vmod-fullwidth .villager-modal-info {
-  padding-left: 0;
+  padding: 8px 0 0;
 }
 
 .villager-modal-aside {
@@ -3763,6 +4001,8 @@ body:not([data-theme='night']) .modal-filter-btn {
   position: absolute;
   inset: 0;
   border-radius: 0;
+  /* Don't tint the art — only the ::after sweep should be visible */
+  background: transparent;
 }
 
 .villager-modal-art-placeholder {
@@ -3998,7 +4238,7 @@ body:not([data-theme='night']) .modal-filter-btn {
 /* Footer (main + sub-views) */
 .villager-modal-footer {
   border-top: 1px solid rgba(255,255,255,0.08);
-  padding: 12px 20px max(16px, env(safe-area-inset-bottom, 0px));
+  padding: 12px var(--vmod-inset) max(16px, env(safe-area-inset-bottom, 0px));
   display: flex;
   justify-content: flex-end;
   align-items: center;
@@ -4008,7 +4248,7 @@ body:not([data-theme='night']) .modal-filter-btn {
 /* Sub-view footer: left cluster + right Save */
 .vmod-subview-footer {
   justify-content: space-between;
-  padding: 12px 20px 16px;
+  padding: 12px var(--vmod-inset) max(16px, env(safe-area-inset-bottom, 0px));
 }
 
 .vmod-footer-left {
@@ -4032,7 +4272,7 @@ body:not([data-theme='night']) .modal-filter-btn {
   font-size: 0.88rem;
   font-weight: 600;
   color: rgba(255,255,255,0.7);
-  padding: 0 20px 8px;
+  padding: 12px var(--vmod-inset) 10px;
   border-bottom: 1px solid rgba(255,255,255,0.08);
   flex-shrink: 0;
 }
@@ -4041,9 +4281,9 @@ body:not([data-theme='night']) .modal-filter-btn {
 .vmod-house-fields {
   flex: 1;
   overflow-y: auto;
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.10);
   border-radius: 8px;
-  margin: 0 20px;
+  margin: 0 var(--vmod-inset);
 }
 
 .vmod-house-input {
@@ -4065,13 +4305,13 @@ body:not([data-theme='night']) .modal-filter-btn {
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  padding: 0 20px;
+  padding: 0 var(--vmod-inset);
 }
 
 .vmod-flags-list {
   flex: 1;
   overflow-y: auto;
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.10);
   border-radius: 8px;
   font-size: 0.78rem;
   font-family: monospace;
@@ -4141,63 +4381,113 @@ body:not([data-theme='night']) .modal-filter-btn {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 10px;
   overflow: hidden;
-  margin: 0 20px;
+  margin: 0 var(--vmod-inset);
+  background: rgba(255,255,255,0.015);
 }
 
 .vmod-edit-tabs {
   flex-shrink: 0;
   display: flex;
-  gap: 4px;
-  padding: 6px 8px 0;
+  gap: 0;
+  padding: 0 4px;
   overflow-x: auto;
   flex-wrap: nowrap;
   scrollbar-width: none;
-  background: rgba(255,255,255,0.02);
-  border-bottom: 1px solid rgba(255,255,255,0.08);
-  /* Smooth momentum scroll on iOS */
+  background: rgba(255,255,255,0.015);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
   -webkit-overflow-scrolling: touch;
   touch-action: pan-x;
 }
 
 .vmod-edit-tabs::-webkit-scrollbar { display: none; }
 
+/* Inner edit tab — underline indicator, fully resets .tab-btn base */
 .vmod-edit-tab-btn {
-  font-size: 0.75rem;
-  padding: 4px 10px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  padding: 8px 10px 6px;
   white-space: nowrap;
   flex-shrink: 0;
   min-width: unset;
+  min-height: unset;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: rgba(255,255,255,0.42);
+  transition: color 0.18s, border-color 0.18s;
+  transform: none !important;
 }
 
-.vmod-edit-tab-btn {
-  font-size: 0.75rem;
-  padding: 4px 10px;
-  white-space: nowrap;
-  flex-shrink: 0;
-  min-width: unset;
+.vmod-edit-tab-btn:hover {
+  color: rgba(255,255,255,0.72);
+  background: transparent;
+  border-color: transparent;
+  transform: none !important;
 }
 
-/* Villager modal top-level tab bar */
+.vmod-edit-tab-btn.is-active {
+  color: rgba(255,255,255,0.9);
+  font-weight: 600;
+  border-bottom-color: rgba(255,255,255,0.6);
+  background: transparent;
+  box-shadow: none;
+  text-shadow: none;
+  transform: none !important;
+}
+
+/* Villager modal top-level tab bar — underline indicator system */
 .vmod-tab-bar {
   display: flex;
-  gap: 2px;
-  margin-bottom: 10px;
+  gap: 0;
+  margin-bottom: 0;
   flex-wrap: nowrap;
   overflow-x: auto;
   scrollbar-width: none;
+  padding: 0 var(--vmod-inset);
+  border-bottom: 1px solid rgba(255,255,255,0.09);
 }
 .vmod-tab-bar::-webkit-scrollbar { display: none; }
 
+/* Fully resets .tab-btn base shape/glow — villager tabs use clean underline */
 .vmod-tab-btn {
-  font-size: 0.78rem;
-  padding: 5px 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 10px 14px 9px;
   white-space: nowrap;
   flex-shrink: 0;
   min-width: unset;
-  min-height: 32px;
+  min-height: unset;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: rgba(255,255,255,0.42);
+  letter-spacing: 0.01em;
+  transition: color 0.18s, border-color 0.18s;
+  transform: none !important;
+}
+
+.vmod-tab-btn:hover {
+  color: rgba(255,255,255,0.72);
+  background: transparent;
+  border-color: transparent;
+  transform: none !important;
+}
+
+.vmod-tab-btn.is-active {
+  color: rgba(255,255,255,0.92);
+  font-weight: 600;
+  border-bottom-color: rgba(255,255,255,0.72);
+  background: transparent;
+  box-shadow: none;
+  text-shadow: none;
+  transform: none !important;
 }
 
 /* Save Manager panel */
@@ -4821,11 +5111,15 @@ body:not([data-theme='night']) .modal-filter-btn {
 }
 
 @media (max-width: 480px) {
+  .modal-card-villager {
+    --vmod-inset: 16px;
+  }
+
   /* Shell: stack art above info */
   .villager-modal-shell {
     flex-direction: column;
     align-items: center;
-    padding: 0 10px 0;
+    padding: 0 16px 0;
   }
   .villager-modal-aside {
     width: clamp(90px, 36vw, 120px);
@@ -4834,17 +5128,6 @@ body:not([data-theme='night']) .modal-filter-btn {
     width: clamp(90px, 36vw, 120px);
     height: clamp(130px, 22vh, 190px);
     max-height: 180px;
-  }
-
-  /* Sub-view chrome: tighter side margins */
-  .vmod-house-fields,
-  .vmod-edit-wrapper {
-    margin-left: 8px;
-    margin-right: 8px;
-  }
-  .vmod-subview-title {
-    padding-left: 12px;
-    padding-right: 12px;
   }
 
   /* House: stack label above input on narrow screens */
@@ -4866,7 +5149,6 @@ body:not([data-theme='night']) .modal-filter-btn {
   /* Flags: stack list + editor vertically on narrow screens */
   .vmod-flags-shell {
     flex-direction: column;
-    padding: 0 8px;
     overflow-y: auto;
     min-height: 0;
   }
@@ -4895,11 +5177,10 @@ body:not([data-theme='night']) .modal-filter-btn {
     min-width: 0;
   }
 
-  /* Edit tabs: larger touch targets */
+  /* Edit tabs: comfortable touch targets */
   .vmod-edit-tab-btn {
-    min-height: 44px;
-    padding: 6px 12px;
-    font-size: 0.8rem;
+    padding: 10px 12px 8px;
+    font-size: 0.78rem;
   }
 
   /* Action bar: wrap and fill width */
@@ -4921,7 +5202,7 @@ body:not([data-theme='night']) .modal-filter-btn {
     gap: 6px;
   }
   .villager-modal-footer {
-    padding: 10px 14px max(14px, env(safe-area-inset-bottom, 0px));
+    padding: 10px var(--vmod-inset) max(14px, env(safe-area-inset-bottom, 0px));
   }
 
   /* EditView panels: stack detail below grid on narrow screens */
@@ -6231,17 +6512,15 @@ body:not([data-theme='night']) .action-btn-solid {
     --music-ribbon-width: calc(100vw - 22px);
   }
 
-  .topbar,
+  /* topbar stays column on mobile — title row handles the inline layout */
+
   .log-panel-head,
   .player-actions {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  /* Show sticky selected-item bar on mobile */
-  .selected-item-sticky {
-    display: flex;
-  }
+  /* Sticky pill already flex at base; no override needed */
 
   .music-player-top {
     grid-template-columns: 46px 1fr;
@@ -6289,13 +6568,13 @@ body:not([data-theme='night']) .action-btn-solid {
     max-height: calc(100dvh - 16px);
   }
 
-  /* Player card: stack item preview + avatar vertically at ≤720px */
+  /* Player card: stack at ≤720px — avatar above selected item */
   .player-card {
     gap: 16px;
     grid-template-columns: 1fr;
     grid-template-areas:
-      "selected"
       "avatar"
+      "selected"
       "meta";
   }
 
@@ -6392,25 +6671,14 @@ body:not([data-theme='night']) .action-btn-solid {
   .player-card {
     grid-template-columns: 1fr;
     grid-template-areas:
-      "selected"
       "avatar"
+      "selected"
       "meta";
   }
 
   .selected-item-preview {
     width: 100%;
     align-items: stretch;
-  }
-
-  .selected-item-label {
-    display: grid;
-    gap: 4px;
-  }
-
-  .selected-item-name {
-    white-space: normal;
-    overflow: visible;
-    text-overflow: unset;
   }
 
   .selected-item-artbox {
@@ -6450,7 +6718,9 @@ body:not([data-theme='night']) .action-btn-solid {
   .shooting-star,
   .debug-reload-orbit,
   .loading-ring,
-  .modal-fade {
+  .modal-fade,
+  .skeleton-line::after,
+  .skeleton-block::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
   }

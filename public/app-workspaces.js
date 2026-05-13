@@ -512,6 +512,12 @@ function renderQuickCheatButtons() {
     activeCheatIds: Object.keys(DEFAULT_QUICK_CHEATS).filter((cheatId) => state.quickCheats[cheatId]),
     onToggle: toggleQuickCheat
   });
+
+  // Badge on Cheats Menu button when any cheat is active
+  if (el.cheatsMenuBtn) {
+    const anyActive = Object.keys(DEFAULT_QUICK_CHEATS).some((id) => state.quickCheats[id]);
+    el.cheatsMenuBtn.classList.toggle('has-active', anyActive);
+  }
 }
 
 function toggleQuickCheat(cheatId) {
@@ -1863,12 +1869,16 @@ async function loadVillagersFromBridge() {
     const villagers = (data.payload && data.payload.villagers) ? data.payload.villagers : (data.villagers || []);
     state.villagers = villagers;
     renderVillagersPanel(villagers);
+    const dot = document.getElementById('villagers-status-dot');
+    if (dot) { dot.classList.remove('is-error'); dot.classList.add('is-ok'); }
   } catch (err) {
     // Fall back to last known villager data so data persists while offline
+    const dot = document.getElementById('villagers-status-dot');
+    if (dot) { dot.classList.remove('is-ok'); dot.classList.add('is-error'); }
     if (state.villagers && state.villagers.length > 0) {
       renderVillagersPanel(state.villagers);
     } else {
-      if (roster) roster.innerHTML = `<p class="villager-placeholder" style="color:rgba(255,120,80,0.8)">Error: ${escapeHtml(err.message)}</p>`;
+      if (roster) roster.innerHTML = '<p class="villager-placeholder">No data available</p>';
     }
   }
 }

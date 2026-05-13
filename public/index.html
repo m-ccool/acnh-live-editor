@@ -51,70 +51,65 @@
 
   <div id="app-root" class="app-shell app-hidden">
     <header class="topbar shell-card">
-      <div class="topbar-main">
+      <div class="topbar-title-row">
         <div class="brand-title">ACNH LE</div>
-
-        <div class="brand-subline">
-          <span id="api-status-pill" class="status-pill is-warn" title="API / Catalog status">
-            <span class="status-pill-dot"></span>
-            <span class="status-pill-label">API</span>
-            <span id="catalog-status-label" class="status-pill-value">Local</span>
-          </span>
-          <span id="ryujinx-status-chip" class="status-pill is-warn" title="System: Ryujinx status unknown">
-            <span class="status-pill-dot"></span>
-            <span class="status-pill-label">System: Ryujinx</span>
-          </span>
-          <span id="acnh-data-status-chip" class="status-pill is-warn" title="ACNH data status unknown">
-            <span class="status-pill-dot"></span>
-            <span class="status-pill-label">Game</span>
-          </span>
+        <div class="topbar-actions">
+          <button
+            id="theme-toggle"
+            class="action-pill-btn theme-toggle-btn"
+            type="button"
+            aria-label="Switch to Night"
+            aria-pressed="false"
+            title="Toggle Day / Night theme"
+          >
+            <img id="theme-toggle-icon-day" src="/assets/icons/line-md--sun-rising-filled-loop.svg" alt="" class="icon-img icon-white theme-icon-day" onerror="this.style.display='none';"/>
+            <img id="theme-toggle-icon-night" src="/assets/icons/line-md--sunny-filled-loop-to-moon-filled-alt-loop-transition.svg" alt="" class="icon-img icon-white theme-icon-night" onerror="this.style.display='none';"/>
+          </button>
+          <button
+            id="deploy-button"
+            class="deploy-button"
+            type="button"
+            aria-label="Connect Steam Deck bridge"
+            title="Reconnect Steam Deck bridge via SSH"
+          >
+            <span id="connect-bridge-dot" class="bridge-dot" aria-hidden="true"></span>
+            <span id="deploy-button-label">Connect</span>
+          </button>
+          <button
+            id="settings-button"
+            class="action-pill-btn"
+            type="button"
+            aria-label="Open settings"
+          >
+            <img
+              src="/assets/icons/line-md--cog-loop.svg"
+              alt=""
+              class="icon-img icon-white"
+              onerror="this.style.display='none';this.parentNode.textContent='⚙';"
+            />
+          </button>
+          <div id="deploy-toast" class="deploy-toast" aria-live="polite"></div>
         </div>
+      </div>
 
+      <div class="brand-subline">
+        <span id="api-status-pill" class="status-pill is-warn" title="API / Catalog status">
+          <span class="status-pill-dot"></span>
+          <span class="status-pill-label">API</span>
+          <span id="catalog-status-label" class="status-pill-value">Local</span>
+        </span>
+        <span id="ryujinx-status-chip" class="status-pill is-warn" title="System: Ryujinx status unknown">
+          <span class="status-pill-dot"></span>
+          <span class="status-pill-label">System: Ryujinx</span>
+        </span>
+        <span id="acnh-data-status-chip" class="status-pill is-warn" title="ACNH data status unknown">
+          <span class="status-pill-dot"></span>
+          <span class="status-pill-label">Game</span>
+        </span>
         <div class="brand-datetime" aria-live="polite">
           <span id="date-display" class="console-date">Loading date</span>
           <span id="time-display" class="console-time">Loading time</span>
         </div>
-      </div>
-
-      <div class="topbar-actions">
-        <button
-          id="theme-toggle"
-          class="action-pill-btn theme-toggle-btn"
-          type="button"
-          aria-label="Switch to Night"
-          aria-pressed="false"
-          title="Toggle Day / Night theme"
-        >
-          <img id="theme-toggle-icon-day" src="/assets/icons/line-md--sun-rising-filled-loop.svg" alt="" class="icon-img icon-white theme-icon-day" onerror="this.style.display='none';"/>
-          <img id="theme-toggle-icon-night" src="/assets/icons/line-md--sunny-filled-loop-to-moon-filled-alt-loop-transition.svg" alt="" class="icon-img icon-white theme-icon-night" onerror="this.style.display='none';"/>
-        </button>
-
-        <button
-          id="deploy-button"
-          class="deploy-button"
-          type="button"
-          aria-label="Connect Steam Deck bridge"
-          title="Reconnect Steam Deck bridge via SSH"
-        >
-          <span id="connect-bridge-dot" class="bridge-dot" aria-hidden="true"></span>
-          <span id="deploy-button-label">🔌 Connect Bridge</span>
-        </button>
-
-        <button
-          id="settings-button"
-          class="action-pill-btn"
-          type="button"
-          aria-label="Open settings"
-        >
-          <img
-            src="/assets/icons/line-md--cog-loop.svg"
-            alt=""
-            class="icon-img icon-white"
-            onerror="this.style.display='none';this.parentNode.textContent='⚙';"
-          />
-        </button>
-
-        <div id="deploy-toast" class="deploy-toast" aria-live="polite"></div>
       </div>
     </header>
 
@@ -173,6 +168,13 @@
       <div class="player-panel-head">
         <div class="player-panel-head-row">
           <div class="panel-label">Player</div>
+          <button
+            id="cheats-menu-btn"
+            class="cheats-menu-btn"
+            type="button"
+            aria-expanded="false"
+            aria-controls="cheats-mini-modal"
+          >Cheats Menu<span class="cheat-dot" aria-hidden="true"></span></button>
           <div class="player-save-load-bar">
             <button
               id="player-load-btn"
@@ -189,13 +191,6 @@
             >Save</button>
           </div>
         </div>
-        <button
-          id="cheats-menu-btn"
-          class="cheats-menu-btn"
-          type="button"
-          aria-expanded="false"
-          aria-controls="cheats-mini-modal"
-        >Cheats Menu</button>
       </div>
 
       <!-- Cheats mini-modal — inline expansion, toggled by #cheats-menu-btn -->
@@ -258,11 +253,6 @@
       <div class="player-card">
         <div class="player-left">
           <div class="selected-item-preview">
-            <div class="selected-item-label">
-              <span>Selected Item</span>
-              <span id="selected-item-name" class="selected-item-name">Empty slot</span>
-            </div>
-
             <button
               id="selected-item-artbox"
               class="selected-item-artbox selected-item-edit-button"
@@ -271,6 +261,7 @@
               title="Edit selected item"
             >
               <img id="selected-preview-image" alt="" />
+              <span id="selected-item-name" class="artbox-name-overlay">Empty slot</span>
               <span class="avatar-edit-chip" aria-hidden="true">
                 <img
                   src="/assets/icons/line-md--pencil.svg"
@@ -280,7 +271,6 @@
                 />
               </span>
             </button>
-
           </div>
 
           <div class="player-meta" style="display:none">
@@ -355,16 +345,19 @@
       </div>
 
         <div class="inventory-search-bar">
-          <button
-            id="open-selected-search-button"
-            class="preset-btn preset-btn-search"
-            type="button"
-            aria-label="Search selected item"
-            title="Search for the selected item"
-          >
-            <span class="search-glyph">⌕</span>
-            <span>Search</span>
-          </button>
+          <div class="inv-quick-search-wrap">
+            <input
+              id="inv-quick-search"
+              class="inv-quick-search-input"
+              type="search"
+              placeholder="⌕  Search items..."
+              autocomplete="off"
+              aria-label="Quick item search"
+              aria-expanded="false"
+              aria-autocomplete="list"
+            />
+            <div id="inv-quick-search-results" class="inv-quick-search-results" hidden aria-live="polite"></div>
+          </div>
         </div>
         <div class="inventory-area">
           <div id="inventory-card" class="inventory-card">
@@ -411,6 +404,7 @@
           data-tab="villagers"
         >
           Villagers
+          <span id="villagers-status-dot" class="tab-status-dot" aria-hidden="true"></span>
         </button>
 
         <button
@@ -434,52 +428,34 @@
           aria-labelledby="tab-village"
         >
           <div class="tab-layout">
-            <div class="tab-panel-copy">
-              <h3>Village Overview</h3>
-              <p>Offline pocket session, category mix, and current item focus.</p>
-            </div>
-
-            <div class="tab-stat-grid">
-              <article class="tab-stat-card">
-                <span class="tab-stat-label">Filled Slots</span>
+            <div class="tab-compact-bar">
+              <span class="tab-compact-field">
+                <span class="tcf-label">Slots</span>
                 <strong id="tab-filled-slots">0 / 40</strong>
-              </article>
-
-              <article class="tab-stat-card">
-                <span class="tab-stat-label">Stack Total</span>
+              </span>
+              <span class="tab-compact-field">
+                <span class="tcf-label">Stack</span>
                 <strong id="tab-stack-total">0</strong>
-              </article>
-
-              <article class="tab-stat-card">
-                <span class="tab-stat-label">Selected Category</span>
+              </span>
+              <span class="tab-compact-field">
+                <span class="tcf-label">Category</span>
                 <strong id="tab-active-category">Empty</strong>
-              </article>
+              </span>
+              <span class="tab-compact-field">
+                <span class="tcf-label">Item</span>
+                <strong id="tab-selection-name">Empty slot</strong>
+              </span>
+              <span class="tab-compact-field">
+                <span class="tcf-label">Hex</span>
+                <strong id="tab-selection-hex">00000000</strong>
+              </span>
+              <strong id="tab-selection-source" class="tab-hidden-source" aria-hidden="true"></strong>
             </div>
 
-            <div class="tab-dual-grid">
-              <article class="tab-card">
-                <h4>Category Mix</h4>
-                <div id="tab-category-list" class="tab-list"></div>
-              </article>
-
-              <article class="tab-card">
-                <h4>Selected Slot</h4>
-                <div class="tab-kv-list">
-                  <div class="tab-kv-row">
-                    <span>Item</span>
-                    <strong id="tab-selection-name">Empty slot</strong>
-                  </div>
-                  <div class="tab-kv-row">
-                    <span>Hex</span>
-                    <strong id="tab-selection-hex">00000000</strong>
-                  </div>
-                  <div class="tab-kv-row">
-                    <span>Source</span>
-                    <strong id="tab-selection-source">No source</strong>
-                  </div>
-                </div>
-              </article>
-            </div>
+            <details class="tab-category-details">
+              <summary class="tab-category-summary">Category Mix</summary>
+              <div id="tab-category-list" class="tab-list"></div>
+            </details>
 
             <div class="village-actions">
               <button

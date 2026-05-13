@@ -1,9 +1,67 @@
-##Chat Agent Task Outline
+# ACNH Live Editor — Agent Guidelines
 
+> This is the single source of truth for Copilot and AI agent behavior in this repo.
+> It is registered as the official instructions file via `.vscode/settings.json`.
 
-Current Agent Tasks in Chat:
+## Architecture
 
-- Read villagers from decrypted main.dat save file (Rolf+Bob confirmed) | progress: 100% DONE
+- `server.js` — Express entrypoint and API route composition
+- `modules/bridgeService.js` — bridge socket server and request lifecycle
+- `modules/nookipediaCatalog.js` — Nookipedia catalog sync, caching, and diagnostics
+- `modules/catalogApi.js`, `modules/itemCatalog.js` — catalog access layer
+- `public/app.js` — main client behavior and UI state machine
+- `public/` — static client assets served directly (no build step)
+- `data/` — local item data and cached remote catalog data
+- `scripts/steamdeck-adapters/` — Python memory reader chain for Steam Deck bridge
+
+## Design Philosophy
+
+This is a **mobile-first responsive PWA** targeting phone, tablet, desktop, and Steam Deck.
+
+- Mobile-first UI and UX is non-negotiable for all interface decisions.
+- Layout, typography, spacing, and touch targets must be validated at mobile widths first.
+- Component sizing and responsive breakpoints should degrade gracefully from large to small screens, never the reverse.
+
+## Tech Stack
+
+- Node.js 18+ / Express backend
+- Vanilla HTML, CSS, JavaScript frontend (no framework, no build step)
+- Local JSON data files; optional live Nookipedia API integration
+- Python (`scripts/steamdeck-adapters/`) for Steam Deck memory bridge
+
+## Build and Dev
+
+```powershell
+# Stop existing server and start fresh (Windows/PowerShell)
+$ports = 3000, 32840
+foreach ($port in $ports) {
+  $pids = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique
+  if ($pids) { $pids | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue } }
+}
+cd C:\Users\mccoo\OneDrive\Developer\acnh-live-editor
+npm run dev
+```
+
+- App runs on `http://localhost:3000` by default
+- Windows UI target: `http://10.0.0.25:3000`
+
+## Conventions
+
+- No frontend build pipeline — edits to `public/` take effect immediately on reload.
+- Bridge reads/writes use the live memory chain only (no file fallback or fake data in MVP mode).
+  - Chain: `steamdeck-run-bridge.sh` → `steamdeck-bridge-client.js` → `bridge_memory_tool.py` → `acnh_memory_reader.py`
+- Bridge port: `32840`. App port: `3000`.
+- Catalog state is `Offline` until `NOOKIPEDIA_API_KEY` is set in `.env`.
+- All new bridge/MVP work goes to `dev` first; promote to `master` only after confirmed working.
+- Both Windows and Steam Deck repos must be on the same branch and same commit hash during a test cycle.
+
+## Branch Policy
+
+- `dev` — active development and bridge testing
+- `master` — stable, confirmed bridge behavior only
+- Fast-forward merges only (`--ff-only`); no merge commits.
+
+## Agent Task Log
 
 
 

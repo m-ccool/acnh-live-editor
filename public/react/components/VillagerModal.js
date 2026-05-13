@@ -209,11 +209,11 @@
         h('div', { className: 'skeleton-line vmod-skeleton-name' }),
         h('div', { className: 'vmod-skeleton-btns' },
           ...[0, 1, 2, 3, 4].map(i =>
-            h('div', { key: i, className: 'skeleton-line vmod-skeleton-btn', style: { animationDelay: `${i * 0.07}s` } })
+            h('div', { key: i, className: 'skeleton-line vmod-skeleton-btn', style: { '--skel-delay': `${i * 0.07}s` } })
           )
         ),
         ...[0, 1, 2, 3, 4].map(i =>
-          h('div', { key: i, className: 'skeleton-line vmod-skeleton-row', style: { animationDelay: `${(i + 5) * 0.07}s` } })
+          h('div', { key: i, className: 'skeleton-line vmod-skeleton-row', style: { '--skel-delay': `${(i + 5) * 0.07}s` } })
         )
       )
     );

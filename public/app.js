@@ -487,6 +487,10 @@ function spawnShootingStar(shouldReschedule = false) {
 
 function finishBoot() {
   window.setTimeout(() => {
+    // Remove loading screen from the paint tree after its opacity transition finishes.
+    el.loadingScreen.addEventListener('transitionend', () => {
+      el.loadingScreen.style.display = 'none';
+    }, { once: true });
     el.loadingScreen.classList.add('hidden');
     el.appRoot.classList.remove('app-hidden');
   }, 700);
@@ -1389,6 +1393,118 @@ function renderPlayerFlagsTabs() {
     panel.hidden = !active;
     panel.classList.toggle('is-active', active);
   });
+}
+
+// ── Inventory quick-search functions ─────────────────────────────────────
+const INV_QS_LIMIT = 20;
+const INV_QS_REMOTE_MIN = 3;
+let _invQsSearchToken = 0;
+
+async function runInvQuickSearch(rawQuery) {
+  const query = String(rawQuery || '').trim();
+  const input = el.invQuickSearch;
+  const results = el.invQuickSearchResults;
+  if (!input || !results) return;
+
+  if (!query) {
+    results.hidden = true;
+    input.setAttribute('aria-expanded', 'false');
+    return;
+  }
+
+  const token = ++_invQsSearchToken;
+
+  if (query.length < INV_QS_REMOTE_MIN) {
+    const items = getModalFilteredItems(query).slice(0, INV_QS_LIMIT);
+    if (token !== _invQsSearchToken) return;
+    renderInvQuickSearchResults(items);
+    return;
+  }
+
+  // Remote search for longer queries
+  try {
+    const params = new URLSearchParams({ q: query, filter: 'all', limit: String(INV_QS_LIMIT) });
+    const res = await apiFetch(`/api/items/search?${params}`, { cache: 'no-store' });
+    if (token !== _invQsSearchToken) return;
+    if (res.ok) {
+      const payload = await res.json();
+      const items = Array.isArray(payload.items) ? payload.items : getModalFilteredItems(query).slice(0, INV_QS_LIMIT);
+      rememberCatalogItems(items);
+      renderInvQuickSearchResults(items);
+    } else {
+      renderInvQuickSearchResults(getModalFilteredItems(query).slice(0, INV_QS_LIMIT));
+    }
+  } catch (_) {
+    if (token !== _invQsSearchToken) return;
+    renderInvQuickSearchResults(getModalFilteredItems(query).slice(0, INV_QS_LIMIT));
+  }
+}
+
+function renderInvQuickSearchResults(items) {
+  const results = el.invQuickSearchResults;
+  const input = el.invQuickSearch;
+  if (!results) return;
+
+  if (!items.length) {
+    results.innerHTML = '<div class="inv-qsr-empty">No items found</div>';
+    results.hidden = false;
+    if (input) input.setAttribute('aria-expanded', 'true');
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+  items.forEach((item) => {
+    const row = document.createElement('div');
+    row.className = 'inv-qsr-row';
+    row.setAttribute('role', 'option');
+    const imgSrc = getPreferredItemPreviewUrl(item);
+    row.innerHTML = `<img class="inv-qsr-img" src="${escapeHtml(imgSrc)}" alt="" loading="lazy" /><span class="inv-qsr-name">${escapeHtml(item.name || '')}</span><span class="inv-qsr-cat">${escapeHtml(item.category || '')}</span>`;
+    row.addEventListener('mousedown', (e) => e.preventDefault()); // prevent input blur before click
+    row.addEventListener('click', () => quickAssignItem(item));
+    frag.appendChild(row);
+  });
+
+  results.innerHTML = '';
+  results.appendChild(frag);
+  results.hidden = false;
+  if (input) input.setAttribute('aria-expanded', 'true');
+}
+
+async function quickAssignItem(item) {
+  const input = el.invQuickSearch;
+  const results = el.invQuickSearchResults;
+  if (input) { input.value = ''; input.setAttribute('aria-expanded', 'false'); }
+  if (results) results.hidden = true;
+
+  const slot = getSelectedSlot();
+  if (!slot) return;
+
+  rememberCatalogItems([item]);
+
+  const payload = {
+    selectedSlot: slot.slot,
+    selectedItem: item.name || null,
+    itemId: item.file_name || item.name,
+    hex: deriveHexFromItem(item),
+    count: slot.count > 0 ? slot.count : 1,
+    uses: slot.uses || 0,
+    flag0: slot.flag0 || 0,
+    flag1: slot.flag1 || 0,
+    itemSnapshot: item,
+  };
+
+  const actionText = `Quick assign: ${item.name}`;
+  if (!applyPayloadToSlot(slot, payload, { actionText })) return;
+
+  renderBridge();
+  renderInventory();
+  renderSelectedPreview();
+  renderClipboardState();
+  renderDerivedPanels();
+  renderItemModal();
+  persistLocalState();
+
+  await writeSlotToBridge(slot, actionText);
 }
 
 function getPreferredItemPreviewUrl(item) {
