@@ -118,7 +118,7 @@ function renderPlayer() {
   el.milesValue.value = formatNumber(state.player.miles);
   el.playerAvatar.src = state.player.avatar
     ? state.player.avatar
-    : '/assets/icons/player-silhouette.svg';
+    : './assets/icons/player-silhouette.svg';
   renderSaveLoadButtons();
 }
 
@@ -313,8 +313,8 @@ function renderClipboardState() {
 
   if (el.copySelectedIcon) {
     el.copySelectedIcon.src = canPaste
-      ? '/assets/icons/line-md--clipboard-remove.svg'
-      : '/assets/icons/line-md--clipboard.svg';
+      ? './assets/icons/line-md--clipboard-remove.svg'
+      : './assets/icons/line-md--clipboard.svg';
   }
 
   if (el.selectedItemArtbox) {
@@ -1210,7 +1210,7 @@ function markInjectPending(playerKey) {
   if (!wrap.querySelector('.inject-pending-spinner')) {
     const spinner = document.createElement('img');
     spinner.className = 'inject-pending-spinner';
-    spinner.src = '/assets/icons/line-md--loading-loop-circle.svg';
+    spinner.src = './assets/icons/line-md--loading-loop-circle.svg';
     spinner.alt = '';
     spinner.setAttribute('aria-hidden', 'true');
     wrap.appendChild(spinner);

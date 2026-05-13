@@ -20,6 +20,14 @@
     return /^(?:[a-z][a-z0-9+.-]*:)?\/\//i.test(value) || /^[a-z][a-z0-9+.-]*:/i.test(value);
   }
 
+  window.assetUrl = function assetUrl(path) {
+    var value = String(path || '').trim();
+    if (!value) return '';
+    if (isAbsoluteUrl(value)) return value;
+    if (value.charAt(0) === '/') return '.' + value;
+    return value;
+  };
+
   // resolveAppUrl — resolve a path to an absolute URL for use in img.src etc.
   window.resolveAppUrl = function resolveAppUrl(path) {
     var value = String(path || '').trim();
@@ -32,4 +40,22 @@
   window.apiUrl = function apiUrl(path) {
     return window.resolveAppUrl(path);
   };
+
+  function rewriteStaticAssetUrls() {
+    var selector = 'img[src^="/assets/"], link[href^="/assets/"], source[src^="/assets/"]';
+    document.querySelectorAll(selector).forEach(function (node) {
+      if (node.hasAttribute('src')) {
+        node.setAttribute('src', window.assetUrl(node.getAttribute('src')));
+      }
+      if (node.hasAttribute('href')) {
+        node.setAttribute('href', window.assetUrl(node.getAttribute('href')));
+      }
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', rewriteStaticAssetUrls, { once: true });
+  } else {
+    rewriteStaticAssetUrls();
+  }
 })();

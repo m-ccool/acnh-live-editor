@@ -10,7 +10,7 @@ function clearLiveGameDataDisplay() {
     wallet: 0,
     bank: 0,
     miles: 0,
-    avatar: '/assets/items/Bob_NH.png'
+    avatar: './assets/items/Bob_NH.png'
   };
   state.inventory = buildInventoryFromBridgeSlots([]);
   state.hasUserSelectedSlot = false;
@@ -1360,7 +1360,7 @@ function getSelectedPreviewItem() {
 
 function renderPlayerModal() {
   if (el.playerModalBust) {
-    el.playerModalBust.src = state.player.avatar || '/assets/icons/player-silhouette.svg';
+    el.playerModalBust.src = state.player.avatar || './assets/icons/player-silhouette.svg';
   }
 
   if (el.playerModalBustName) {

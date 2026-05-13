@@ -4,11 +4,11 @@ const TOTAL_SLOTS = 40;
 const STORAGE_KEY = 'acnh-live-editor-state-v5';
 const REPO_URL = 'https://github.com/m-ccool/acnh-live-editor';
 const SERVICE_WORKER_VERSION = '106';
-const PLAY_ICON_PATH = '/assets/icons/line-md--pause-to-play-filled-transition.svg';
-const PAUSE_ICON_PATH = '/assets/icons/line-md--pause.svg';
-const CONSOLE_CONNECTED_ICON_PATH = '/assets/icons/codicon--debug-connect.svg';
-const CONSOLE_DISCONNECTED_ICON_PATH = '/assets/icons/codicon--debug-disconnect.svg';
-const DEFAULT_MUSIC_ARTWORK_PATH = '/assets/icons/Aircheck_NH_Inv_Icon.png';
+const PLAY_ICON_PATH = './assets/icons/line-md--pause-to-play-filled-transition.svg';
+const PAUSE_ICON_PATH = './assets/icons/line-md--pause.svg';
+const CONSOLE_CONNECTED_ICON_PATH = './assets/icons/codicon--debug-connect.svg';
+const CONSOLE_DISCONNECTED_ICON_PATH = './assets/icons/codicon--debug-disconnect.svg';
+const DEFAULT_MUSIC_ARTWORK_PATH = './assets/icons/Aircheck_NH_Inv_Icon.png';
 const THEME_SUNRISE = 'sunrise';
 const THEME_NIGHT = 'night';
 const DEFAULT_MUSIC_RIBBON_TOP_VH = 56;
@@ -120,7 +120,7 @@ const DEFAULT_PLAYER = {
   wallet: 0,
   bank: 0,
   miles: 0,
-  avatar: '/assets/items/Bob_NH.png'
+  avatar: './assets/items/Bob_NH.png'
 };
 
 const DEFAULT_BRIDGE_STATE = {

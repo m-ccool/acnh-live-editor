@@ -1269,8 +1269,8 @@ body[data-theme='night'] .debug-reload-core {
   display: inline-block;
   pointer-events: none;
   background: currentColor;
-  -webkit-mask-image: url('/assets/icons/fa7-solid--bugs.svg');
-  mask-image: url('/assets/icons/fa7-solid--bugs.svg');
+  -webkit-mask-image: url('./assets/icons/fa7-solid--bugs.svg');
+  mask-image: url('./assets/icons/fa7-solid--bugs.svg');
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
   -webkit-mask-position: center;

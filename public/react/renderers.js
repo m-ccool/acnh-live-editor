@@ -13,7 +13,7 @@
       label: '0.5x',
       tooltip: 'Slow the island clock to 0.5x for relaxed testing.',
       ariaLabel: 'Toggle half-speed cheat',
-      iconSrc: '/assets/icons/material-symbols--speed-0-5x.svg',
+      iconSrc: './assets/icons/material-symbols--speed-0-5x.svg',
       iconAlt: '.5x',
       fallbackText: '.5X'
     },
@@ -22,7 +22,7 @@
       label: '2x',
       tooltip: 'Run the island clock at 2x to fast-forward routines.',
       ariaLabel: 'Toggle double-speed cheat',
-      iconSrc: '/assets/icons/material-symbols--speed-2x.svg',
+      iconSrc: './assets/icons/material-symbols--speed-2x.svg',
       iconAlt: '2x',
       fallbackText: '2X'
     },
@@ -31,7 +31,7 @@
       label: 'wall walk',
       tooltip: 'Phase through collision edges for movement testing.',
       ariaLabel: 'Toggle wall walk cheat',
-      iconSrc: '/assets/icons/line-md--map-marker-radius.svg',
+      iconSrc: './assets/icons/line-md--map-marker-radius.svg',
       iconAlt: 'Wall walk',
       fallbackText: 'Wall walk'
     }
