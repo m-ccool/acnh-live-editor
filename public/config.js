@@ -16,8 +16,20 @@
     return fetch(window.API_BASE + path, opts);
   };
 
-  // apiUrl — resolve a path to an absolute URL for use in img.src etc.
+  function isAbsoluteUrl(value) {
+    return /^(?:[a-z][a-z0-9+.-]*:)?\/\//i.test(value) || /^[a-z][a-z0-9+.-]*:/i.test(value);
+  }
+
+  // resolveAppUrl — resolve a path to an absolute URL for use in img.src etc.
+  window.resolveAppUrl = function resolveAppUrl(path) {
+    var value = String(path || '').trim();
+    if (!value) return '';
+    if (isAbsoluteUrl(value)) return value;
+    return window.API_BASE + value;
+  };
+
+  // apiUrl — preserve the existing API helper name.
   window.apiUrl = function apiUrl(path) {
-    return window.API_BASE + path;
+    return window.resolveAppUrl(path);
   };
 })();

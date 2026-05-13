@@ -658,7 +658,7 @@ async function hydrateBridgeCatalogItems(bridgeSlots) {
 
     const payload = await response.json();
     if (Array.isArray(payload && payload.items) && payload.items.length) {
-      rememberCatalogItems(payload.items);
+      rememberCatalogItems(normalizeCatalogItems(payload.items));
     }
   } catch (error) {
     console.error(error);
@@ -1207,9 +1207,10 @@ function getKnownCatalogItems() {
 
 function rememberCatalogItems(items) {
   (Array.isArray(items) ? items : []).forEach((item) => {
-    if (!isCatalogItemSnapshot(item)) return;
-    const itemNameKey = normalizeItemLookup(item.name);
-    const itemFileKey = normalizeItemLookup(item.file_name);
+    const normalizedItem = normalizeCatalogItem(item);
+    if (!isCatalogItemSnapshot(normalizedItem)) return;
+    const itemNameKey = normalizeItemLookup(normalizedItem.name);
+    const itemFileKey = normalizeItemLookup(normalizedItem.file_name);
     const existingIndex = state.catalog.lookupItems.findIndex((entry) => {
       const entryNameKey = normalizeItemLookup(entry.name);
       const entryFileKey = normalizeItemLookup(entry.file_name);
@@ -1220,9 +1221,9 @@ function rememberCatalogItems(items) {
     });
 
     if (existingIndex >= 0) {
-      state.catalog.lookupItems[existingIndex] = item;
+      state.catalog.lookupItems[existingIndex] = normalizedItem;
     } else {
-      state.catalog.lookupItems.push(item);
+      state.catalog.lookupItems.push(normalizedItem);
     }
   });
 
@@ -1246,15 +1247,33 @@ function getCatalogLookupKeys(item) {
 
 function createCatalogItemSnapshot(item) {
   if (!isCatalogItemSnapshot(item)) return null;
+  const normalizedItem = normalizeCatalogItem(item);
   return {
-    name: item.name || null,
-    category: item.category || '',
-    icon_url: item.icon_url || null,
-    image_url: item.image_url || null,
-    preview_url: item.preview_url || null,
-    internal_id: typeof item.internal_id === 'number' ? item.internal_id : null,
-    file_name: item.file_name || item.name || null,
-    source_files: Array.isArray(item.source_files) ? item.source_files.slice(0, 4) : []
+    name: normalizedItem.name || null,
+    category: normalizedItem.category || '',
+    icon_url: normalizedItem.icon_url || null,
+    image_url: normalizedItem.image_url || null,
+    preview_url: normalizedItem.preview_url || null,
+    internal_id: typeof normalizedItem.internal_id === 'number' ? normalizedItem.internal_id : null,
+    file_name: normalizedItem.file_name || normalizedItem.name || null,
+    source_files: Array.isArray(normalizedItem.source_files) ? normalizedItem.source_files.slice(0, 4) : []
+  };
+}
+
+function normalizeCatalogItems(items) {
+  return (Array.isArray(items) ? items : []).map((item) => normalizeCatalogItem(item));
+}
+
+function normalizeCatalogItem(item) {
+  if (!item || typeof item !== 'object') {
+    return item;
+  }
+
+  return {
+    ...item,
+    icon_url: resolveAppUrl(item.icon_url) || null,
+    image_url: resolveAppUrl(item.image_url) || null,
+    preview_url: resolveAppUrl(item.preview_url) || null
   };
 }
 
@@ -1509,7 +1528,7 @@ async function quickAssignItem(item) {
 
 function getPreferredItemPreviewUrl(item) {
   if (!item) return '';
-  return item.preview_url || item.image_url || item.icon_url || '';
+  return resolveAppUrl(item.preview_url || item.image_url || item.icon_url || '');
 }
 
 function getCategorySummary() {

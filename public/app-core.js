@@ -775,7 +775,7 @@ function initPresetItemSearch() {
         div.className = 'pm-suggestion-item';
         const img = document.createElement('img');
         img.className = 'pm-suggestion-icon';
-        img.src = item.icon_url ? escapeHtml(item.icon_url) : '';
+        img.src = item.icon_url ? escapeHtml(resolveAppUrl(item.icon_url)) : '';
         img.alt = '';
         img.setAttribute('aria-hidden', 'true');
         img.loading = 'lazy';
@@ -1347,7 +1347,7 @@ async function loadData() {
     const itemsResponse = await apiFetch('/api/items', { cache: 'no-store' });
     if (itemsResponse.ok) {
       const items = await itemsResponse.json();
-      state.items = Array.isArray(items) ? items : [];
+      state.items = normalizeCatalogItems(items);
       rememberCatalogItems(state.items);
     }
   } catch (error) {

@@ -50,7 +50,9 @@
         ];
 
         if (slot.item) {
-          const imageSrc = slot.item.icon_url || slot.item.image_url || '';
+          const imageSrc = window.resolveAppUrl
+            ? window.resolveAppUrl(slot.item.icon_url || slot.item.image_url || '')
+            : (slot.item.icon_url || slot.item.image_url || '');
           children.push(
             h('img', {
               key: `slot-image-${slot.slot}`,
