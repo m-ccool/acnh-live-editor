@@ -17,19 +17,6 @@
           props.onToggle(props.cheatId);
         }
       },
-      h('img', {
-        src: props.iconSrc,
-        alt: props.iconAlt,
-        className: 'icon-img icon-white quick-cheat-icon',
-        onError(event) {
-          event.currentTarget.style.display = 'none';
-          const fallback = event.currentTarget.nextSibling;
-          if (fallback && fallback.tagName === 'SPAN' && fallback.dataset.fb) {
-            fallback.style.display = 'inline';
-          }
-        }
-      }),
-      h('span', { 'data-fb': 'true', style: { display: 'none' }, 'aria-hidden': 'true' }, props.fallbackText),
       h('span', { className: 'quick-cheat-label' }, props.label)
     );
   }

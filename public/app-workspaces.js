@@ -525,6 +525,11 @@ function toggleQuickCheat(cheatId) {
     return;
   }
 
+  if (cheatId === 'wallet') {
+    injectWalletQuickCheat();
+    return;
+  }
+
   if (cheatId === 'halfSpeed' || cheatId === 'doubleSpeed') {
     const nextActive = !state.quickCheats[cheatId];
     state.quickCheats.halfSpeed = false;
@@ -541,6 +546,22 @@ function toggleQuickCheat(cheatId) {
   persistLocalState();
   const active = isQuickCheatActive(cheatId);
   showToast(`${active ? '✓' : '◎'} ${getQuickCheatLabel(cheatId)} ${active ? 'enabled' : 'disabled'}`, 2500);
+}
+
+async function injectWalletQuickCheat() {
+  const MAX_WALLET = 99999;
+
+  if (!state.bridge.connected) {
+    showToast('✗ Bridge not connected');
+    return;
+  }
+
+  const nextPlayer = { ...state.player, wallet: MAX_WALLET };
+  const ok = await writePlayerChanges(nextPlayer, 'Injected max 💰 Wallet');
+  if (ok) {
+    showToast(`✓ Wallet → ${MAX_WALLET.toLocaleString()}`, 2500);
+    markInjectPending('wallet');
+  }
 }
 
 function isQuickCheatActive(cheatId) {
@@ -1364,7 +1385,8 @@ function restoreLocalState() {
       state.quickCheats = {
         halfSpeed: saved.quickCheats.halfSpeed === true && !hasDoubleSpeed,
         doubleSpeed: hasDoubleSpeed,
-        wallWalk: saved.quickCheats.wallWalk === true
+        wallWalk: saved.quickCheats.wallWalk === true,
+        wallet: false
       };
     }
 

@@ -64,12 +64,14 @@ const DEFAULT_MUSIC_STATE = Object.freeze({
 const DEFAULT_QUICK_CHEATS = Object.freeze({
   halfSpeed: false,
   doubleSpeed: false,
-  wallWalk: false
+  wallWalk: false,
+  wallet: false
 });
 const QUICK_CHEAT_LABELS = Object.freeze({
   halfSpeed: '0.5x island clock',
   doubleSpeed: '2x island clock',
-  wallWalk: 'wall walk'
+  wallWalk: 'wall walk',
+  wallet: 'wallet'
 });
 let shootingStarTimeoutId = 0;
 const prevDataSnapshot = {
@@ -384,7 +386,7 @@ function cacheDom() {
     let panelEndVisible = true;
     const updateStickyBar = () => {
       const hasItem = el.selectedItemStickyName && el.selectedItemStickyName.textContent !== 'Empty slot';
-      const show = hasItem && !artboxVisible && panelEndVisible;
+      const show = hasItem && !artboxVisible;
       el.selectedItemSticky.hidden = !show;
     };
     new IntersectionObserver(entries => {

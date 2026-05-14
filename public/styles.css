@@ -959,8 +959,12 @@ body.modal-open .app-shell {
   flex-wrap: nowrap;
   white-space: nowrap;
   opacity: 0.5;
-  margin-left: auto;
+  margin-left: 0;
   flex-shrink: 0;
+}
+
+.topbar-datetime-row {
+  align-self: flex-start;
 }
 
 /* ── Console-style date/time (no border, monospace) ─────────────────────── */
@@ -2211,8 +2215,8 @@ body[data-theme='night'] .log-panel {
 .quick-cheat-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 9px 4px 7px;
+  gap: 0;
+  padding: 4px 9px;
   border: 1px solid var(--line);
   border-radius: var(--radius-pill);
   background: rgba(255,255,255,0.02);
