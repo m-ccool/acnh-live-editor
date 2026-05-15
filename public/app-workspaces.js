@@ -118,7 +118,7 @@ function renderPlayer() {
   el.milesValue.value = formatNumber(state.player.miles);
   el.playerAvatar.src = state.player.avatar
     ? state.player.avatar
-    : './assets/icons/player-silhouette.svg';
+    : '/assets/icons/player-silhouette.svg';
   renderSaveLoadButtons();
 }
 
@@ -278,20 +278,11 @@ function renderSelectedPreview() {
     el.selectedPreviewImage.src = getPreferredItemPreviewUrl(previewItem);
     el.selectedPreviewImage.alt = previewItem.name;
     el.selectedItemName.textContent = previewItem.name;
-    if (el.selectedItemStickyImg) {
-      el.selectedItemStickyImg.src = getPreferredItemPreviewUrl(previewItem);
-      el.selectedItemStickyImg.alt = previewItem.name;
-    }
-    if (el.selectedItemStickyName) el.selectedItemStickyName.textContent = previewItem.name;
   } else {
     el.selectedPreviewImage.removeAttribute('src');
     el.selectedPreviewImage.alt = '';
     el.selectedItemName.textContent = 'Empty slot';
-    if (el.selectedItemStickyImg) el.selectedItemStickyImg.removeAttribute('src');
-    if (el.selectedItemStickyName) el.selectedItemStickyName.textContent = 'Empty slot';
   }
-
-  if (typeof window._updateStickyBar === 'function') window._updateStickyBar();
 }
 
 function renderClipboardState() {
@@ -313,8 +304,8 @@ function renderClipboardState() {
 
   if (el.copySelectedIcon) {
     el.copySelectedIcon.src = canPaste
-      ? './assets/icons/line-md--trash.svg'
-      : './assets/icons/copy.svg';
+      ? '/assets/icons/line-md--clipboard-remove.svg'
+      : '/assets/icons/line-md--clipboard.svg';
   }
 
   if (el.selectedItemArtbox) {
@@ -512,21 +503,10 @@ function renderQuickCheatButtons() {
     activeCheatIds: Object.keys(DEFAULT_QUICK_CHEATS).filter((cheatId) => state.quickCheats[cheatId]),
     onToggle: toggleQuickCheat
   });
-
-  // Badge on Cheats Menu button when any cheat is active
-  if (el.cheatsMenuBtn) {
-    const anyActive = Object.keys(DEFAULT_QUICK_CHEATS).some((id) => state.quickCheats[id]);
-    el.cheatsMenuBtn.classList.toggle('has-active', anyActive);
-  }
 }
 
 function toggleQuickCheat(cheatId) {
   if (!Object.prototype.hasOwnProperty.call(DEFAULT_QUICK_CHEATS, cheatId)) {
-    return;
-  }
-
-  if (cheatId === 'wallet') {
-    injectWalletQuickCheat();
     return;
   }
 
@@ -546,22 +526,6 @@ function toggleQuickCheat(cheatId) {
   persistLocalState();
   const active = isQuickCheatActive(cheatId);
   showToast(`${active ? '✓' : '◎'} ${getQuickCheatLabel(cheatId)} ${active ? 'enabled' : 'disabled'}`, 2500);
-}
-
-async function injectWalletQuickCheat() {
-  const MAX_WALLET = 99999;
-
-  if (!state.bridge.connected) {
-    showToast('✗ Bridge not connected');
-    return;
-  }
-
-  const nextPlayer = { ...state.player, wallet: MAX_WALLET };
-  const ok = await writePlayerChanges(nextPlayer, 'Injected max 💰 Wallet');
-  if (ok) {
-    showToast(`✓ Wallet → ${MAX_WALLET.toLocaleString()}`, 2500);
-    markInjectPending('wallet');
-  }
 }
 
 function isQuickCheatActive(cheatId) {
@@ -1196,63 +1160,6 @@ function _updateNameTownIconState(inputEl) {
   hint.classList.toggle('has-pending', isPending);
 }
 
-function bindInjectMaxButtons() {
-  const MAX_WALLET = 99999;
-  const MAX_BANK   = 999999999;
-  const MAX_MILES  = 999999999;
-
-  async function injectMax(field, value, label) {
-    if (!state.bridge.connected) { showToast('✗ Bridge not connected'); return; }
-    const btn = el[field];
-    if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
-    const playerKey = field === 'injectMaxWallet' ? 'wallet' : field === 'injectMaxBank' ? 'bank' : 'miles';
-    const nextPlayer = { ...state.player, [playerKey]: value };
-    const ok = await writePlayerChanges(nextPlayer, `Injected max ${label}`);
-    if (btn) { btn.disabled = false; btn.textContent = label; }
-    if (ok) {
-      showToast(`✓ ${label} → ${value.toLocaleString()}`);
-      markInjectPending(playerKey);
-    }
-  }
-
-  if (el.injectMaxWallet) el.injectMaxWallet.addEventListener('click', () => injectMax('injectMaxWallet', MAX_WALLET, '💰 Wallet'));
-  if (el.injectMaxBank)   el.injectMaxBank.addEventListener('click',   () => injectMax('injectMaxBank',   MAX_BANK,   '🏦 Bank'));
-  if (el.injectMaxMiles)  el.injectMaxMiles.addEventListener('click',  () => injectMax('injectMaxMiles',  MAX_MILES,  '🎫 Miles'));
-}
-
-const _injectPendingKeys = new Set();
-
-function markInjectPending(playerKey) {
-  const inputEl = playerKey === 'wallet' ? el.playerInputWallet : playerKey === 'bank' ? el.playerInputBank : el.playerInputMiles;
-  if (!inputEl) return;
-  const wrap = inputEl.closest('.field-wrap') || inputEl.parentElement;
-  if (!wrap) return;
-  wrap.classList.add('inject-pending');
-  if (!wrap.querySelector('.inject-pending-spinner')) {
-    const spinner = document.createElement('img');
-    spinner.className = 'inject-pending-spinner';
-    spinner.src = './assets/icons/line-md--loading-loop-circle.svg';
-    spinner.alt = '';
-    spinner.setAttribute('aria-hidden', 'true');
-    wrap.appendChild(spinner);
-  }
-  _injectPendingKeys.add(playerKey);
-}
-
-function clearInjectPending() {
-  if (!_injectPendingKeys.size) return;
-  _injectPendingKeys.forEach(playerKey => {
-    const inputEl = playerKey === 'wallet' ? el.playerInputWallet : playerKey === 'bank' ? el.playerInputBank : el.playerInputMiles;
-    if (!inputEl) return;
-    const wrap = inputEl.closest('.field-wrap') || inputEl.parentElement;
-    if (!wrap) return;
-    wrap.classList.remove('inject-pending');
-    const spinner = wrap.querySelector('.inject-pending-spinner');
-    if (spinner) spinner.remove();
-  });
-  _injectPendingKeys.clear();
-}
-
 function bindInlinePlayerFieldEvents() {
   [el.playerName, el.townName].filter(Boolean).forEach((field) => {
     field.addEventListener('input', () => _updateNameTownIconState(field));
@@ -1385,8 +1292,7 @@ function restoreLocalState() {
       state.quickCheats = {
         halfSpeed: saved.quickCheats.halfSpeed === true && !hasDoubleSpeed,
         doubleSpeed: hasDoubleSpeed,
-        wallWalk: saved.quickCheats.wallWalk === true,
-        wallet: false
+        wallWalk: saved.quickCheats.wallWalk === true
       };
     }
 
@@ -1869,6 +1775,8 @@ async function loadVillagersFromBridge() {
 
   // Start the fetch immediately so network time runs in parallel with skeleton display
   const fetchPromise = apiFetch('/api/bridge/read-villagers');
+  const dot = document.getElementById('villagers-status-dot');
+  if (dot) { dot.classList.remove('is-ok', 'is-error'); dot.classList.add('is-busy'); }
 
   if (isFirstLoad && roster) {
     // Show shimmer skeleton cards while data is in flight.
@@ -1891,16 +1799,14 @@ async function loadVillagersFromBridge() {
     const villagers = (data.payload && data.payload.villagers) ? data.payload.villagers : (data.villagers || []);
     state.villagers = villagers;
     renderVillagersPanel(villagers);
-    const dot = document.getElementById('villagers-status-dot');
-    if (dot) { dot.classList.remove('is-error'); dot.classList.add('is-ok'); }
+    if (dot) { dot.classList.remove('is-busy', 'is-error'); dot.classList.add('is-ok'); }
   } catch (err) {
     // Fall back to last known villager data so data persists while offline
-    const dot = document.getElementById('villagers-status-dot');
-    if (dot) { dot.classList.remove('is-ok'); dot.classList.add('is-error'); }
+    if (dot) { dot.classList.remove('is-busy', 'is-ok'); dot.classList.add('is-error'); }
     if (state.villagers && state.villagers.length > 0) {
       renderVillagersPanel(state.villagers);
     } else {
-      if (roster) roster.innerHTML = '<p class="villager-placeholder">No data available</p>';
+      if (roster) roster.innerHTML = `<p class="villager-placeholder">No data available</p>`;
     }
   }
 }
