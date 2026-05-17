@@ -3,7 +3,7 @@
 const TOTAL_SLOTS = 40;
 const STORAGE_KEY = 'acnh-live-editor-state-v5';
 const REPO_URL = 'https://github.com/m-ccool/acnh-live-editor';
-const SERVICE_WORKER_VERSION = '106';
+const SERVICE_WORKER_VERSION = '107';
 const PLAY_ICON_PATH = './assets/icons/line-md--pause-to-play-filled-transition.svg';
 const PAUSE_ICON_PATH = './assets/icons/line-md--pause.svg';
 const CONSOLE_CONNECTED_ICON_PATH = './assets/icons/codicon--debug-connect.svg';
@@ -992,7 +992,6 @@ function bindEvents() {
 
   el.playerModalSave.addEventListener('click', applyPlayerEdits);
   bindInlinePlayerFieldEvents();
-  bindInjectMaxButtons();
   bindBackupEvents();
 
   if (el.pauseBridgeButton) {
