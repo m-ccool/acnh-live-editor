@@ -1,38 +1,118 @@
-# ACNH Live Editor — Agent Guidelines
+# ACNH Live Editor — Agent Contract
 
-> This is the single source of truth for Copilot and AI agent behavior in this repo.
-> It is registered as the official instructions file via `.vscode/settings.json`.
+> This file is the **single source of truth** for any Copilot or AI agent working in this repo.
+> It supersedes inline comments, ad-hoc instructions, and prior session memory.
+> Every response must be traceable to a section in this file.
 
-## Architecture
+---
 
-- `server.js` — Express entrypoint and API route composition
-- `modules/bridgeService.js` — bridge socket server and request lifecycle
-- `modules/nookipediaCatalog.js` — Nookipedia catalog sync, caching, and diagnostics
-- `modules/catalogApi.js`, `modules/itemCatalog.js` — catalog access layer
-- `public/app.js` — main client behavior and UI state machine
-- `public/` — static client assets served directly (no build step)
-- `data/` — local item data and cached remote catalog data
-- `scripts/steamdeck-adapters/` — Python memory reader chain for Steam Deck bridge
+## 1. Project Identity
 
-## Design Philosophy
+**App Name:** ACNH Live Editor
+**Type:** Animal Crossing: New Horizons live memory editor — item catalog, villager data, and inventory read/write via Steam Deck bridge
+**Owner:** Solo full-stack developer (freelance, 12+ yrs, systems admin background)
+**Repo:** `m-ccool/acnh-live-editor` (GitHub, branch `dev`)
+**Primary validation target:** `http://10.0.0.25:3000` (Windows Wi-Fi UI)
+
+---
+
+## 2. Tech Stack (Canonical)
+
+| Layer | Tech | Notes |
+|---|---|---|
+| Backend | Node.js 18+ / Express | `server.js` — entrypoint and API route composition |
+| Frontend | Vanilla HTML, CSS, JavaScript | No framework, no build step |
+| Bridge | Node.js socket server | `modules/bridgeService.js` — request lifecycle |
+| Memory chain | Python | `scripts/steamdeck-adapters/` — Steam Deck memory reads/writes |
+| Catalog | Nookipedia API (optional) | `modules/nookipediaCatalog.js` — requires `NOOKIPEDIA_API_KEY` in `.env` |
+| Data | Local JSON files | `data/` — item data and cached catalog data |
+| PWA | Static assets | `public/` served directly — mobile-first responsive |
+
+---
+
+## 3. Architecture (Canonical File Map)
+
+| File | Role |
+|---|---|
+| `server.js` | Express entrypoint and API route composition |
+| `modules/bridgeService.js` | Bridge socket server and request lifecycle |
+| `modules/nookipediaCatalog.js` | Nookipedia catalog sync, caching, and diagnostics |
+| `modules/catalogApi.js` | Catalog access layer |
+| `modules/itemCatalog.js` | Catalog access layer |
+| `modules/apiRouter.js` | Express route definitions |
+| `modules/localIp.js` | Local IP resolution utility |
+| `modules/musicLibrary.js` | Music library module |
+| `public/app.js` | Main client behavior and UI state machine |
+| `public/app-core.js` | Core client module |
+| `public/app-music.js` | Music client module |
+| `public/app-workspaces.js` | Workspace client module |
+| `public/styles.css` | All UI styling — mobile-first |
+| `public/index.html` | App shell |
+| `scripts/steamdeck-bridge-client.js` | Bridge client — Steam Deck side |
+| `scripts/steamdeck-adapters/bridge_memory_tool.py` | Memory tool relay |
+| `scripts/steamdeck-adapters/acnh_memory_reader.py` | ACNH Ryujinx memory reader |
+
+### Bridge Chain (read/write path)
+```
+steamdeck-run-bridge.sh
+  → steamdeck-bridge-client.js
+    → bridge_memory_tool.py
+      → acnh_memory_reader.py
+```
+
+---
+
+## 4. Design Philosophy
 
 This is a **mobile-first responsive PWA** targeting phone, tablet, desktop, and Steam Deck.
 
 - Mobile-first UI and UX is non-negotiable for all interface decisions.
 - Layout, typography, spacing, and touch targets must be validated at mobile widths first.
-- Component sizing and responsive breakpoints should degrade gracefully from large to small screens, never the reverse.
+- Component sizing and responsive breakpoints must degrade gracefully from large to small screens.
+- No frontend build pipeline — edits to `public/` take effect immediately on reload.
 
-## Tech Stack
+---
 
-- Node.js 18+ / Express backend
-- Vanilla HTML, CSS, JavaScript frontend (no framework, no build step)
-- Local JSON data files; optional live Nookipedia API integration
-- Python (`scripts/steamdeck-adapters/`) for Steam Deck memory bridge
+## 5. Environment and Network Facts (Confirmed)
 
-## Build and Dev
+| Fact | Value |
+|---|---|
+| Windows UI address | `http://10.0.0.25:3000` |
+| Windows Wi-Fi IP | `10.0.0.25` |
+| App port | `3000` |
+| Bridge port | `32840` |
+| Steam Deck IP | `10.0.0.233` |
+| Steam Deck SSH user | `deck` |
+| Steam Deck SSH key | `C:/Users/mccoo/.ssh/id_ed25519_steamdeck` |
+| Bridge target host | `10.0.0.25` (set in `.steamdeck-bridge.env`) |
+| Bridge target port | `32840` |
+| Node on Steam Deck | `/home/deck/.nvm/versions/node/v24.14.1/bin/node` |
+| Bridge systemd service | `~/.config/systemd/user/acnh-live-bridge.service` |
+| Bridge status | CONNECTED: `10.0.0.233` → `10.0.0.25:32840` (verified May 4 2026) |
+
+- `.steamdeck-bridge.env` is gitignored — must be set directly on Steam Deck; do not commit it.
+- Catalog state is `Offline` until `NOOKIPEDIA_API_KEY` is set in `.env`.
+
+---
+
+## 6. Branch Policy
+
+| Branch | Purpose |
+|---|---|
+| `dev` | Active development and bridge testing |
+| `master` | Stable, confirmed bridge behavior only |
+
+- Fast-forward merges only (`--ff-only`); no merge commits.
+- All new bridge/MVP work goes to `dev` first; promote to `master` only after confirmed working.
+- Both Windows and Steam Deck repos must be on the same branch and same commit hash during a test cycle.
+
+---
+
+## 7. Build and Dev
+
+**Start server (Windows/PowerShell):**
 
 ```powershell
-# Stop existing server and start fresh (Windows/PowerShell)
 $ports = 3000, 32840
 foreach ($port in $ports) {
   $pids = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique
@@ -42,279 +122,124 @@ cd C:\Users\mccoo\OneDrive\Developer\acnh-live-editor
 npm run dev
 ```
 
-- App runs on `http://localhost:3000` by default
-- Windows UI target: `http://10.0.0.25:3000`
-
-## Conventions
-
-- No frontend build pipeline — edits to `public/` take effect immediately on reload.
-- Bridge reads/writes use the live memory chain only (no file fallback or fake data in MVP mode).
-  - Chain: `steamdeck-run-bridge.sh` → `steamdeck-bridge-client.js` → `bridge_memory_tool.py` → `acnh_memory_reader.py`
-- Bridge port: `32840`. App port: `3000`.
-- Catalog state is `Offline` until `NOOKIPEDIA_API_KEY` is set in `.env`.
-- All new bridge/MVP work goes to `dev` first; promote to `master` only after confirmed working.
-- Both Windows and Steam Deck repos must be on the same branch and same commit hash during a test cycle.
-
-## Branch Policy
-
-- `dev` — active development and bridge testing
-- `master` — stable, confirmed bridge behavior only
-- Fast-forward merges only (`--ff-only`); no merge commits.
-
-## Agent Task Log
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Completed Agent Tasks in Chat:
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Repository Agent Rules
-
-These rules are mandatory for any agent working in this repository.
-
-## Contract Precedence
-
-Apply this order exactly:
-
-1. User request
-2. AGENTS guardrails
-3. README MVP sections
-4. Implementation details
-
-## Mandatory Response Gate
-
-Before any technical answer, include or explicitly check:
-
-1. Scope status
+---
+
+## 8. Agent Operating Rules
+
+### Must always
+- Read the relevant files before suggesting any change
+- Produce complete, copy-paste-runnable files — no partials, no `// ... rest of code`
+- Cite the section of this file that authorizes the change
+- Confirm bugs fixed by running a test or reading corrected output before declaring resolved
+- End every technical answer with exactly 3 numbered follow-up questions
+- Apply one step title + one fenced code block per step in command responses
+- Expand acronyms in parentheses on first use in a response
+- Use the Windows UI browser window as the primary validation surface
+
+### Must never
+- Expand scope beyond the active request — no redesigns, refactors, cleanup, or unrelated MVP ideas
+- Push, pull, or sync git without explicit user confirmation in the active conversation
+- Substitute fake, synthetic, temporary, or demo data as UI or debug truth
+- Edit `README.md` without explicit user request
+- Make assumptions about environment state, emulator state, or acceptable tradeoffs — state unconfirmed facts as unconfirmed
+- Replace or simplify the UI shell unless explicitly requested
+- Add or modify agent rules unless explicitly requested
+- Use conditional phrasing for facts already established in context
+
+### Change discipline
+- Smallest targeted change that satisfies the request
+- Preserve existing UI, component APIs, and data structures unless explicitly told otherwise
+- No opportunistic edits: if it was not requested, do not modify it
+- If a change requires touching >3 unrelated files, stop and confirm scope first
+- Verify facts with repo reads or command output before changing behavior
+
+### Post-edit cleanup (silent)
+After every code edit, silently run a cleanup pass on all modified files:
+- Remove dead code, unused variables, orphaned functions
+- Fix broken references left by refactors
+- Remove leftover stubs and stale TODO comments
+- Collapse redundant state or logic introduced during iterative edits
+- Batch cleanup into the same commit as the feature — no separate cleanup commits
+- Do NOT notify the user; execute silently
+
+---
+
+## 9. Response Contract
+
+### Mandatory response gate
+Before any technical answer, explicitly check:
+1. Scope status — is this in active scope?
 2. README MVP section touched
 3. Excluded items and why
 
-This response gate is required in every technical answer.
+### Automatic request contract (complex requests)
+Apply this automatically without requiring user attachment:
+1. **Objective** — one exact outcome
+2. **Scope** — in-scope items + explicit exclusions
+3. **README binding** — `MVP Outline Status`, `Shortest Path To Live UI Readback`
+4. **Data policy** — fail-closed, no substitution
+5. **Change constraints** — allowed/forbidden files
+6. **Acceptance checks** — explicit checks + expected outcomes
+7. **Stop condition** — ask one concise question when a missing fact materially affects edits
 
-## README Binding
+### Fail-closed live data policy
+- No synthetic, temporary, substitute, or fake data in UI/debug/runtime responses
+- If real data is unavailable, return unavailable/error; never substitute
+- Automated backend verification data must run only on isolated non-primary ports
+- Automated backend verification data must never appear in UI or debug panels
+- Reject any output that uses synthetic/temp/test data as UI/debug truth
 
-- Every technical response must cite the exact README heading being followed.
-- Drift-check each technical response against:
-	1. `MVP Outline Status`
-	2. `Shortest Path To Live UI Readback`
-- Reject additions that do not advance those sections or the active user request.
-- Reject technical answers that do not cite README headings.
+### Bug/Issue confirmation gate
+- Do NOT prompt the user to proceed to the next task until the prior bug or issue is confirmed resolved
+- Confirm resolution by directly running the test and verifying correct output before declaring fixed
+- If the prior bug cannot be self-tested (requires live hardware), explicitly state that and ask the user to confirm
+- Never assume a fix worked just because code was committed — execute the test, observe the result, report the result
 
-## README Edit Permission
+### Git push/pull gate
+- Do NOT prompt the user to `git push`, `git pull`, or sync any machine unless the user has explicitly confirmed code is ready
+- If a push or pull step is required to complete the task, stop and ask one concise approval question
+- Never bundle a push or pull step silently inside a multi-step command block
+- Before telling the user to update Steam Deck from git, ensure the required local changes are committed and pushed
 
-- README edits are not auto-approved.
-- Do not edit `README.md` unless the user explicitly requests a README change in the active conversation.
-- If a README change is needed for MVP safety/run accuracy and was not explicitly requested, stop and ask one concise approval question before editing.
+### Compliance gate
+If an answer would violate scope, formatting, data policy, or README binding, stop and ask one concise clarification question instead of proceeding.
 
-## Scope
+---
 
-- Active scope: bridge reliability, correct IP usage, Steam Deck connectivity, Ryujinx live-memory reads/writes, and data flow to the existing Windows UI.
-- Do not expand scope into redesigns, refactors, cleanup, music, catalog, or unrelated MVP ideas unless explicitly requested.
-- Primary validation target is the Windows UI at `http://10.0.0.25:3000`; do not switch to isolated endpoints unless explicitly requested for backend-only verification.
-
-## Confirmed Repo Facts
-
-- Windows UI address: `http://10.0.0.25:3000`
-- Windows Wi-Fi IP: `10.0.0.25` (confirmed live, `netstat` shows `0.0.0.0:3000` and `0.0.0.0:32840` LISTENING under PID 93128)
-- Steam Deck IP: `10.0.0.233`
-- Steam Deck SSH key: `C:/Users/mccoo/.ssh/id_ed25519_steamdeck`
-- Steam Deck SSH user: `deck`
-- Steam Deck bridge target host: `10.0.0.25` (set in `.steamdeck-bridge.env` as `BRIDGE_TARGET_HOST=10.0.0.25`)
-- Steam Deck bridge target port: `32840`
-- Bridge confirmed CONNECTED: `10.0.0.233` → `10.0.0.25:32840` (verified May 4 2026)
-- `.steamdeck-bridge.env` is gitignored — must be set directly on Steam Deck; do not commit it
-- Node on Steam Deck: `/home/deck/.nvm/versions/node/v24.14.1/bin/node`
-- Bridge systemd service: `~/.config/systemd/user/acnh-live-bridge.service` (auto-starts on boot, restarts on failure)
-
-## Verification Discipline
-
-- Do not make unverified assumptions about user goals, UX changes, environment state, emulator state, or acceptable tradeoffs.
-- Do not replace or simplify the UI shell unless explicitly requested.
-- When a fact is not confirmed by user, repo, or direct tool output, call it unconfirmed.
-- When a missing fact materially affects edits, ask one concise question instead of guessing.
-- Do not use conditional phrasing for facts already established in context; state established facts directly.
-- Use the Windows UI browser window as the primary validation surface when it is available, inspect rendered outputs there directly, and only send live tests to the running game or project when the user has explicitly authorized the test and the intended live effect has been stated in the work log or response.
-
-## Git Push / Pull Gate
-
-- **Do NOT prompt the user to `git push`, `git pull`, `git pull --ff-only`, sync any machine, or update a remote (Steam Deck, server, etc.) from git UNLESS the user has explicitly confirmed in the active conversation that the code is ready to push/pull.**
-- This applies to all machines: local Windows, Steam Deck, any remote.
-- If a push or pull step is genuinely required to complete the task, stop and ask one concise approval question before including it in instructions.
-- Never bundle a push or pull step silently inside a multi-step command block.
-
-## Work Integrity
-
-- Preserve existing UI unless explicitly told otherwise.
-- Prefer the smallest targeted bridge fix over broader cleanup.
-- Verify facts with repo reads or command output before changing behavior.
-- Keep changes tightly scoped to the exact request.
-- No opportunistic edits: if it was not requested, do not modify it.
-- Do not change files, paths, response formats, or tooling outside the exact requested change.
-- Do not add or modify agent rules unless explicitly requested.
-- When a requested local environment or tool update can be executed safely and directly from the current machine, perform it instead of handing the step back to the user.
-- Before telling the user to update Steam Deck or another machine from git, ensure the required local code changes are actually committed and pushed. If the user works through GitHub Desktop, explicitly note that GitHub Desktop must show the commit/push completed before the remote machine pulls.
-
-## Command Response Schema
-
-- Always provide explicit step-by-step run instructions.
-- If using acronyms, always describe it in perenthesis
-- One step title + one fenced code block per step.
-- Commands must be plain copy-paste runnable.
-- First line must be `cd` when directory context matters.
-- No inline commentary inside code blocks.
-- Always provide full command text with no placeholders omitted.
-
-## Prompt Follow-Up Questions
-
-- When concluding a prompt, end with exactly three numbered follow-up questions using `1.`, `2.`, `3.` formatting.
-- These questions must help the user reply quickly with the next troubleshooting or implementation direction.
-- Keep the questions concise and action-oriented so the user can answer by number when iterating on prompts.
-
-## Bug/Issue Confirmation Gate
-
-- **Do NOT prompt the user to proceed to the next task until the bug or issue from the prior request is confirmed resolved.**
-- Confirm resolution by directly running the test yourself (via terminal, browser tool, or API call) and verifying correct output before declaring it fixed.
-- If the prior bug cannot be self-tested (requires live hardware not accessible from this machine), explicitly state that and ask the user to confirm before moving on.
-- Never assume a fix worked just because code was committed. Execute the test. Observe the result. Report the result.
-- If a test fails: fix it, re-test, and only then proceed.
-
-## Fail-Closed Live Data Policy
-
-- No synthetic, temporary, substitute, or fake data in UI/debug/runtime responses.
-- If real data is unavailable, return unavailable/error; never substitute.
-- Automated backend verification data must run only on isolated non-primary ports.
-- Automated backend verification data must never appear in UI or debug panels.
-- Automated backend verification data is development-only and never live bridge truth.
-- Reject any output that uses synthetic/temp/test data as UI/debug truth.
-
-## Automatic Request Contract (Complex Requests)
-
-For complex requests, apply this contract automatically without requiring user attachment:
-
-1. Objective (one exact outcome)
-2. Scope (in-scope + explicit exclusions)
-3. README binding (`MVP Outline Status`, `Shortest Path To Live UI Readback`)
-4. Data policy (fail-closed, no substitution)
-5. Change constraints (allowed/forbidden files)
-6. Acceptance checks (explicit checks + expected outcomes)
-7. Stop condition (ask one concise question when a missing fact materially affects edits)
-
-## Governance Commit Template
+## 10. Governance Commit Template
 
 For governance/rule changes, use this commit structure:
 
-- Subject: `Consolidate agent governance into AGENTS contract`
-- Body bullets:
-	- single enforcement source in `AGENTS.md`
-	- precedence, response gate, README binding, fail-closed policy
-	- removed duplicate policy surfaces
-	- README runbook/schema alignment
+- **Subject:** `Consolidate agent governance into instructions contract`
+- **Body bullets:**
+  - single enforcement source in `instructions.md`
+  - precedence, response gate, README binding, fail-closed policy
+  - removed duplicate policy surfaces
+  - README runbook/schema alignment
 
-## Compliance Gate
+---
 
-- If an answer would violate scope, formatting, data policy, or README binding, stop and ask one concise clarification question instead of proceeding.
+## 11. Session Kickoff (Copy-Paste Template)
+
+```
+## Session — ACNH Live Editor
+
+Branch: dev
+Last commit: [describe]
+State: [what is working / what is broken]
+Bridge status: [connected / disconnected / untested]
+
+This session goal: [one sentence]
+
+Constraints:
+- Do NOT redesign existing UI
+- Do NOT add dependencies without justification
+- Preserve existing data structures and API shapes
+- Primary validation target: http://10.0.0.25:3000
+```
+
+---
+
+## 12. Agent Task Log
+
+*(Append completed agent tasks below as a running log.)*
