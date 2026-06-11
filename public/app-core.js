@@ -158,8 +158,8 @@ const DEFAULT_BRIDGE_STATE = {
 };
 const DEFAULT_CATALOG_STATE = Object.freeze({
   connectionState: 'fallback',
-  label: 'Local',
-  message: 'Using local starter catalog.',
+  label: 'Offline',
+  message: 'Nookipedia API key is not configured.',
   searchableCount: 0,
   localCount: 0,
   cachedCount: 0,
@@ -1605,7 +1605,7 @@ function renderBridge() {
 
   if (el.catalogStatusLabel) {
     // Suppress label text when live — the green dot is sufficient
-    const rawLabel = state.catalog.label || 'Local';
+    const rawLabel = state.catalog.label || 'Offline';
     el.catalogStatusLabel.textContent = rawLabel === 'Live' ? '' : rawLabel;
     el.catalogStatusLabel.title = state.catalog.message || '';
   }

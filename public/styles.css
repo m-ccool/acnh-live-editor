@@ -3308,11 +3308,21 @@ body:not([data-theme='night']) .inv-quick-search-input {
   overflow-y: auto;
   border-radius: 12px;
   border: 1px solid var(--glass-edge-soft);
-  background: rgba(14,10,30,0.92);
-  backdrop-filter: blur(16px) saturate(1.5);
-  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015)), var(--surface);
+  backdrop-filter: blur(16px) saturate(1.35);
+  -webkit-backdrop-filter: blur(16px) saturate(1.35);
   box-shadow: 0 12px 32px rgba(0,0,0,0.45);
   overscroll-behavior: contain;
+}
+
+body[data-theme='night'] .inv-quick-search-results {
+  background: linear-gradient(180deg, rgba(14, 16, 28, 0.96), rgba(10, 12, 22, 0.94)), rgba(12, 14, 26, 0.88);
+  border-color: rgba(222, 216, 250, 0.08);
+}
+
+body:not([data-theme='night']) .inv-quick-search-results {
+  background: linear-gradient(180deg, rgba(255, 248, 242, 0.95), rgba(255, 246, 238, 0.84)), rgba(255,255,255,0.92);
+  border-color: rgba(255, 220, 191, 0.18);
 }
 .inv-quick-search-results[hidden] { display: none !important; }
 
@@ -3326,9 +3336,33 @@ body:not([data-theme='night']) .inv-quick-search-input {
   font-size: 0.80rem;
   transition: background 0.1s;
 }
-.inv-qsr-row:last-child { border-bottom: none; }
 .inv-qsr-row:hover,
-.inv-qsr-row.is-focused { background: rgba(255,255,255,0.09); }
+.inv-qsr-row.is-focused {
+  background: rgba(255,255,255,0.06);
+}
+.inv-qsr-row.is-skeleton:hover,
+.inv-qsr-row.is-skeleton.is-focused {
+  background: transparent;
+}
+
+body[data-theme='night'] .inv-qsr-row {
+  border-bottom-color: rgba(255,255,255,0.05);
+}
+
+body[data-theme='night'] .inv-qsr-row:hover,
+body[data-theme='night'] .inv-qsr-row.is-focused {
+  background: rgba(255,255,255,0.06);
+}
+
+body:not([data-theme='night']) .inv-qsr-row {
+  border-bottom-color: rgba(70, 35, 28, 0.08);
+}
+
+body:not([data-theme='night']) .inv-qsr-row:hover,
+body:not([data-theme='night']) .inv-qsr-row.is-focused {
+  background: rgba(255, 202, 169, 0.12);
+}
+.inv-qsr-row:last-child { border-bottom: none; }
 
 .inv-qsr-img {
   width: 28px;
@@ -6386,7 +6420,7 @@ body[data-theme='night'] .item-modal-artbox {
 .modal-results-list {
   border: 1px solid rgba(186, 247, 192, 0.12);
   border-radius: 14px;
-  background: var(--console-bg);
+  background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.012)), var(--console-bg);
   max-height: 172px;
   overflow: auto;
   scroll-behavior: smooth;
@@ -6417,8 +6451,8 @@ body[data-theme='night'] .item-modal-artbox {
   align-items: center;
   border: 0;
   border-bottom: 1px solid rgba(186,247,192,0.08);
-  background: rgba(255,255,255,0.5);
-  color: rgba(186, 247, 192, 0.82);
+  background: rgba(255,255,255,0.04);
+  color: var(--text);
   text-align: left;
   cursor: pointer;
   transition:
@@ -6432,15 +6466,25 @@ body[data-theme='night'] .item-modal-artbox {
 }
 
 .modal-result-row:hover {
-  background: rgba(186,247,192,0.06);
+  background: rgba(255,255,255,0.07);
 }
 
 body[data-theme='night'] .modal-result-row:hover {
-  background: rgba(163, 148, 221, 0.08);
+  background: rgba(163, 148, 221, 0.12);
 }
 
 body:not([data-theme='night']) .modal-result-row:hover {
-  background: rgba(255, 202, 169, 0.08);
+  background: rgba(255, 202, 169, 0.16);
+}
+
+body[data-theme='night'] .modal-results-list {
+  border-color: rgba(236, 233, 255, 0.09);
+  background: linear-gradient(180deg, rgba(14, 16, 28, 0.96), rgba(10, 12, 22, 0.94)), rgba(12, 14, 26, 0.88);
+}
+
+body:not([data-theme='night']) .modal-results-list {
+  border-color: rgba(255, 220, 191, 0.18);
+  background: linear-gradient(180deg, rgba(255, 248, 242, 0.95), rgba(255, 246, 238, 0.86)), rgba(255,255,255,0.92);
 }
 
 .modal-result-row.is-selected {
