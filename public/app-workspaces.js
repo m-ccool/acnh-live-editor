@@ -144,15 +144,25 @@ function renderSaveLoadButtons() {
 }
 
 async function handlePlayerLoadClick() {
+  const loadStartedAt = performance.now();
+  const minPlayerLoadingMs = 420;
   if (el.playerLoadBtn) {
     el.playerLoadBtn.disabled = true;
     el.playerLoadBtn.textContent = '⏳ Loading…';
   }
+  if (typeof setUiLoading === 'function') setUiLoading('player', true);
   try {
     await refreshBridgeGameData();
     renderBridge();
   } catch (e) {
     console.error(e);
+  } finally {
+    const elapsed = performance.now() - loadStartedAt;
+    const remaining = minPlayerLoadingMs - elapsed;
+    if (remaining > 0) {
+      await new Promise((resolve) => window.setTimeout(resolve, remaining));
+    }
+    if (typeof setUiLoading === 'function') setUiLoading('player', false);
   }
   if (el.playerLoadBtn) {
     el.playerLoadBtn.disabled = false;

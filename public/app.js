@@ -1426,6 +1426,7 @@ async function runInvQuickSearch(rawQuery) {
   if (!input || !results) return;
 
   if (!query) {
+    if (typeof setUiLoading === 'function') setUiLoading('search', false);
     results.hidden = true;
     input.setAttribute('aria-expanded', 'false');
     return;
@@ -1434,6 +1435,7 @@ async function runInvQuickSearch(rawQuery) {
   const token = ++_invQsSearchToken;
 
   if (query.length < INV_QS_REMOTE_MIN) {
+    if (typeof setUiLoading === 'function') setUiLoading('search', false);
     const items = getModalFilteredItems(query).slice(0, INV_QS_LIMIT);
     if (token !== _invQsSearchToken) return;
     renderInvQuickSearchResults(items);
@@ -1441,10 +1443,26 @@ async function runInvQuickSearch(rawQuery) {
   }
 
   // Remote search for longer queries
+  const searchSkeletonStart = performance.now();
+  const minSearchSkeletonMs = 340;
+  if (typeof setUiLoading === 'function') setUiLoading('search', true);
+  results.innerHTML = [
+    '<div class="inv-qsr-row is-skeleton" aria-hidden="true"><span class="inv-qsr-img skeleton-block"></span><span class="inv-qsr-name skeleton-line"></span><span class="inv-qsr-cat skeleton-line"></span></div>',
+    '<div class="inv-qsr-row is-skeleton" aria-hidden="true"><span class="inv-qsr-img skeleton-block"></span><span class="inv-qsr-name skeleton-line"></span><span class="inv-qsr-cat skeleton-line"></span></div>',
+    '<div class="inv-qsr-row is-skeleton" aria-hidden="true"><span class="inv-qsr-img skeleton-block"></span><span class="inv-qsr-name skeleton-line"></span><span class="inv-qsr-cat skeleton-line"></span></div>'
+  ].join('');
+  results.hidden = false;
+  input.setAttribute('aria-expanded', 'true');
+
   try {
     const params = new URLSearchParams({ q: query, filter: 'all', limit: String(INV_QS_LIMIT) });
     const res = await apiFetch(`/api/items/search?${params}`, { cache: 'no-store' });
     if (token !== _invQsSearchToken) return;
+    const elapsed = performance.now() - searchSkeletonStart;
+    const remaining = minSearchSkeletonMs - elapsed;
+    if (remaining > 0) {
+      await new Promise((resolve) => window.setTimeout(resolve, remaining));
+    }
     if (res.ok) {
       const payload = await res.json();
       const items = Array.isArray(payload.items) ? payload.items : getModalFilteredItems(query).slice(0, INV_QS_LIMIT);
@@ -1456,6 +1474,8 @@ async function runInvQuickSearch(rawQuery) {
   } catch (_) {
     if (token !== _invQsSearchToken) return;
     renderInvQuickSearchResults(getModalFilteredItems(query).slice(0, INV_QS_LIMIT));
+  } finally {
+    if (typeof setUiLoading === 'function') setUiLoading('search', false);
   }
 }
 

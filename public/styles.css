@@ -43,6 +43,17 @@
   --backdrop-blur: 26px;
   --backdrop-blur-strong: 28px;
   --backdrop-sat: 145%;
+  --player-tile-size: clamp(164px, 42vw, 186px);
+  --font-size-xs: 0.72rem;
+  --font-size-sm: 0.82rem;
+  --font-size-md: 0.92rem;
+  --font-size-lg: 1rem;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
 }
 
 * {
@@ -63,6 +74,9 @@ body {
 body {
   color: var(--text);
   font-family: "SF Pro Display", "Segoe UI", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: var(--font-size-md);
+  line-height: 1.45;
+  letter-spacing: 0.01em;
   background: #0f1324;
   overflow-x: hidden;
   overflow-y: auto;
@@ -252,6 +266,95 @@ body[data-theme='night'] .aurora-layer {
 button,
 input {
   font: inherit;
+}
+
+button,
+input,
+select,
+textarea {
+  font-size: var(--font-size-md);
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+}
+
+.panel-label,
+.inventory-sidebar-label,
+.music-field > span,
+.status-pill,
+.quick-cheat-label,
+.inv-qsr-cat,
+.tab-category-summary,
+.item-modal-payload-label,
+.meta-key {
+  font-size: var(--font-size-sm);
+  letter-spacing: 0.02em;
+}
+
+/* Universal skeleton state overlays for first-load and explicit async sections */
+.player-panel.is-loading .selected-item-artbox,
+.player-panel.is-loading .avatar-box,
+.inventory-card.is-loading,
+.inv-qsr-row.is-skeleton {
+  position: relative;
+  overflow: hidden;
+}
+
+.player-panel.is-loading .selected-item-artbox::after,
+.player-panel.is-loading .avatar-box::after,
+.inventory-card.is-loading::after,
+.inv-qsr-row.is-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 0%, rgba(255,255,255,0.22) 44%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.22s cubic-bezier(.22,.61,.36,1) infinite;
+  pointer-events: none;
+}
+
+.inventory-card.is-loading::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 12, 22, 0.32);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.inventory-card.is-loading #inventory-grid {
+  filter: saturate(0.78) opacity(0.72);
+}
+
+.player-panel.is-loading .artbox-name-overlay,
+.player-panel.is-loading .avatar-edit-chip,
+.player-panel.is-loading .avatar-mailbox-btn {
+  opacity: 0.55;
+}
+
+.inv-qsr-row.is-skeleton {
+  cursor: default;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.inv-qsr-row.is-skeleton .inv-qsr-img {
+  display: block;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+}
+
+.inv-qsr-row.is-skeleton .inv-qsr-name {
+  display: block;
+  height: 12px;
+  width: 68%;
+  max-width: 68%;
+}
+
+.inv-qsr-row.is-skeleton .inv-qsr-cat {
+  display: block;
+  width: 42px;
+  height: 10px;
+  border-radius: 5px;
 }
 
 button {
@@ -913,7 +1016,7 @@ body.modal-open .app-shell {
 .log-panel,
 .player-panel,
 .tabs-panel {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 
 .topbar {
@@ -1431,10 +1534,10 @@ body:not([data-theme='night']) .debug-reload-orbit-icon {
 }
 
 .music-ribbon-tab-icon {
-  color: #ffd34c;
+  color: var(--warn);
   font-size: 1.6rem;
   line-height: 1;
-  text-shadow: 0 0 18px rgba(255, 211, 76, 0.46);
+  text-shadow: 0 0 18px rgba(255, 209, 102, 0.42);
   pointer-events: none;
   user-select: none;
 }
@@ -1535,7 +1638,7 @@ body:not([data-theme='night']) .music-ribbon-tab:hover {
 }
 
 .music-track-meta {
-  color: rgba(255,255,255,0.72);
+  color: var(--text-muted);
   font-size: 0.86rem;
   white-space: nowrap;
   overflow: hidden;
@@ -1699,7 +1802,7 @@ body:not([data-theme='night']) .music-ribbon-tab:hover {
 .music-volume-field input::-webkit-slider-runnable-track {
   height: 5px;
   border-radius: 999px;
-  background: rgba(228, 240, 255, 0.92);
+  background: var(--line-strong);
 }
 
 .music-volume-field input::-webkit-slider-thumb {
@@ -1710,14 +1813,14 @@ body:not([data-theme='night']) .music-ribbon-tab:hover {
   margin-top: -7px;
   border: 2px solid rgba(255,255,255,0.95);
   border-radius: 50%;
-  background: linear-gradient(180deg, #837196, #655676);
+  background: linear-gradient(180deg, rgba(255,255,255,0.32), rgba(255,255,255,0.08)), var(--bg-1);
   box-shadow: 0 4px 10px rgba(24, 18, 38, 0.24);
 }
 
 .music-volume-field input::-moz-range-track {
   height: 5px;
   border-radius: 999px;
-  background: rgba(228, 240, 255, 0.92);
+  background: var(--line-strong);
 }
 
 .music-volume-field input::-moz-range-thumb {
@@ -1725,7 +1828,7 @@ body:not([data-theme='night']) .music-ribbon-tab:hover {
   height: 19px;
   border: 2px solid rgba(255,255,255,0.95);
   border-radius: 50%;
-  background: linear-gradient(180deg, #837196, #655676);
+  background: linear-gradient(180deg, rgba(255,255,255,0.32), rgba(255,255,255,0.08)), var(--bg-1);
   box-shadow: 0 4px 10px rgba(24, 18, 38, 0.24);
 }
 
@@ -2076,12 +2179,12 @@ body[data-theme='night'] .log-panel {
 .cheats-menu-btn:focus-visible {
   background: rgba(98,214,111,0.18);
   border-color: rgba(98,214,111,0.50);
-  color: #62d66f;
+  color: var(--good);
 }
 .cheats-menu-btn.is-open {
   background: rgba(98,214,111,0.18);
   border-color: rgba(98,214,111,0.45);
-  color: #62d66f;
+  color: var(--good);
   box-shadow: 0 0 12px rgba(98,214,111,0.18);
 }
 
@@ -2295,28 +2398,28 @@ body[data-theme='night'] .quick-cheat-btn.is-active {
 
 .player-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 172px;
-  gap: 24px;
-  margin-bottom: 18px;
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "avatar"
+    "selected"
+    "meta";
+  gap: 16px;
+  margin-bottom: 16px;
   align-items: start;
 }
 
 .player-left {
-  display: grid;
-  grid-template-columns: 194px;
-  gap: 24px;
-  min-width: 0;
-  width: 100%;
-  justify-content: start;
-  align-items: start;
+  display: contents;
 }
 
 .selected-item-preview {
+  grid-area: selected;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
+  align-items: center;
+  gap: 12px;
   min-width: 0;
+  width: 100%;
 }
 
 .selected-item-label {
@@ -2353,9 +2456,10 @@ body[data-theme='night'] .quick-cheat-btn.is-active {
 
 .selected-item-artbox {
   position: relative;
-  width: 186px;
-  height: 186px;
-  padding: 14px;
+  width: min(100%, var(--player-tile-size));
+  height: auto;
+  aspect-ratio: 1 / 1;
+  padding: 12px;
   border: 1px solid var(--line);
   border-radius: 18px;
   background:
@@ -2368,6 +2472,7 @@ body[data-theme='night'] .quick-cheat-btn.is-active {
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,0.05),
     0 16px 36px rgba(0, 0, 0, 0.18);
+  align-self: center;
   transition: border-color 0.2s var(--ease), background 0.2s var(--ease), box-shadow 0.2s var(--ease);
 }
 
@@ -2421,10 +2526,11 @@ body[data-theme='night'] .selected-item-artbox {
 }
 
 .player-meta {
+  grid-area: meta;
   display: none;
   gap: 11px;
   min-width: 0;
-  width: min(100%, 456px);
+  width: 100%;
   align-content: start;
   padding-top: 12px;
 }
@@ -2947,18 +3053,18 @@ body[data-theme='night'] .selected-item-artbox {
 }
 
 .vmod-save-dot--saving {
-  background: #f5c542;
+  background: var(--warn);
   box-shadow: 0 0 6px rgba(245, 197, 66, 0.7);
   animation: vmod-dot-pulse 0.9s ease-in-out infinite;
 }
 
 .vmod-save-dot--ok {
-  background: #5cd87a;
+  background: var(--good);
   box-shadow: 0 0 6px rgba(92, 216, 122, 0.7);
 }
 
 .vmod-save-dot--error {
-  background: #f56c50;
+  background: var(--danger);
   box-shadow: 0 0 6px rgba(245, 108, 80, 0.7);
 }
 
@@ -2984,12 +3090,14 @@ body[data-theme='night'] .selected-item-artbox {
 }
 
 .player-avatar-wrap {
+  grid-area: avatar;
   display: flex;
   justify-content: center;
   align-items: flex-start;
   position: relative;
-  width: 172px;
-  height: 186px;
+  width: min(100%, var(--player-tile-size));
+  height: auto;
+  margin-inline: auto;
 }
 
 .avatar-mailbox-btn {
@@ -3032,7 +3140,7 @@ body[data-theme='night'] .selected-item-artbox {
   width: 9px;
   height: 9px;
   border-radius: 999px;
-  background: #ff475f;
+  background: var(--danger);
   box-shadow:
     0 0 0 2px rgba(10, 18, 16, 0.9),
     0 0 10px rgba(255, 71, 95, 0.55);
@@ -3057,11 +3165,12 @@ body[data-theme='night'] .selected-item-artbox {
 
 .avatar-box {
   position: relative;
-  width: 172px;
-  height: 234px;
-  padding: 14px;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  padding: 12px;
   border: 1px solid var(--line);
-  border-radius: 22px;
+  border-radius: 18px;
   background:
     radial-gradient(circle at top, rgba(255, 191, 145, 0.14), transparent 54%),
     radial-gradient(circle at 50% 100%, rgba(120,170,255,0.1), transparent 56%),
@@ -3151,7 +3260,7 @@ body[data-theme='night'] .avatar-box {
 /* inventory-search-bar — quick assign search input */
 .inventory-search-bar {
   display: flex;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   position: relative;
   z-index: 10;
 }
@@ -3179,12 +3288,15 @@ body[data-theme='night'] .avatar-box {
   border-color: rgba(255,255,255,0.32);
   box-shadow: 0 0 0 2px rgba(255,255,255,0.05);
 }
-.inv-quick-search-input::placeholder { opacity: 0.55; }
-body:not([data-theme='night']) .inv-quick-search-input::placeholder {
-  color: rgba(20, 10, 35, 0.55);
-  opacity: 1;
+.inv-quick-search-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.78;
 }
 .inv-quick-search-input::-webkit-search-cancel-button { display: none; }
+
+body:not([data-theme='night']) .inv-quick-search-input {
+  color: var(--text);
+}
 
 .inv-quick-search-results {
   position: absolute;
@@ -3457,7 +3569,7 @@ body:not([data-theme='night']) .inventory-slot-stack-count {
 }
 
 .tabs-panel {
-  padding: 18px;
+  padding: 16px;
 }
 
 .tab-bar {
@@ -3520,7 +3632,7 @@ body[data-theme='night'] .tab-btn.is-active {
   min-height: 320px;
   position: relative;
   overflow: hidden;
-  padding: 18px;
+  padding: 16px;
   border: 1px solid var(--glass-edge-soft);
   border-radius: 0 16px 16px 16px;
   background: var(--surface);
@@ -3765,7 +3877,7 @@ body[data-theme='night'] .tab-btn.is-active {
 .footer-mark {
   width: 100%;
   margin-top: 26px;
-  padding: 18px 4px 0;
+  padding: var(--space-4) var(--space-1) 0;
   border-top: 1px solid var(--line);
   pointer-events: auto;
   display: flex;
@@ -3786,7 +3898,7 @@ body[data-theme='night'] .tab-btn.is-active {
 
 .footer-label {
   color: var(--text-muted);
-  font-size: 0.8rem;
+  font-size: var(--font-size-sm);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -3801,7 +3913,7 @@ body[data-theme='night'] .tab-btn.is-active {
 .footer-watermark {
   color: var(--text-muted);
   text-decoration: none;
-  font-size: 0.86rem;
+  font-size: var(--font-size-md);
   letter-spacing: 0.02em;
   transition: color 0.18s var(--ease), opacity 0.18s var(--ease);
 }
@@ -5490,7 +5602,7 @@ body:not([data-theme='night']) .modal-filter-btn {
 }
 
 .backups-error {
-  color: #ff8080;
+  color: var(--danger);
   opacity: 1;
 }
 
@@ -5776,7 +5888,7 @@ body[data-theme='night'] .player-modal-bust-frame {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 18px;
+  padding: var(--space-4);
   border-bottom: 0;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
@@ -5788,7 +5900,7 @@ body[data-theme='night'] .player-modal-bust-frame {
 
 .modal-head h2 {
   margin: 0;
-  font-size: 1.08rem;
+  font-size: var(--font-size-lg);
   font-weight: 500;
 }
 
@@ -5840,8 +5952,8 @@ body[data-theme='night'] .trash-button {
 }
 
 .settings-greeting {
-  padding: 4px 22px 8px;
-  font-size: 0.7rem;
+  padding: var(--space-1) var(--space-5) var(--space-2);
+  font-size: var(--font-size-sm);
   color: var(--text-muted);
   opacity: 0.4;
 }
@@ -5874,7 +5986,7 @@ body[data-theme='night'] .trash-button {
 
 .settings-debug-title {
   color: var(--text-muted);
-  font-size: 0.68rem;
+  font-size: var(--font-size-sm);
   font-weight: 500;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -5889,7 +6001,7 @@ body[data-theme='night'] .trash-button {
 }
 
 .settings-field-label {
-  font-size: 0.82rem;
+  font-size: var(--font-size-sm);
   color: var(--text);
   opacity: 0.75;
   white-space: nowrap;
@@ -5903,8 +6015,8 @@ body[data-theme='night'] .trash-button {
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 8px;
   color: rgba(255, 255, 255, 0.85);
-  font-size: 0.82rem;
-  padding: 5px 10px;
+  font-size: var(--font-size-sm);
+  padding: var(--space-1) var(--space-3);
   cursor: pointer;
   appearance: none;
   -webkit-appearance: none;
@@ -5918,7 +6030,12 @@ body[data-theme='night'] .trash-button {
 
 .settings-select option {
   background: #1a1c2a;
-  color: #ddd;
+  color: var(--text);
+}
+
+body:not([data-theme='night']) .settings-select option {
+  background: rgba(255, 246, 238, 0.96);
+  color: rgba(30, 20, 38, 0.92);
 }
 
 body[data-theme='night'] .settings-debug-box,
@@ -5978,7 +6095,7 @@ body[data-theme='night'] .modal-filter-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px 18px;
+  padding: var(--space-4) var(--space-4);
 }
 
 .settings-github-btn {
@@ -6040,6 +6157,7 @@ body:not([data-theme='night']) .search-input {
   background:
     linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.026)),
     rgba(255,255,255,0.03);
+  color: var(--text);
 }
 
 body[data-theme='night'] .field-wrap input,
@@ -6326,7 +6444,7 @@ body:not([data-theme='night']) .modal-result-row:hover {
 }
 
 .modal-result-row.is-selected {
-  color: #ff8187;
+  color: var(--danger);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -6433,7 +6551,6 @@ body:not([data-theme='night']) .action-btn-solid {
 @media (max-width: 860px) {
   .inventory-area,
   .item-modal-layout,
-  .player-left,
   .tab-stat-grid,
   .tab-dual-grid {
     grid-template-columns: 1fr;
@@ -6460,52 +6577,6 @@ body:not([data-theme='night']) .action-btn-solid {
   .player-toolbar,
   .player-toolbar-actions {
     justify-content: flex-start;
-  }
-
-  .player-card {
-    grid-template-columns: minmax(0, 1fr) minmax(100px, 140px);
-    grid-template-areas:
-      "selected avatar"
-      "meta meta";
-    align-items: start;
-  }
-
-  .selected-item-artbox {
-    width: min(100%, 140px);
-    height: 140px;
-  }
-
-  .avatar-box {
-    width: 100%;
-    height: auto;
-    aspect-ratio: 1 / 1;
-  }
-
-  .player-avatar-wrap {
-    height: auto;
-  }
-
-  .player-left {
-    display: contents;
-  }
-
-  .selected-item-preview {
-    grid-area: selected;
-  }
-
-  .player-meta {
-    grid-area: meta;
-  }
-
-  .player-avatar-wrap {
-    grid-area: avatar;
-    justify-content: flex-end;
-    width: auto;
-  }
-
-  .player-meta,
-  .selected-item-preview {
-    width: 100%;
   }
 
   .shortcut-column {
@@ -6601,27 +6672,8 @@ body:not([data-theme='night']) .action-btn-solid {
     max-height: calc(100dvh - 16px);
   }
 
-  /* Player card: stack at ≤720px — avatar above selected item */
-  .player-card {
-    gap: 16px;
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "avatar"
-      "selected"
-      "meta";
-  }
-
   .player-actions {
     width: 100%;
-  }
-
-  .player-left {
-    gap: 16px;
-  }
-
-  .selected-item-preview {
-    width: 100%;
-    align-items: center;
   }
 
   .selected-item-label,
@@ -6629,28 +6681,8 @@ body:not([data-theme='night']) .action-btn-solid {
     width: 100%;
   }
 
-  .selected-item-artbox {
-    width: min(100%, 180px);
-    height: auto;
-    aspect-ratio: 1 / 1;
-    align-self: center;
-  }
-
   .selected-item-actions {
     justify-content: center;
-  }
-
-  .player-avatar-wrap {
-    width: 180px;
-    margin-inline: auto;
-    height: auto;
-    justify-content: center;
-  }
-
-  .avatar-box {
-    width: 180px;
-    height: auto;
-    aspect-ratio: 1 / 1;
   }
 
   /* Mobile touch targets — 44px minimum height */
@@ -6701,40 +6733,38 @@ body:not([data-theme='night']) .action-btn-solid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .selected-item-preview {
+    align-items: stretch;
+  }
+}
+
+@media (min-width: 721px) {
   .player-card {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, var(--player-tile-size));
     grid-template-areas:
-      "avatar"
-      "selected"
-      "meta";
+      "selected avatar"
+      "meta meta";
+    gap: 20px;
   }
 
   .selected-item-preview {
-    width: 100%;
-    align-items: stretch;
+    align-items: flex-start;
   }
 
   .selected-item-artbox {
-    width: min(100%, 220px);
-    height: auto;
-    aspect-ratio: 1 / 1;
-    align-self: center;
-  }
-
-  .selected-item-actions {
-    justify-content: center;
+    align-self: flex-start;
   }
 
   .player-avatar-wrap {
-    width: 184px;
-    margin-inline: auto;
-    justify-content: center;
+    width: var(--player-tile-size);
+    margin-inline: 0;
+    justify-content: flex-end;
   }
+}
 
-  .avatar-box {
-    width: 184px;
-    height: auto;
-    aspect-ratio: 1 / 1;
+@media (min-width: 861px) {
+  .player-card {
+    gap: 24px;
   }
 }
 

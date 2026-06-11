@@ -214,9 +214,51 @@ const state = {
   villagers: [],
   pinnedPresets: JSON.parse(localStorage.getItem('acnh-pinned-presets') || 'null') || ['tools','materials'],
   customPresets: JSON.parse(localStorage.getItem('acnh-custom-presets') || '[]'),
+  uiLoading: {
+    boot: true,
+    player: false,
+    inventory: false,
+    search: false
+  }
 };
 
 const el = {};
+
+function renderUiLoadingState() {
+  if (!document || !document.body) return;
+
+  const bootLoading = Boolean(state.uiLoading && state.uiLoading.boot);
+  const playerLoading = Boolean(state.uiLoading && state.uiLoading.player);
+  const inventoryLoading = Boolean(state.uiLoading && state.uiLoading.inventory);
+  const searchLoading = Boolean(state.uiLoading && state.uiLoading.search);
+
+  document.body.classList.toggle('ui-loading-boot', bootLoading);
+  document.body.classList.toggle('ui-loading-player', playerLoading);
+  document.body.classList.toggle('ui-loading-inventory', inventoryLoading);
+  document.body.classList.toggle('ui-loading-search', searchLoading);
+
+  if (el.playerPanel) {
+    el.playerPanel.classList.toggle('is-loading', bootLoading || playerLoading);
+  }
+
+  if (el.inventoryCard) {
+    el.inventoryCard.classList.toggle('is-loading', bootLoading || inventoryLoading);
+  }
+
+  if (el.invQuickSearch) {
+    el.invQuickSearch.classList.toggle('is-loading', searchLoading);
+    el.invQuickSearch.setAttribute('aria-busy', searchLoading ? 'true' : 'false');
+  }
+}
+
+function setUiLoading(section, isLoading) {
+  if (!state.uiLoading || !Object.prototype.hasOwnProperty.call(state.uiLoading, section)) {
+    return;
+  }
+
+  state.uiLoading[section] = Boolean(isLoading);
+  renderUiLoadingState();
+}
 
 async function handleConnectBridgeClick() {
   if (!el.deployButton || el.deployButton.disabled) return;
@@ -280,6 +322,7 @@ document.addEventListener('DOMContentLoaded', init);
 async function init() {
   cacheDom();
   bindEvents();
+  renderUiLoadingState();
   renderPresetBar();
   updateClock();
 
@@ -291,10 +334,24 @@ async function init() {
   updateDataSnapshot();
   primeSelectedMusicSource();
   if (typeof initVillagersTab === 'function') initVillagersTab();
+  const bootLoadingStart = performance.now();
+  const minBootLoadingMs = 520;
   try {
+    setUiLoading('boot', true);
+    setUiLoading('player', true);
+    setUiLoading('inventory', true);
     await refreshBridgeStatus('Boot live sync');
   } catch (error) {
     console.error(error);
+  } finally {
+    const elapsed = performance.now() - bootLoadingStart;
+    const remaining = minBootLoadingMs - elapsed;
+    if (remaining > 0) {
+      await new Promise((resolve) => window.setTimeout(resolve, remaining));
+    }
+    setUiLoading('boot', false);
+    setUiLoading('player', false);
+    setUiLoading('inventory', false);
   }
   finishBoot();
 }
