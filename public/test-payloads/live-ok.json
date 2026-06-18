@@ -1,7 +1,7 @@
 {
   "meta": {
     "name": "live-ok",
-    "version": 2,
+    "version": 3,
     "source": "repo-static"
   },
   "catalog": {
@@ -24,5 +24,39 @@
     "ryujinxRunning": true,
     "ryujinxMatchCount": 1,
     "inventorySource": "test-payload"
-  }
+  },
+  "player": {
+    "name": "MCCOOL",
+    "town": "Starlake",
+    "wallet": 482930,
+    "bank": 9123456,
+    "miles": 124400,
+    "avatar": "./assets/items/Bob_NH.png"
+  },
+  "inventory": [
+    { "slot": 1, "itemId": "Stone Axe", "count": 1, "uses": 0, "flag0": 0, "flag1": 0 },
+    { "slot": 2, "itemId": "Ladder", "count": 1, "uses": 0, "flag0": 0, "flag1": 0 },
+    { "slot": 3, "itemId": "Vaulting pole", "count": 1, "uses": 0, "flag0": 0, "flag1": 0 },
+    { "slot": 4, "itemId": "Shovel", "count": 1, "uses": 0, "flag0": 0, "flag1": 0 },
+    { "slot": 5, "itemId": "Wood", "count": 30, "uses": 0, "flag0": 0, "flag1": 0 },
+    { "slot": 6, "itemId": "Hardwood", "count": 30, "uses": 0, "flag0": 0, "flag1": 0 },
+    { "slot": 7, "itemId": "Softwood", "count": 30, "uses": 0, "flag0": 0, "flag1": 0 },
+    { "slot": 8, "itemId": "Iron Nugget", "count": 30, "uses": 0, "flag0": 0, "flag1": 0 },
+    { "slot": 9, "itemId": "Clay", "count": 30, "uses": 0, "flag0": 0, "flag1": 0 },
+    { "slot": 10, "itemId": "Gold Nugget", "count": 8, "uses": 0, "flag0": 0, "flag1": 0 },
+    { "slot": 11, "itemId": "Apple", "count": 10, "uses": 0, "flag0": 0, "flag1": 0 },
+    { "slot": 12, "itemId": "99k Bells", "count": 1, "uses": 0, "flag0": 0, "flag1": 0 }
+  ],
+  "villagers": [
+    { "slot": 1, "name": "Bob", "speciesName": "Cat", "personalityName": "Lazy", "friendship": 204, "friendshipTier": "Best Friend", "gender": "M", "catchphrase": "pthhpth", "movingOut": false },
+    { "slot": 2, "name": "Rolf", "speciesName": "Tiger", "personalityName": "Cranky", "friendship": 182, "friendshipTier": "Best Friend", "gender": "M", "catchphrase": "grrrolf", "movingOut": false },
+    { "slot": 3, "name": "Marshal", "speciesName": "Squirrel", "personalityName": "Smug", "friendship": 166, "friendshipTier": "Friend", "gender": "M", "catchphrase": "sulky", "movingOut": false },
+    { "slot": 4, "name": "Lolly", "speciesName": "Cat", "personalityName": "Normal", "friendship": 175, "friendshipTier": "Friend", "gender": "F", "catchphrase": "bonbon", "movingOut": false },
+    { "slot": 5, "name": "Cherry", "speciesName": "Dog", "personalityName": "Sisterly", "friendship": 149, "friendshipTier": "Friend", "gender": "F", "catchphrase": "what what", "movingOut": false },
+    { "slot": 6, "name": "Rosie", "speciesName": "Cat", "personalityName": "Peppy", "friendship": 133, "friendshipTier": "Close Friend", "gender": "F", "catchphrase": "silly", "movingOut": false },
+    { "slot": 7, "name": "Fang", "speciesName": "Wolf", "personalityName": "Cranky", "friendship": 121, "friendshipTier": "Close Friend", "gender": "M", "catchphrase": "cha-chomp", "movingOut": false },
+    { "slot": 8, "name": "Diana", "speciesName": "Deer", "personalityName": "Snooty", "friendship": 112, "friendshipTier": "Close Friend", "gender": "F", "catchphrase": "no doy", "movingOut": false },
+    { "slot": 9, "name": "Ketchup", "speciesName": "Duck", "personalityName": "Peppy", "friendship": 96, "friendshipTier": "Acquaintance", "gender": "F", "catchphrase": "bitty", "movingOut": false },
+    { "slot": 10, "name": "Apollo", "speciesName": "Eagle", "personalityName": "Cranky", "friendship": 88, "friendshipTier": "Acquaintance", "gender": "M", "catchphrase": "pah", "movingOut": false }
+  ]
 }

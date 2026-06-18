@@ -1,7 +1,7 @@
 {
   "meta": {
     "name": "bridge-disconnected",
-    "version": 2,
+    "version": 3,
     "source": "repo-static"
   },
   "catalog": {
@@ -24,5 +24,34 @@
     "ryujinxRunning": null,
     "ryujinxMatchCount": 0,
     "inventorySource": "local-cache"
-  }
+  },
+  "player": {
+    "name": "MCCOOL",
+    "town": "Starlake",
+    "wallet": 482930,
+    "bank": 9123456,
+    "miles": 124400,
+    "avatar": "./assets/items/Bob_NH.png"
+  },
+  "inventory": [
+    { "slot": 1, "itemId": "Flimsy Axe", "count": 1, "uses": 8, "flag0": 0, "flag1": 0 },
+    { "slot": 2, "itemId": "Flimsy Net", "count": 1, "uses": 9, "flag0": 0, "flag1": 0 },
+    { "slot": 3, "itemId": "Flimsy Fishing Rod", "count": 1, "uses": 7, "flag0": 0, "flag1": 0 },
+    { "slot": 4, "itemId": "Tree branch", "count": 12, "uses": 0, "flag0": 0, "flag1": 0 },
+    { "slot": 5, "itemId": "Wood", "count": 9, "uses": 0, "flag0": 0, "flag1": 0 },
+    { "slot": 6, "itemId": "Softwood", "count": 14, "uses": 0, "flag0": 0, "flag1": 0 },
+    { "slot": 7, "itemId": "Hardwood", "count": 7, "uses": 0, "flag0": 0, "flag1": 0 }
+  ],
+  "villagers": [
+    { "slot": 1, "name": "Bob", "speciesName": "Cat", "personalityName": "Lazy", "friendship": 204, "friendshipTier": "Best Friend", "gender": "M", "catchphrase": "pthhpth", "movingOut": false },
+    { "slot": 2, "name": "Rolf", "speciesName": "Tiger", "personalityName": "Cranky", "friendship": 182, "friendshipTier": "Best Friend", "gender": "M", "catchphrase": "grrrolf", "movingOut": false },
+    { "slot": 3, "name": "Lolly", "speciesName": "Cat", "personalityName": "Normal", "friendship": 175, "friendshipTier": "Friend", "gender": "F", "catchphrase": "bonbon", "movingOut": false },
+    { "slot": 4, "empty": true },
+    { "slot": 5, "empty": true },
+    { "slot": 6, "empty": true },
+    { "slot": 7, "empty": true },
+    { "slot": 8, "empty": true },
+    { "slot": 9, "empty": true },
+    { "slot": 10, "empty": true }
+  ]
 }

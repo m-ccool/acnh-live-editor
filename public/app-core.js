@@ -1803,6 +1803,49 @@ function applyTestDataUiState() {
   renderTestPayloadVersionStamp();
 }
 
+function getActiveTestPayload() {
+  if (!state.testDataMode) return null;
+  if (state.testPayload && typeof state.testPayload === 'object') {
+    return state.testPayload;
+  }
+  return getDefaultTestPayload();
+}
+
+function getEffectivePlayerData() {
+  const payload = getActiveTestPayload();
+  if (!payload || !payload.player || typeof payload.player !== 'object') {
+    return state.player;
+  }
+
+  return {
+    ...state.player,
+    ...payload.player
+  };
+}
+
+function getEffectiveInventorySlots() {
+  const payload = getActiveTestPayload();
+  if (!payload || !Array.isArray(payload.inventory) || payload.inventory.length === 0) {
+    return state.inventory;
+  }
+
+  if (typeof normalizeBridgeInventorySlots === 'function' && typeof buildInventoryFromBridgeSlots === 'function') {
+    const normalized = normalizeBridgeInventorySlots(payload.inventory);
+    return buildInventoryFromBridgeSlots(normalized);
+  }
+
+  return state.inventory;
+}
+
+function getEffectiveVillagersData() {
+  const payload = getActiveTestPayload();
+  if (!payload || !Array.isArray(payload.villagers) || payload.villagers.length === 0) {
+    return state.villagers;
+  }
+
+  return payload.villagers;
+}
+
 async function selectTestStatePayload(payloadKey, persist) {
   const nextKey = TEST_PAYLOAD_OPTION_DEFS[payloadKey] ? payloadKey : DEFAULT_TEST_PAYLOAD_KEY;
   const shouldEnable = nextKey !== DEFAULT_TEST_PAYLOAD_KEY;

@@ -2080,14 +2080,16 @@ body:not([data-theme='night']) .music-ribbon-tab:hover {
 body:not([data-theme='night']) .log-panel {
   background:
     linear-gradient(180deg, var(--glass-top), var(--glass-bottom)),
-    linear-gradient(180deg, rgba(100, 200, 210, 0.06), rgba(140, 160, 240, 0.02)),
+    linear-gradient(180deg, rgba(100, 200, 210, 0.14), rgba(140, 160, 240, 0.08)),
+    linear-gradient(180deg, rgba(14, 20, 34, 0.28), rgba(14, 20, 34, 0.28)),
     var(--panel);
 }
 
 body[data-theme='night'] .log-panel {
   background:
     linear-gradient(180deg, var(--glass-top), var(--glass-bottom)),
-    linear-gradient(180deg, rgba(130, 120, 210, 0.06), rgba(80, 70, 160, 0.02)),
+    linear-gradient(180deg, rgba(130, 120, 210, 0.14), rgba(80, 70, 160, 0.08)),
+    linear-gradient(180deg, rgba(10, 10, 22, 0.38), rgba(10, 10, 22, 0.38)),
     var(--panel);
 }
 

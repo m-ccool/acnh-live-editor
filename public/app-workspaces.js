@@ -54,6 +54,12 @@ function renderBridgePollButton() {
 }
 
 async function writePlayerChanges(nextPlayer = state.player, actionText = 'Player values synced to game') {
+  if (state.testDataMode) {
+    state.bridge.lastAction = 'Player write blocked: TEST data mode is active';
+    renderBridge();
+    return false;
+  }
+
   if (!state.bridge.connected) {
     state.bridge.lastAction = 'Bridge disconnected: player values were not written';
     renderBridge();
@@ -107,17 +113,21 @@ async function writePlayerChanges(nextPlayer = state.player, actionText = 'Playe
 }
 
 function renderPlayer() {
-  el.playerName.value = state.player.name || '';
-  el.playerName.dataset.gameValue = state.player.name || '';
-  el.townName.value = state.player.town || '';
-  el.townName.dataset.gameValue = state.player.town || '';
+  const playerView = typeof getEffectivePlayerData === 'function'
+    ? getEffectivePlayerData()
+    : state.player;
+
+  el.playerName.value = playerView.name || '';
+  el.playerName.dataset.gameValue = playerView.name || '';
+  el.townName.value = playerView.town || '';
+  el.townName.dataset.gameValue = playerView.town || '';
   _updateNameTownIconState(el.playerName);
   _updateNameTownIconState(el.townName);
-  el.walletValue.value = formatNumber(state.player.wallet);
-  el.bankValue.value = formatNumber(state.player.bank);
-  el.milesValue.value = formatNumber(state.player.miles);
-  el.playerAvatar.src = state.player.avatar
-    ? state.player.avatar
+  el.walletValue.value = formatNumber(playerView.wallet);
+  el.bankValue.value = formatNumber(playerView.bank);
+  el.milesValue.value = formatNumber(playerView.miles);
+  el.playerAvatar.src = playerView.avatar
+    ? playerView.avatar
     : '/assets/icons/player-silhouette.svg';
   renderSaveLoadButtons();
 }
@@ -557,8 +567,12 @@ function renderInventory() {
     return;
   }
 
+  const slotsView = typeof getEffectiveInventorySlots === 'function'
+    ? getEffectiveInventorySlots()
+    : state.inventory;
+
   window.ACNHReactUI.renderInventoryGrid(el.inventoryGrid, {
-    slots: state.inventory,
+    slots: slotsView,
     selectedSlotIndex: state.selectedSlotIndex,
     clipboardSourceSlotIndex: state.copiedSlotSourceIndex,
     overwriteGuard: state.overwriteGuard,
@@ -572,6 +586,13 @@ function renderInventory() {
 
       state.hasUserSelectedSlot = true;
       state.selectedSlotIndex = index;
+      if (state.testDataMode) {
+        renderBridge();
+        renderInventory();
+        renderSelectedPreview();
+        renderClipboardState();
+        return;
+      }
       state.modalSearchQuery = '';
       if (el.modalSearchInput) {
         el.modalSearchInput.value = '';
@@ -596,7 +617,7 @@ function renderInventory() {
         return;
       }
 
-      const slot = state.inventory[index];
+      const slot = slotsView[index];
       if (!slot || !slot.item) {
         clearInventoryTouchHoldState();
         return;
@@ -656,7 +677,7 @@ function renderInventory() {
       clearInventoryTouchHoldState();
     },
     onDragStart(index, event) {
-      const slot = state.inventory[index];
+      const slot = slotsView[index];
       if (!slot || !slot.item) {
         event.preventDefault();
         return;
@@ -735,9 +756,15 @@ function renderTabs() {
 }
 
 function renderWorkspacePanels() {
+  const playerView = typeof getEffectivePlayerData === 'function'
+    ? getEffectivePlayerData()
+    : state.player;
+  const inventoryView = typeof getEffectiveInventorySlots === 'function'
+    ? getEffectiveInventorySlots()
+    : state.inventory;
   const slot = getSelectedSlot();
-  const filledSlots = state.inventory.filter((entry) => entry.item).length;
-  const stackTotal = state.inventory.reduce((sum, entry) => sum + Number(entry.count || 0), 0);
+  const filledSlots = inventoryView.filter((entry) => entry.item).length;
+  const stackTotal = inventoryView.reduce((sum, entry) => sum + Number(entry.count || 0), 0);
   const categories = getCategorySummary();
   const selectedLabel = slot.item ? slot.item.name : (slot.itemId || 'Empty slot');
   const selectedSource = slot.item
@@ -756,10 +783,10 @@ function renderWorkspacePanels() {
   el.tabSelectionHex.textContent = slot.hex || '00000000';
   el.tabSelectionSource.textContent = selectedSource;
 
-  if (el.tabPlayerSummaryName) el.tabPlayerSummaryName.textContent = state.player.name;
-  if (el.tabPlayerSummaryTown) el.tabPlayerSummaryTown.textContent = state.player.town;
-  if (el.tabPlayerSummaryWallet) el.tabPlayerSummaryWallet.textContent = formatNumber(state.player.wallet);
-  if (el.tabPlayerSummaryMiles) el.tabPlayerSummaryMiles.textContent = formatNumber(state.player.miles);
+  if (el.tabPlayerSummaryName) el.tabPlayerSummaryName.textContent = playerView.name;
+  if (el.tabPlayerSummaryTown) el.tabPlayerSummaryTown.textContent = playerView.town;
+  if (el.tabPlayerSummaryWallet) el.tabPlayerSummaryWallet.textContent = formatNumber(playerView.wallet);
+  if (el.tabPlayerSummaryMiles) el.tabPlayerSummaryMiles.textContent = formatNumber(playerView.miles);
 
   if (!state.bridge.connected) {
     el.tabBridgeState.textContent = 'Offline';
@@ -1052,7 +1079,10 @@ async function pasteCopiedSlotPayload() {
 }
 
 function getSelectedSlot() {
-  return state.inventory[state.selectedSlotIndex] || emptySlot(Math.max(1, state.selectedSlotIndex + 1));
+  const slotsView = typeof getEffectiveInventorySlots === 'function'
+    ? getEffectiveInventorySlots()
+    : state.inventory;
+  return slotsView[state.selectedSlotIndex] || emptySlot(Math.max(1, state.selectedSlotIndex + 1));
 }
 
 function getFilteredItems(query) {
@@ -1795,6 +1825,18 @@ function renderVillagersPanel(villagers) {
 
 async function loadVillagersFromBridge() {
   const roster = document.getElementById('villager-roster');
+  if (state.testDataMode && typeof getEffectiveVillagersData === 'function') {
+    const villagers = getEffectiveVillagersData();
+    renderVillagersPanel(villagers);
+    const dot = document.getElementById('villagers-status-dot');
+    if (dot) {
+      dot.classList.remove('is-busy', 'is-error');
+      dot.classList.add('is-ok');
+      dot.title = 'TEST villager payload active';
+    }
+    return;
+  }
+
   const isFirstLoad = !state.villagers || state.villagers.length === 0;
 
   // Start the fetch immediately so network time runs in parallel with skeleton display

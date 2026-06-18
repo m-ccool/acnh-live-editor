@@ -1,7 +1,7 @@
 {
   "meta": {
     "name": "acnh-error",
-    "version": 2,
+    "version": 3,
     "source": "repo-static"
   },
   "catalog": {
@@ -25,5 +25,30 @@
     "ryujinxRunning": true,
     "ryujinxMatchCount": 1,
     "inventorySource": "test-payload"
-  }
+  },
+  "player": {
+    "name": "MCCOOL",
+    "town": "Starlake",
+    "wallet": 0,
+    "bank": 0,
+    "miles": 0,
+    "avatar": "./assets/items/Bob_NH.png"
+  },
+  "inventory": [
+    { "slot": 1, "itemId": "Unknown item", "count": 0, "uses": 0, "flag0": 0, "flag1": 0 },
+    { "slot": 2, "itemId": "Unknown item", "count": 0, "uses": 0, "flag0": 0, "flag1": 0 },
+    { "slot": 3, "itemId": "Unknown item", "count": 0, "uses": 0, "flag0": 0, "flag1": 0 }
+  ],
+  "villagers": [
+    { "slot": 1, "name": "Unknown", "speciesName": "", "personalityName": "", "friendship": 0, "friendshipTier": "Unavailable", "gender": "M", "catchphrase": "", "movingOut": false },
+    { "slot": 2, "name": "Unknown", "speciesName": "", "personalityName": "", "friendship": 0, "friendshipTier": "Unavailable", "gender": "F", "catchphrase": "", "movingOut": false },
+    { "slot": 3, "empty": true },
+    { "slot": 4, "empty": true },
+    { "slot": 5, "empty": true },
+    { "slot": 6, "empty": true },
+    { "slot": 7, "empty": true },
+    { "slot": 8, "empty": true },
+    { "slot": 9, "empty": true },
+    { "slot": 10, "empty": true }
+  ]
 }

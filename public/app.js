@@ -777,6 +777,12 @@ function buildBridgeWritePayload(slot) {
 }
 
 async function writeSlotToBridge(slot, actionText) {
+  if (state.testDataMode) {
+    state.bridge.lastAction = 'Inventory write blocked: TEST data mode is active';
+    renderBridge();
+    return false;
+  }
+
   const payload = buildBridgeWritePayload(slot);
   if (!payload) {
     state.bridge.lastError = 'Bridge write blocked: selected item does not have a trusted live item ID yet';
@@ -1553,8 +1559,11 @@ function getPreferredItemPreviewUrl(item) {
 
 function getCategorySummary() {
   const map = new Map();
+  const slotsView = typeof getEffectiveInventorySlots === 'function'
+    ? getEffectiveInventorySlots()
+    : state.inventory;
 
-  state.inventory.forEach((slot) => {
+  slotsView.forEach((slot) => {
     if (!slot.item) return;
     const category = slot.item.category || 'Unsorted';
     map.set(category, (map.get(category) || 0) + 1);
