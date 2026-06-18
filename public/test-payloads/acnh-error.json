@@ -18,7 +18,7 @@
     "port": 32840,
     "listening": true,
     "mode": "test-payload",
-    "message": "TEST payload active: game data read error.",
+    "message": "TEST payload active: bridge connected with ACNH data error.",
     "lastAction": "Injected acnh-error profile",
     "gameDataSource": "error",
     "lastError": "Simulated ACNH memory reader timeout",
@@ -40,8 +40,8 @@
     { "slot": 3, "itemId": "Unknown item", "count": 0, "uses": 0, "flag0": 0, "flag1": 0 }
   ],
   "villagers": [
-    { "slot": 1, "name": "Unknown", "speciesName": "", "personalityName": "", "friendship": 0, "friendshipTier": "Unavailable", "gender": "M", "catchphrase": "", "movingOut": false },
-    { "slot": 2, "name": "Unknown", "speciesName": "", "personalityName": "", "friendship": 0, "friendshipTier": "Unavailable", "gender": "F", "catchphrase": "", "movingOut": false },
+    { "slot": 1, "name": "Bob", "speciesName": "Cat", "personalityName": "Lazy", "friendship": 0, "friendshipTier": "Unavailable", "gender": "M", "catchphrase": "", "movingOut": false, "house": { "extension": "nhvh2", "houseLevel": 1, "houseStatus": 1 } },
+    { "slot": 2, "name": "Ralph", "speciesName": "Tiger", "personalityName": "Cranky", "friendship": 0, "friendshipTier": "Unavailable", "gender": "M", "catchphrase": "", "movingOut": false, "house": { "extension": "nhvh2", "houseLevel": 1, "houseStatus": 1 } },
     { "slot": 3, "empty": true },
     { "slot": 4, "empty": true },
     { "slot": 5, "empty": true },

@@ -23,6 +23,18 @@ const {
   getMusicLibrary
 } = require('./musicLibrary')
 
+const TEST_PAYLOAD_FILES = Object.freeze({
+  'live-ok': 'live-ok.json',
+  'bridge-disconnected': 'bridge-disconnected.json',
+  'acnh-error': 'acnh-error.json'
+})
+
+function resolveTestPayloadPath(key) {
+  const fileName = TEST_PAYLOAD_FILES[key]
+  if (!fileName) return null
+  return path.join(__dirname, '..', 'public', 'test-payloads', fileName)
+}
+
 // Item-names-en.txt index: loaded once, keyed by hex itemId string (e.g. "0x059A" → "Sleeping bag")
 let _itemNamesIndex = null
 function getItemNamesIndex() {
@@ -329,6 +341,55 @@ function createApiRouter(options = {}) {
     } catch (error) {
       console.error(error)
       res.status(503).json({ error: 'Music library unavailable' })
+    }
+  })
+
+  router.get('/api/test-payloads/:key', (req, res) => {
+    const key = String(req.params.key || '').trim()
+    const payloadPath = resolveTestPayloadPath(key)
+    if (!payloadPath) {
+      res.status(404).json({ ok: false, error: 'Unknown test payload key' })
+      return
+    }
+
+    try {
+      const payload = JSON.parse(fs.readFileSync(payloadPath, 'utf8'))
+      res.json({ ok: true, key, payload })
+    } catch (error) {
+      res.status(500).json({ ok: false, error: `Failed to read test payload: ${error.message}` })
+    }
+  })
+
+  router.post('/api/test-payloads/:key', express.json(), (req, res) => {
+    const key = String(req.params.key || '').trim()
+    const payloadPath = resolveTestPayloadPath(key)
+    if (!payloadPath) {
+      res.status(404).json({ ok: false, error: 'Unknown test payload key' })
+      return
+    }
+
+    const incomingPayload = req.body && req.body.payload
+    if (!incomingPayload || typeof incomingPayload !== 'object') {
+      res.status(400).json({ ok: false, error: 'payload object is required' })
+      return
+    }
+
+    try {
+      const existingPayload = JSON.parse(fs.readFileSync(payloadPath, 'utf8'))
+      const nextPayload = {
+        ...existingPayload,
+        ...incomingPayload,
+        meta: {
+          ...(existingPayload.meta || {}),
+          ...(incomingPayload.meta || {}),
+          updatedAt: new Date().toISOString()
+        }
+      }
+
+      fs.writeFileSync(payloadPath, `${JSON.stringify(nextPayload, null, 2)}\n`, 'utf8')
+      res.json({ ok: true, key, payload: nextPayload })
+    } catch (error) {
+      res.status(500).json({ ok: false, error: `Failed to save test payload: ${error.message}` })
     }
   })
 

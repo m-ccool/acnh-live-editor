@@ -778,9 +778,19 @@ function buildBridgeWritePayload(slot) {
 
 async function writeSlotToBridge(slot, actionText) {
   if (state.testDataMode) {
-    state.bridge.lastAction = 'Inventory write blocked: TEST data mode is active';
-    renderBridge();
-    return false;
+    const payloadForTest = buildBridgeWritePayload(slot);
+    if (!payloadForTest) {
+      state.bridge.lastError = 'Test payload write blocked: invalid slot payload';
+      state.bridge.lastAction = 'Inventory TEST write blocked: invalid payload';
+      renderBridge();
+      return false;
+    }
+
+    const ok = await applyTestInventoryWrite(payloadForTest, actionText || `Saved TEST slot ${payloadForTest.slot}`);
+    if (ok) {
+      persistLocalState();
+    }
+    return ok;
   }
 
   const payload = buildBridgeWritePayload(slot);

@@ -55,9 +55,16 @@ function renderBridgePollButton() {
 
 async function writePlayerChanges(nextPlayer = state.player, actionText = 'Player values synced to game') {
   if (state.testDataMode) {
-    state.bridge.lastAction = 'Player write blocked: TEST data mode is active';
-    renderBridge();
-    return false;
+    const ok = await applyTestPlayerWrite(nextPlayer, actionText || 'Saved TEST player data');
+    if (ok) {
+      state.player = {
+        ...state.player,
+        ...nextPlayer
+      };
+      state.playerSaveSnapshot = { ...state.player };
+      persistLocalState();
+    }
+    return ok;
   }
 
   if (!state.bridge.connected) {
@@ -586,13 +593,6 @@ function renderInventory() {
 
       state.hasUserSelectedSlot = true;
       state.selectedSlotIndex = index;
-      if (state.testDataMode) {
-        renderBridge();
-        renderInventory();
-        renderSelectedPreview();
-        renderClipboardState();
-        return;
-      }
       state.modalSearchQuery = '';
       if (el.modalSearchInput) {
         el.modalSearchInput.value = '';
@@ -1695,6 +1695,70 @@ const PERSONALITY_COLORS = {
   Snooty: '#50c8c0',
   Uchi:   '#e8904a',
 };
+const MAX_VILLAGER_SLOTS = 10;
+
+function normalizeVillagerForModal(v, slotOverride) {
+  const slot = Number(slotOverride || (v && v.slot) || 1);
+  const safeSlot = Number.isInteger(slot) && slot > 0 ? slot : 1;
+  const baseName = String(v && v.name || '').trim();
+  const safeName = baseName || `Unassigned Slot ${safeSlot}`;
+  const hasHouse = v && typeof v.house === 'object' && Object.keys(v.house).length > 0;
+  return {
+    slot: safeSlot,
+    empty: false,
+    name: safeName,
+    internalId: v && v.internalId ? String(v.internalId) : '',
+    species: Number(v && v.species || 0),
+    speciesName: String(v && v.speciesName || ''),
+    variant: Number(v && v.variant || 0),
+    personality: Number(v && v.personality || 0),
+    personalityName: String(v && v.personalityName || ''),
+    gender: v && v.gender === 'F' ? 'F' : 'M',
+    catchphrase: String(v && v.catchphrase || ''),
+    friendship: Number(v && v.friendship || 0),
+    friendshipTier: String(v && v.friendshipTier || 'Stranger'),
+    playerName: String(v && v.playerName || ''),
+    townName: String(v && v.townName || ''),
+    movingOut: Boolean(v && v.movingOut),
+    flags: Array.isArray(v && v.flags) ? v.flags.slice() : [],
+    house: hasHouse ? { ...v.house } : {},
+    imageUrl: v && v.imageUrl ? String(v.imageUrl) : null,
+    furniture: Array.isArray(v && v.furniture) ? v.furniture.slice() : [],
+    clothes: Array.isArray(v && v.clothes) ? v.clothes.slice() : [],
+    room: v && typeof v.room === 'object' ? { ...v.room } : {},
+    diy: v && typeof v.diy === 'object' ? { ...v.diy } : {},
+    designs: Array.isArray(v && v.designs) ? v.designs.slice() : [],
+    playerMemory: Array.isArray(v && v.playerMemory) ? v.playerMemory.slice() : []
+  };
+}
+
+function hasAssociatedVillagerHouse(v) {
+  const house = v && typeof v.house === 'object' ? v.house : null;
+  if (!house) return false;
+  if (Object.keys(house).length === 0) return false;
+  if (Number(house.houseStatus || 0) > 0) return true;
+  if (Number(house.houseLevel || 0) > 0) return true;
+  if (String(house.extension || '').trim()) return true;
+  return false;
+}
+
+function buildVillagerSlots(villagers) {
+  const bySlot = new Map();
+  if (Array.isArray(villagers)) {
+    villagers.forEach((entry) => {
+      const slot = Number(entry && entry.slot);
+      if (!Number.isInteger(slot) || slot < 1 || slot > MAX_VILLAGER_SLOTS) return;
+      bySlot.set(slot, entry);
+    });
+  }
+
+  return Array.from({ length: MAX_VILLAGER_SLOTS }, (_, idx) => {
+    const slot = idx + 1;
+    const value = bySlot.get(slot);
+    if (value) return value;
+    return { slot, empty: true, house: {} };
+  });
+}
 
 // Derive head-icon URL from villager's name for the list view (acnhcdn.com NpcIcon).
 // ?v=2 busts any browser cache entry from when the endpoint used max-age=86400.
@@ -1715,27 +1779,47 @@ function openVillagerModal(v) {
   if (!el.villagerModal) { console.error('[villager-modal] #villager-modal not found'); return; }
   if (!window.ACNHReactRuntime) { console.error('[villager-modal] ACNHReactRuntime not loaded'); return; }
 
+  const safeVillager = normalizeVillagerForModal(v, v && v.slot);
+
   // Pause live bridge reads while editing
   pauseBridgePoll();
-  el.villagerModal._villagerData = v;
+  el.villagerModal._villagerData = safeVillager;
 
   const body = el.villagerModal.querySelector('#villager-modal-body');
   if (!body) { console.error('[villager-modal] #villager-modal-body not found'); return; }
 
-  window.ACNHReactRuntime.renderComponent('VillagerModal', body, {
-    villager: v,
-    artUrl: villagerArtUrl(v),
-    onSave(edits) {
-      console.log('[villager-save] edits staged:', edits);
-      if (state && state.bridge) {
-        state.bridge.lastAction = 'Villager edits staged — write pending bridge support';
-        renderBridge();
-      }
-    },
-  });
+  try {
+    window.ACNHReactRuntime.renderComponent('VillagerModal', body, {
+      villager: safeVillager,
+      artUrl: villagerArtUrl(safeVillager),
+      async onSave(edits) {
+        console.log('[villager-save] edits staged:', edits);
+        if (state && state.bridge && state.testDataMode) {
+          const merged = {
+            ...safeVillager,
+            ...(edits && typeof edits === 'object' ? edits : {})
+          };
+          const ok = await applyTestVillagerWrite(safeVillager.slot || 0, merged, `Saved TEST villager ${safeVillager.name || 'slot'}`);
+          if (!ok) {
+            state.bridge.lastAction = 'TEST villager save failed';
+          }
+          renderBridge();
+          return;
+        }
+        if (state && state.bridge) {
+          state.bridge.lastAction = 'Villager edits staged — write pending bridge support';
+          renderBridge();
+        }
+      },
+    });
+  } catch (error) {
+    console.error('[villager-modal] render failed:', error);
+    resumeBridgePoll();
+    return;
+  }
 
   const titleEl = el.villagerModal.querySelector('.villager-modal-title');
-  if (titleEl) titleEl.textContent = v.name || 'Villager';
+  if (titleEl) titleEl.textContent = safeVillager.name || 'Villager';
 
   openModal(el.villagerModal);
 }
@@ -1750,15 +1834,11 @@ function renderVillagersPanel(villagers) {
   const badge  = document.getElementById('villager-count-badge');
   if (!roster) return;
 
-  if (!Array.isArray(villagers) || villagers.length === 0) {
-    roster.innerHTML = '<p class="villager-placeholder">No villager data returned.</p>';
-    if (badge) badge.textContent = '';
-    return;
-  }
+  const slotVillagers = buildVillagerSlots(villagers);
 
   // Detect false-positive scan results: if all occupied slots share the same name
   // the scanner found a repeated-data region, not the real villager array.
-  const occupied = villagers.filter(v => v && !v.empty && v.name);
+  const occupied = slotVillagers.filter(v => v && !v.empty && v.name);
   const uniqueNames = new Set(occupied.map(v => v.name));
   if (occupied.length > 1 && uniqueNames.size === 1) {
     roster.innerHTML = '<p class="villager-placeholder">Villager scan is calibrating — tap Refresh Villagers to retry.</p>';
@@ -1766,22 +1846,42 @@ function renderVillagersPanel(villagers) {
     return;
   }
 
-  if (badge) badge.textContent = `${occupied.length} / 10`;
+  if (badge) badge.textContent = `${occupied.length} / ${MAX_VILLAGER_SLOTS}`;
 
   roster.innerHTML = '';
 
-  villagers.forEach((v) => {
+  slotVillagers.forEach((v) => {
     const card = document.createElement('article');
-    card.className = 'villager-card' + (v.empty ? ' is-empty' : '') + (v.movingOut ? ' is-moving-out' : '');
+    const isEmpty = !v || v.empty || !v.name;
+    const hasHouse = hasAssociatedVillagerHouse(v);
+    card.className = 'villager-card'
+      + (isEmpty ? ' is-empty is-editable' : '')
+      + (v && v.movingOut ? ' is-moving-out' : '')
+      + (!hasHouse ? ' is-house-locked' : '');
 
-    if (v.empty) {
-      card.innerHTML = `<span style="color:rgba(255,255,255,0.3);font-size:0.9rem">Slot ${v.slot || '?'} — Empty</span>`;
+    const lockBadgeHtml = !hasHouse
+      ? '<span class="villager-house-lock" title="No house associated with this slot">&#128274; House locked</span>'
+      : '';
+
+    if (isEmpty) {
+      card.style.cursor = 'pointer';
+      const modalPayload = normalizeVillagerForModal(v, Number(v && v.slot) || 1);
+      card.addEventListener('click', () => openVillagerModal(modalPayload));
+      card.innerHTML = `
+        ${lockBadgeHtml}
+        <img class="villager-avatar villager-avatar-neutral" src="/assets/icons/player-silhouette.svg" alt="Empty villager slot" loading="lazy">
+        <div class="villager-body villager-empty-copy">
+          <div class="villager-empty-title">Slot ${escapeHtml(String(v && v.slot || '?'))} — Empty</div>
+          <div class="villager-empty-hint">Tap to edit this villager slot</div>
+        </div>
+      `;
       roster.appendChild(card);
       return;
     }
 
     card.style.cursor = 'pointer';
-    card.addEventListener('click', () => openVillagerModal(v));
+  const modalPayload = normalizeVillagerForModal(v, v && v.slot);
+  card.addEventListener('click', () => openVillagerModal(modalPayload));
 
     const imgUrl = villagerImageUrl(v);
     const imgHtml = imgUrl
@@ -1802,6 +1902,7 @@ function renderVillagersPanel(villagers) {
 
     card.innerHTML = `
       ${movingOutHtml}
+      ${lockBadgeHtml}
       ${imgHtml}
       <div class="villager-body">
         <div class="villager-name-row">
@@ -1825,37 +1926,36 @@ function renderVillagersPanel(villagers) {
 
 async function loadVillagersFromBridge() {
   const roster = document.getElementById('villager-roster');
+  const dot = document.getElementById('villagers-status-dot');
+
+  if (dot) { dot.classList.remove('is-ok', 'is-error'); dot.classList.add('is-busy'); }
+
+  if (roster) {
+    // Keep all 10 villager slots visible with shimmer while loading.
+    roster.innerHTML = Array.from({ length: MAX_VILLAGER_SLOTS }, () =>
+      '<article class="villager-card villager-card-skeleton"><div class="villager-skel-avatar skeleton-block"></div><div class="villager-skel-body"><div class="villager-skel-name skeleton-block"></div><div class="villager-skel-line skeleton-block"></div><div class="villager-skel-line skeleton-block"></div></div></article>'
+    ).join('');
+  }
+
   if (state.testDataMode && typeof getEffectiveVillagersData === 'function') {
+    await new Promise((resolve) => setTimeout(resolve, 500));
     const villagers = getEffectiveVillagersData();
     renderVillagersPanel(villagers);
-    const dot = document.getElementById('villagers-status-dot');
     if (dot) {
       dot.classList.remove('is-busy', 'is-error');
       dot.classList.add('is-ok');
-      dot.title = 'TEST villager payload active';
+      dot.title = 'Test villager payload active';
     }
     return;
   }
 
-  const isFirstLoad = !state.villagers || state.villagers.length === 0;
-
   // Start the fetch immediately so network time runs in parallel with skeleton display
   const fetchPromise = apiFetch('/api/bridge/read-villagers');
-  const dot = document.getElementById('villagers-status-dot');
-  if (dot) { dot.classList.remove('is-ok', 'is-error'); dot.classList.add('is-busy'); }
 
-  if (isFirstLoad && roster) {
-    // Show shimmer skeleton cards while data is in flight.
-    // Promise.all with a 500ms minimum ensures the skeleton is visible long
-    // enough for the browser to paint and the user to see it.
-    roster.innerHTML = Array.from({ length: 10 }, () =>
-      '<article class="villager-card villager-card-skeleton"><div class="villager-skel-avatar skeleton-block"></div><div class="villager-skel-body"><div class="villager-skel-name skeleton-block"></div><div class="villager-skel-line skeleton-block"></div><div class="villager-skel-line skeleton-block"></div></div></article>'
-    ).join('');
-    await Promise.all([
-      new Promise(r => setTimeout(r, 500)),
-      fetchPromise.catch(() => null), // suppress rejection; handled below
-    ]);
-  }
+  await Promise.all([
+    new Promise(r => setTimeout(r, 500)),
+    fetchPromise.catch(() => null), // suppress rejection; handled below
+  ]);
 
   // On background refresh, keep existing cards visible — no DOM wipe
   try {
@@ -1872,7 +1972,7 @@ async function loadVillagersFromBridge() {
     if (state.villagers && state.villagers.length > 0) {
       renderVillagersPanel(state.villagers);
     } else {
-      if (roster) roster.innerHTML = `<p class="villager-placeholder">No data available</p>`;
+      renderVillagersPanel([]);
     }
   }
 }

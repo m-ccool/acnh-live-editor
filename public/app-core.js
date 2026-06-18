@@ -1846,6 +1846,134 @@ function getEffectiveVillagersData() {
   return payload.villagers;
 }
 
+async function persistActiveTestPayload(actionText) {
+  if (!state.testDataMode || state.testPayloadKey === DEFAULT_TEST_PAYLOAD_KEY || !state.testPayload) {
+    return false;
+  }
+
+  try {
+    const response = await apiFetch(`/api/test-payloads/${encodeURIComponent(state.testPayloadKey)}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ payload: state.testPayload })
+    });
+
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || body.ok === false || !body.payload || typeof body.payload !== 'object') {
+      throw new Error(body.error || `Failed to persist test payload (${response.status})`);
+    }
+
+    state.testPayload = mergeTestPayloadPayload(body.payload);
+    state.testPayloadLoaded = true;
+    state.bridge.lastAction = actionText || 'Saved test payload file';
+    return true;
+  } catch (error) {
+    state.bridge.lastError = error.message;
+    state.bridge.lastAction = `Test payload save failed: ${error.message}`;
+    return false;
+  }
+}
+
+async function applyTestPlayerWrite(nextPlayer, actionText) {
+  const payload = getActiveTestPayload() || getDefaultTestPayload();
+  state.testPayload = {
+    ...payload,
+    player: {
+      ...(payload.player || {}),
+      ...nextPlayer
+    }
+  };
+
+  const saved = await persistActiveTestPayload(actionText || 'Saved TEST player data');
+  renderPlayer();
+  renderBridge();
+  renderDerivedPanels();
+  return saved;
+}
+
+async function applyTestInventoryWrite(slotPayload, actionText) {
+  const payload = getActiveTestPayload() || getDefaultTestPayload();
+  const list = Array.isArray(payload.inventory) ? payload.inventory.slice() : [];
+  const slotNumber = Number(slotPayload && slotPayload.slot);
+  if (!Number.isInteger(slotNumber) || slotNumber < 1) {
+    return false;
+  }
+
+  const nextEntry = {
+    slot: slotNumber,
+    itemId: slotPayload && slotPayload.itemId ? String(slotPayload.itemId) : null,
+    count: Number(slotPayload && slotPayload.count || 0),
+    uses: Number(slotPayload && slotPayload.uses || 0),
+    flag0: Number(slotPayload && slotPayload.flag0 || 0),
+    flag1: Number(slotPayload && slotPayload.flag1 || 0)
+  };
+
+  const existingIndex = list.findIndex((entry) => Number(entry && entry.slot) === slotNumber);
+  if (!nextEntry.itemId) {
+    if (existingIndex >= 0) {
+      list.splice(existingIndex, 1);
+    }
+  } else if (existingIndex >= 0) {
+    list[existingIndex] = nextEntry;
+  } else {
+    list.push(nextEntry);
+  }
+
+  state.testPayload = {
+    ...payload,
+    inventory: list.sort((a, b) => Number(a.slot || 0) - Number(b.slot || 0))
+  };
+
+  const saved = await persistActiveTestPayload(actionText || `Saved TEST inventory slot ${slotNumber}`);
+  renderInventory();
+  renderSelectedPreview();
+  renderClipboardState();
+  renderBridge();
+  renderDerivedPanels();
+  return saved;
+}
+
+async function applyTestVillagerWrite(slotNumber, edits, actionText) {
+  const payload = getActiveTestPayload() || getDefaultTestPayload();
+  const villagers = Array.isArray(payload.villagers) ? payload.villagers.slice() : [];
+  const slot = Number(slotNumber);
+  if (!Number.isInteger(slot) || slot < 1) {
+    return false;
+  }
+
+  const idx = villagers.findIndex((entry) => Number(entry && entry.slot) === slot);
+  const base = idx >= 0 ? (villagers[idx] || {}) : { slot, empty: false };
+  const next = {
+    ...base,
+    ...edits,
+    slot,
+    empty: false
+  };
+
+  if (idx >= 0) {
+    villagers[idx] = next;
+  } else {
+    villagers.push(next);
+  }
+
+  state.testPayload = {
+    ...payload,
+    villagers: villagers.sort((a, b) => Number(a.slot || 0) - Number(b.slot || 0))
+  };
+
+  const saved = await persistActiveTestPayload(actionText || `Saved TEST villager slot ${slot}`);
+  if (saved) {
+    state.villagers = state.testPayload.villagers;
+  }
+  if (typeof renderVillagersPanel === 'function') {
+    renderVillagersPanel(getEffectiveVillagersData());
+  }
+  renderBridge();
+  return saved;
+}
+
 async function selectTestStatePayload(payloadKey, persist) {
   const nextKey = TEST_PAYLOAD_OPTION_DEFS[payloadKey] ? payloadKey : DEFAULT_TEST_PAYLOAD_KEY;
   const shouldEnable = nextKey !== DEFAULT_TEST_PAYLOAD_KEY;
@@ -1894,7 +2022,7 @@ function renderBridge() {
 
   const catalogPillLabel = el.catalogStatus ? el.catalogStatus.querySelector('.status-pill-label') : null;
   if (catalogPillLabel) {
-    catalogPillLabel.textContent = state.testDataMode ? 'TEST API' : 'API';
+    catalogPillLabel.textContent = 'API';
   }
 
   if (el.catalogStatusLabel) {
@@ -1932,7 +2060,6 @@ function renderBridge() {
     }
 
     if (state.testDataMode) {
-      chipText = `TEST ${chipText}`;
       chipTitle = `TEST MODE: ${chipTitle}`;
     }
 
@@ -1976,7 +2103,6 @@ function renderBridge() {
     }
 
     if (state.testDataMode) {
-      chipText = `TEST ${chipText}`;
       chipTitle = `TEST MODE: ${chipTitle}`;
     }
 
