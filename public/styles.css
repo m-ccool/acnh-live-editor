@@ -1020,6 +1020,11 @@ body.modal-open .app-shell {
 }
 
 .topbar {
+  overflow: visible;
+  z-index: 4;
+}
+
+.topbar {
   display: flex;
   flex-direction: column;
   gap: 8px;
