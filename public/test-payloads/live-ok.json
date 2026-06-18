@@ -1,0 +1,28 @@
+{
+  "meta": {
+    "name": "live-ok",
+    "version": 2,
+    "source": "repo-static"
+  },
+  "catalog": {
+    "connectionState": "live",
+    "label": "Live",
+    "message": "TEST payload active: simulated fully healthy catalog.",
+    "searchableCount": 1264
+  },
+  "bridge": {
+    "connected": true,
+    "ip": "10.99.0.42",
+    "listenerIp": "10.99.0.1",
+    "host": "0.0.0.0",
+    "port": 32840,
+    "listening": true,
+    "mode": "test-payload",
+    "message": "TEST payload active: bridge connected and healthy.",
+    "lastAction": "Injected live-ok profile",
+    "gameDataSource": "test-payload-live",
+    "ryujinxRunning": true,
+    "ryujinxMatchCount": 1,
+    "inventorySource": "test-payload"
+  }
+}

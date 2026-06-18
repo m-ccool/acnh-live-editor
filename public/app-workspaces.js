@@ -1241,6 +1241,8 @@ function persistLocalState() {
     activeFilter: state.activeFilter,
     logPanelHeightVh: state.logPanelHeightVh,
     quickCheats: state.quickCheats,
+    testDataMode: state.testDataMode === true,
+    testPayloadKey: state.testPayloadKey,
     theme: state.theme,
     music: {
       drawerOpen: state.music.drawerOpen,
@@ -1304,6 +1306,18 @@ function restoreLocalState() {
         doubleSpeed: hasDoubleSpeed,
         wallWalk: saved.quickCheats.wallWalk === true
       };
+    }
+
+    if (typeof saved.testDataMode === 'boolean') {
+      state.testDataMode = saved.testDataMode;
+      if (typeof saved.testPayloadKey === 'string' && saved.testPayloadKey.trim()) {
+        state.testPayloadKey = saved.testPayloadKey.trim();
+      } else if (state.testDataMode === true) {
+        state.testPayloadKey = 'live-ok';
+      }
+      if (typeof applyTestDataUiState === 'function') {
+        applyTestDataUiState();
+      }
     }
 
     if (saved.theme === THEME_SUNRISE || saved.theme === THEME_NIGHT) {

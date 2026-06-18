@@ -13,6 +13,53 @@ const THEME_SUNRISE = 'sunrise';
 const THEME_NIGHT = 'night';
 const DEFAULT_MUSIC_RIBBON_TOP_VH = 56;
 const DEFAULT_LOG_PANEL_HEIGHT_VH = 13;
+const DEFAULT_TEST_PAYLOAD_KEY = 'off';
+const TEST_PAYLOAD_OPTION_DEFS = Object.freeze({
+  off: {
+    label: 'OFF',
+    path: null
+  },
+  'live-ok': {
+    label: 'LIVE OK',
+    path: './test-payloads/live-ok.json'
+  },
+  'bridge-disconnected': {
+    label: 'DISCONNECTED',
+    path: './test-payloads/bridge-disconnected.json'
+  },
+  'acnh-error': {
+    label: 'ACNH ERROR',
+    path: './test-payloads/acnh-error.json'
+  }
+});
+const DEFAULT_TEST_PAYLOAD = Object.freeze({
+  meta: {
+    name: 'Fallback local test payload',
+    version: 1,
+    source: 'fallback'
+  },
+  catalog: {
+    connectionState: 'syncing',
+    label: 'Simulated',
+    message: 'TEST payload active: catalog status is synthetic.',
+    searchableCount: 999
+  },
+  bridge: {
+    connected: true,
+    ip: '10.99.0.42',
+    listenerIp: '10.99.0.1',
+    host: '0.0.0.0',
+    port: 32840,
+    listening: true,
+    mode: 'test-payload',
+    message: 'TEST payload active: bridge status is synthetic.',
+    lastAction: 'Injected synthetic bridge status',
+    gameDataSource: 'test-payload',
+    ryujinxRunning: true,
+    ryujinxMatchCount: 1,
+    inventorySource: 'test-payload'
+  }
+});
 const DEFAULT_MUSIC_LIBRARY = Object.freeze({
   defaultNightTrackId: 'ambient-4am-rainy',
   defaultSunriseTrackId: 'sunrise-animal-crossing-theme',
@@ -219,7 +266,11 @@ const state = {
     player: false,
     inventory: false,
     search: false
-  }
+  },
+  testDataMode: false,
+  testPayload: null,
+  testPayloadLoaded: false,
+  testPayloadKey: DEFAULT_TEST_PAYLOAD_KEY
 };
 
 const el = {};
@@ -329,6 +380,9 @@ async function init() {
   await loadData();
   seedInventory();
   restoreLocalState();
+  if (state.testDataMode && state.testPayloadKey !== DEFAULT_TEST_PAYLOAD_KEY) {
+    await hydrateTestPayload(state.testPayloadKey);
+  }
   applyTheme(false);
   renderAll();
   updateDataSnapshot();
@@ -379,6 +433,11 @@ function cacheDom() {
   el.themeToggleIconNight = document.getElementById('theme-toggle-icon-night');
   el.bridgeToggle = document.getElementById('bridge-toggle');
   el.logRefreshButton = document.getElementById('log-refresh-button');
+  el.testStateMenuWrap = document.querySelector('.topbar-test-menu-wrap');
+  el.testStateMenuButton = document.getElementById('test-state-menu-button');
+  el.testStateMenu = document.getElementById('test-state-menu');
+  el.testStateOptions = Array.from(document.querySelectorAll('[data-test-payload-key]'));
+  el.logTestPayloadVersion = document.getElementById('log-test-payload-version');
   el.musicRibbon = document.getElementById('music-ribbon');
   el.musicRibbonDrawer = document.getElementById('music-ribbon-drawer');
   el.musicRibbonToggle = document.getElementById('music-ribbon-toggle');
@@ -1143,6 +1202,22 @@ function bindEvents() {
     refreshBridgeStatus('Status log refreshed');
   });
 
+  if (el.testStateMenuButton) {
+    el.testStateMenuButton.addEventListener('click', () => {
+      toggleTestStateMenu();
+    });
+  }
+
+  if (Array.isArray(el.testStateOptions)) {
+    el.testStateOptions.forEach((optionButton) => {
+      optionButton.addEventListener('click', async () => {
+        const payloadKey = String(optionButton.getAttribute('data-test-payload-key') || '').trim();
+        await selectTestStatePayload(payloadKey || DEFAULT_TEST_PAYLOAD_KEY, true);
+        closeTestStateMenu();
+      });
+    });
+  }
+
   document.querySelectorAll('[data-close-modal]').forEach((button) => {
     button.addEventListener('click', () => {
       const modalId = button.getAttribute('data-close-modal');
@@ -1170,6 +1245,7 @@ function bindEvents() {
 
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
+      closeTestStateMenu();
       closeModal(el.settingsModal);
       closeModal(el.playerModal);
       closeModal(el.itemModal);
@@ -1183,6 +1259,10 @@ function bindEvents() {
 
   document.addEventListener('pointerdown', (event) => {
     registerMusicInteraction();
+
+    if (isTestStateMenuOpen() && el.testStateMenuWrap && !el.testStateMenuWrap.contains(event.target)) {
+      closeTestStateMenu();
+    }
 
     if (!el.itemModal || el.itemModal.classList.contains('hidden')) return;
     if (!el.modalSearchStack) return;
@@ -1575,6 +1655,7 @@ function applyUpdateFade(element) {
 function renderAll() {
   renderLogPanelSize();
   renderThemeToggle();
+  applyTestDataUiState();
   renderBridge();
   renderMusic();
   renderPlayer();
@@ -1594,26 +1675,197 @@ function renderDerivedPanels() {
   renderSettingsDebug();
 }
 
+function getDefaultTestPayload() {
+  return JSON.parse(JSON.stringify(DEFAULT_TEST_PAYLOAD));
+}
+
+function getTestPayloadOption(payloadKey) {
+  const key = String(payloadKey || DEFAULT_TEST_PAYLOAD_KEY).trim();
+  return TEST_PAYLOAD_OPTION_DEFS[key] || TEST_PAYLOAD_OPTION_DEFS[DEFAULT_TEST_PAYLOAD_KEY];
+}
+
+function isTestStateMenuOpen() {
+  return Boolean(el.testStateMenuWrap && el.testStateMenuWrap.classList.contains('is-open'));
+}
+
+function openTestStateMenu() {
+  if (!el.testStateMenuWrap || !el.testStateMenu || !el.testStateMenuButton) return;
+  el.testStateMenuWrap.classList.add('is-open');
+  el.testStateMenu.setAttribute('aria-hidden', 'false');
+  el.testStateMenuButton.setAttribute('aria-expanded', 'true');
+}
+
+function closeTestStateMenu() {
+  if (!el.testStateMenuWrap || !el.testStateMenu || !el.testStateMenuButton) return;
+  el.testStateMenuWrap.classList.remove('is-open');
+  el.testStateMenu.setAttribute('aria-hidden', 'true');
+  el.testStateMenuButton.setAttribute('aria-expanded', 'false');
+}
+
+function toggleTestStateMenu() {
+  if (isTestStateMenuOpen()) {
+    closeTestStateMenu();
+    return;
+  }
+  openTestStateMenu();
+}
+
+function mergeTestPayloadPayload(payload) {
+  const fallback = getDefaultTestPayload();
+  if (!payload || typeof payload !== 'object') {
+    return fallback;
+  }
+
+  const incomingMeta = payload.meta && typeof payload.meta === 'object' ? payload.meta : null;
+  const incomingCatalog = payload.catalog && typeof payload.catalog === 'object' ? payload.catalog : null;
+  const incomingBridge = payload.bridge && typeof payload.bridge === 'object' ? payload.bridge : null;
+
+  return {
+    meta: {
+      ...fallback.meta,
+      ...(incomingMeta || {})
+    },
+    catalog: {
+      ...fallback.catalog,
+      ...(incomingCatalog || {})
+    },
+    bridge: {
+      ...fallback.bridge,
+      ...(incomingBridge || {})
+    }
+  };
+}
+
+async function hydrateTestPayload(payloadKey) {
+  const option = getTestPayloadOption(payloadKey);
+  if (!option.path) {
+    state.testPayload = null;
+    state.testPayloadLoaded = false;
+    return false;
+  }
+
+  try {
+    const response = await fetch(option.path, { cache: 'no-store' });
+    if (!response.ok) {
+      throw new Error(`Unable to load test payload (${response.status})`);
+    }
+
+    const parsed = await response.json();
+    state.testPayload = mergeTestPayloadPayload(parsed);
+    state.testPayloadLoaded = true;
+    return true;
+  } catch (error) {
+    console.warn(error);
+    state.testPayload = getDefaultTestPayload();
+    state.testPayloadLoaded = false;
+    return false;
+  }
+}
+
+function renderTestPayloadVersionStamp() {
+  if (!el.logTestPayloadVersion) return;
+
+  if (!state.testDataMode || !state.testPayload || !state.testPayload.meta) {
+    el.logTestPayloadVersion.hidden = true;
+    el.logTestPayloadVersion.textContent = 'TEST payload';
+    return;
+  }
+
+  const payloadVersion = state.testPayload.meta.version || '?';
+  const payloadName = String(state.testPayload.meta.name || state.testPayloadKey || 'payload').trim();
+  el.logTestPayloadVersion.hidden = false;
+  el.logTestPayloadVersion.textContent = `TEST ${payloadName} v${payloadVersion}`;
+}
+
+function renderTestStateMenuSelection() {
+  if (!Array.isArray(el.testStateOptions)) return;
+
+  el.testStateOptions.forEach((optionButton) => {
+    const payloadKey = String(optionButton.getAttribute('data-test-payload-key') || '').trim();
+    const isActive = state.testDataMode
+      ? payloadKey === state.testPayloadKey
+      : payloadKey === DEFAULT_TEST_PAYLOAD_KEY;
+    optionButton.classList.toggle('is-active', isActive);
+  });
+}
+
+function applyTestDataUiState() {
+  if (document && document.body) {
+    document.body.classList.toggle('is-test-data', state.testDataMode === true);
+  }
+  if (el.testStateMenuButton) {
+    const option = getTestPayloadOption(state.testPayloadKey);
+    const label = state.testDataMode ? option.label : 'OFF';
+    el.testStateMenuButton.textContent = `TEST ${label}`;
+    el.testStateMenuButton.setAttribute('aria-expanded', isTestStateMenuOpen() ? 'true' : 'false');
+  }
+  renderTestStateMenuSelection();
+  renderTestPayloadVersionStamp();
+}
+
+async function selectTestStatePayload(payloadKey, persist) {
+  const nextKey = TEST_PAYLOAD_OPTION_DEFS[payloadKey] ? payloadKey : DEFAULT_TEST_PAYLOAD_KEY;
+  const shouldEnable = nextKey !== DEFAULT_TEST_PAYLOAD_KEY;
+
+  state.testPayloadKey = nextKey;
+  state.testDataMode = shouldEnable;
+
+  if (shouldEnable) {
+    await hydrateTestPayload(nextKey);
+  } else {
+    state.testPayload = null;
+    state.testPayloadLoaded = false;
+  }
+
+  applyTestDataUiState();
+  renderBridge();
+
+  if (persist && typeof persistLocalState === 'function') {
+    persistLocalState();
+  }
+}
+
 function renderBridge() {
-  const catalogReady = state.catalog.searchableCount > 0 || state.items.length > 0;
+  const testPayload = state.testPayload || getDefaultTestPayload();
+  const selectedOption = getTestPayloadOption(state.testPayloadKey);
+  const catalogView = state.testDataMode
+    ? {
+        ...state.catalog,
+        ...(testPayload.catalog || {})
+      }
+    : state.catalog;
+  const bridgeView = state.testDataMode
+    ? {
+        ...state.bridge,
+        ...(testPayload.bridge || {})
+      }
+    : state.bridge;
+
+  const catalogReady = catalogView.searchableCount > 0 || state.items.length > 0;
   const catalogGlyph = getCatalogIndicatorGlyph();
 
-  el.catalogStatus.classList.toggle('is-ok', state.catalog.connectionState === 'live');
-  el.catalogStatus.classList.toggle('is-warn', state.catalog.connectionState === 'syncing' || state.catalog.connectionState === 'cached' || state.catalog.connectionState === 'fallback');
-  el.catalogStatus.classList.toggle('is-bad', state.catalog.connectionState === 'offline');
-  el.catalogStatus.title = state.catalog.message || '';
+  el.catalogStatus.classList.toggle('is-ok', catalogView.connectionState === 'live');
+  el.catalogStatus.classList.toggle('is-warn', catalogView.connectionState === 'syncing' || catalogView.connectionState === 'cached' || catalogView.connectionState === 'fallback');
+  el.catalogStatus.classList.toggle('is-bad', catalogView.connectionState === 'offline');
+  el.catalogStatus.title = catalogView.message || '';
+
+  const catalogPillLabel = el.catalogStatus ? el.catalogStatus.querySelector('.status-pill-label') : null;
+  if (catalogPillLabel) {
+    catalogPillLabel.textContent = state.testDataMode ? 'TEST API' : 'API';
+  }
 
   if (el.catalogStatusLabel) {
     // Suppress label text when live — the green dot is sufficient
-    const rawLabel = state.catalog.label || 'Offline';
-    el.catalogStatusLabel.textContent = rawLabel === 'Live' ? '' : rawLabel;
-    el.catalogStatusLabel.title = state.catalog.message || '';
+    const rawLabel = catalogView.label || 'Offline';
+    const shownLabel = rawLabel === 'Live' ? '' : rawLabel;
+    el.catalogStatusLabel.textContent = shownLabel;
+    el.catalogStatusLabel.title = state.testDataMode ? `TEST MODE: ${catalogView.message || ''}` : (catalogView.message || '');
   }
 
   if (el.bridgeStatusInline) {
-    el.bridgeStatusInline.textContent = state.bridge.connected ? '✓' : '✕';
-    el.bridgeStatusInline.classList.toggle('is-ok', state.bridge.connected);
-    el.bridgeStatusInline.classList.toggle('is-bad', !state.bridge.connected);
+    el.bridgeStatusInline.textContent = bridgeView.connected ? '✓' : '✕';
+    el.bridgeStatusInline.classList.toggle('is-ok', bridgeView.connected);
+    el.bridgeStatusInline.classList.toggle('is-bad', !bridgeView.connected);
     el.bridgeStatusInline.classList.remove('is-warn');
   }
 
@@ -1622,21 +1874,30 @@ function renderBridge() {
     let chipTitle = 'Ryujinx status unknown';
     let chipClass = 'is-warn';
 
-    if (!state.bridge.connected) {
+    if (!bridgeView.connected) {
       chipText = 'Ryujinx: Offline';
       chipTitle = 'Bridge is disconnected — Ryujinx status unknown';
       chipClass = 'is-bad';
-    } else if (state.bridge.ryujinxRunning === true) {
+    } else if (bridgeView.ryujinxRunning === true) {
       chipText = 'Ryujinx: Running';
-      chipTitle = `Ryujinx process detected${state.bridge.ryujinxMatchCount ? ` (${state.bridge.ryujinxMatchCount})` : ''}`;
+      chipTitle = `Ryujinx process detected${bridgeView.ryujinxMatchCount ? ` (${bridgeView.ryujinxMatchCount})` : ''}`;
       chipClass = 'is-ok';
-    } else if (state.bridge.ryujinxRunning === false) {
+    } else if (bridgeView.ryujinxRunning === false) {
       chipText = 'Ryujinx: Stopped';
       chipTitle = 'Bridge connected, but no Ryujinx process match was found';
       chipClass = 'is-bad';
     }
 
+    if (state.testDataMode) {
+      chipText = `TEST ${chipText}`;
+      chipTitle = `TEST MODE: ${chipTitle}`;
+    }
+
     el.ryujinxStatusChip.title = chipTitle;
+    const ryujinxLabel = el.ryujinxStatusChip.querySelector('.status-pill-label');
+    if (ryujinxLabel) {
+      ryujinxLabel.textContent = chipText;
+    }
     el.ryujinxStatusChip.classList.toggle('is-ok', chipClass === 'is-ok');
     el.ryujinxStatusChip.classList.toggle('is-bad', chipClass === 'is-bad');
     el.ryujinxStatusChip.classList.toggle('is-warn', chipClass === 'is-warn');
@@ -1647,121 +1908,142 @@ function renderBridge() {
     let chipTitle = 'ACNH data source unknown';
     let chipClass = 'is-warn';
 
-    if (!state.bridge.connected) {
+    if (!bridgeView.connected) {
       chipText = 'ACNH Data: Offline';
       chipTitle = 'Bridge not connected — game data unavailable';
       chipClass = 'is-bad';
     } else if (
-      state.bridge.gameDataSource === 'unavailable' ||
-      state.bridge.gameDataSource === 'none' ||
-      state.bridge.gameDataSource === 'bridge-fallback' ||
-      state.bridge.gameDataSource === 'bridge-memory-tool' ||
-      state.bridge.gameDataSource === 'adapter-memory'
+      bridgeView.gameDataSource === 'unavailable' ||
+      bridgeView.gameDataSource === 'none' ||
+      bridgeView.gameDataSource === 'bridge-fallback' ||
+      bridgeView.gameDataSource === 'bridge-memory-tool' ||
+      bridgeView.gameDataSource === 'adapter-memory'
     ) {
       chipText = 'ACNH Data: Unavailable';
       chipTitle = 'Live ACNH game-data is not available from the bridge';
       chipClass = 'is-warn';
-    } else if (state.bridge.gameDataSource === 'error') {
+    } else if (bridgeView.gameDataSource === 'error') {
       chipText = 'ACNH Data: Error';
-      chipTitle = state.bridge.lastError || 'Data read error';
+      chipTitle = bridgeView.lastError || 'Data read error';
       chipClass = 'is-bad';
-    } else if (state.bridge.gameDataSource) {
+    } else if (bridgeView.gameDataSource) {
       chipText = 'ACNH Data: Live';
-      chipTitle = `Reading ${state.bridge.gameDataSource}`;
+      chipTitle = `Reading ${bridgeView.gameDataSource}`;
       chipClass = 'is-ok';
     }
 
+    if (state.testDataMode) {
+      chipText = `TEST ${chipText}`;
+      chipTitle = `TEST MODE: ${chipTitle}`;
+    }
+
     el.acnhDataStatusChip.title = chipTitle;
+    const acnhDataLabel = el.acnhDataStatusChip.querySelector('.status-pill-label');
+    if (acnhDataLabel) {
+      acnhDataLabel.textContent = chipText;
+    }
     el.acnhDataStatusChip.classList.toggle('is-ok', chipClass === 'is-ok');
     el.acnhDataStatusChip.classList.toggle('is-bad', chipClass === 'is-bad');
     el.acnhDataStatusChip.classList.toggle('is-warn', chipClass === 'is-warn');
   }
 
   if (el.connectBridgeDot) {
-    el.connectBridgeDot.classList.toggle('is-on', state.bridge.connected);
+    el.connectBridgeDot.classList.toggle('is-on', bridgeView.connected);
   }
 
   // Update deploy button label to reflect live connection state
   if (el.deployButton && !el.deployButton.disabled) {
     const lbl = document.getElementById('deploy-button-label');
-    if (lbl) lbl.textContent = state.bridge.connected ? '⚡ Bridge' : 'Connect';
+    if (lbl) lbl.textContent = bridgeView.connected ? '⚡ Bridge' : 'Connect';
   }
 
   if (el.bridgeToggle) {
-    el.bridgeToggle.classList.toggle('is-on', state.bridge.connected);
-    el.bridgeToggle.setAttribute('aria-pressed', state.bridge.connected ? 'true' : 'false');
-    el.bridgeToggle.title = state.bridge.connected
+    el.bridgeToggle.classList.toggle('is-on', bridgeView.connected);
+    el.bridgeToggle.setAttribute('aria-pressed', bridgeView.connected ? 'true' : 'false');
+    el.bridgeToggle.title = bridgeView.connected
       ? 'Bridge connected'
-      : (state.bridge.listening ? 'Bridge listener active' : 'Bridge listener offline');
+      : (bridgeView.listening ? 'Bridge listener active' : 'Bridge listener offline');
   }
 
   if (el.ipDisplay) {
-    el.ipDisplay.textContent = state.bridge.connected
-      ? `Bridge: ${state.bridge.ip}`
-      : `Listening: ${state.bridge.listenerIp || state.bridge.host}:${state.bridge.port}`;
+    el.ipDisplay.textContent = bridgeView.connected
+      ? `Bridge: ${bridgeView.ip}`
+      : `Listening: ${bridgeView.listenerIp || bridgeView.host}:${bridgeView.port}`;
   }
 
   if (el.logConnectionIndicator) {
-    el.logConnectionIndicator.classList.toggle('is-online', state.bridge.connected);
-    el.logConnectionIndicator.classList.toggle('is-offline', !state.bridge.connected);
-    el.logConnectionIndicator.setAttribute('aria-label', state.bridge.connected ? 'Bridge connected' : 'Bridge disconnected');
-    el.logConnectionIndicator.title = state.bridge.message || (state.bridge.connected ? 'Bridge connected' : 'Bridge disconnected');
+    el.logConnectionIndicator.classList.toggle('is-online', bridgeView.connected);
+    el.logConnectionIndicator.classList.toggle('is-offline', !bridgeView.connected);
+    const connectionLabel = bridgeView.connected ? 'Bridge connected' : 'Bridge disconnected';
+    el.logConnectionIndicator.setAttribute('aria-label', state.testDataMode ? `TEST ${connectionLabel}` : connectionLabel);
+    el.logConnectionIndicator.title = state.testDataMode
+      ? `TEST MODE: ${bridgeView.message || connectionLabel}`
+      : (bridgeView.message || connectionLabel);
   }
 
   if (el.logConnectionIcon) {
-    el.logConnectionIcon.src = state.bridge.connected
+    el.logConnectionIcon.src = bridgeView.connected
       ? CONSOLE_CONNECTED_ICON_PATH
       : CONSOLE_DISCONNECTED_ICON_PATH;
   }
 
   const selectedSlot = getSelectedSlot();
-  const bridgeCapabilities = Array.isArray(state.bridge.capabilities)
-    ? state.bridge.capabilities.map((entry) => String(entry || '').trim().toLowerCase()).filter(Boolean)
+  const bridgeCapabilities = Array.isArray(bridgeView.capabilities)
+    ? bridgeView.capabilities.map((entry) => String(entry || '').trim().toLowerCase()).filter(Boolean)
     : [];
   const supportsReadGameData = bridgeCapabilities.includes('read_game_data');
   const bridgeWarnings = [];
 
-  if (state.bridge.connected && !supportsReadGameData) {
+  if (bridgeView.connected && !supportsReadGameData) {
     bridgeWarnings.push('Deck bridge client missing read_game_data capability. Live ACNH data is unavailable. Restart bridge with updated script.');
   }
 
+  if (state.testDataMode) {
+    bridgeWarnings.push(`TEST mode enabled from ${selectedOption.path || 'inline fallback payload'}.`);
+  }
+
   const block = {
-    connected: state.bridge.connected,
-    ip: state.bridge.ip,
-    listenerIp: state.bridge.listenerIp,
-    clientIp: state.bridge.clientIp,
-    host: state.bridge.host,
-    port: state.bridge.port,
-    listening: state.bridge.listening,
-    deviceName: state.bridge.deviceName,
-    protocolVersion: state.bridge.protocolVersion,
-    capabilities: state.bridge.capabilities,
+    connected: bridgeView.connected,
+    ip: bridgeView.ip,
+    listenerIp: bridgeView.listenerIp,
+    clientIp: bridgeView.clientIp,
+    host: bridgeView.host,
+    port: bridgeView.port,
+    listening: bridgeView.listening,
+    deviceName: bridgeView.deviceName,
+    protocolVersion: bridgeView.protocolVersion,
+    capabilities: bridgeView.capabilities,
     supportsReadGameData,
     bridgeWarnings,
-    pendingRequests: state.bridge.pendingRequests,
-    mode: state.bridge.mode,
-    inventoryAdapter: state.bridge.inventoryAdapter,
-    inventorySource: state.bridge.inventorySource,
-    lastInventorySyncAt: state.bridge.lastInventorySyncAt,
-    gameDataSource: state.bridge.gameDataSource,
-    lastGameDataSyncAt: state.bridge.lastGameDataSyncAt,
-    lastGameSaveAt: state.bridge.lastGameSaveAt,
-    lastGameDataFilePath: state.bridge.lastGameDataFilePath,
-    ryujinxRunning: state.bridge.ryujinxRunning,
-    ryujinxMatchCount: state.bridge.ryujinxMatchCount,
-    ryujinxMatches: state.bridge.ryujinxMatches,
+    pendingRequests: bridgeView.pendingRequests,
+    mode: bridgeView.mode,
+    inventoryAdapter: bridgeView.inventoryAdapter,
+    inventorySource: bridgeView.inventorySource,
+    lastInventorySyncAt: bridgeView.lastInventorySyncAt,
+    gameDataSource: bridgeView.gameDataSource,
+    lastGameDataSyncAt: bridgeView.lastGameDataSyncAt,
+    lastGameSaveAt: bridgeView.lastGameSaveAt,
+    lastGameDataFilePath: bridgeView.lastGameDataFilePath,
+    ryujinxRunning: bridgeView.ryujinxRunning,
+    ryujinxMatchCount: bridgeView.ryujinxMatchCount,
+    ryujinxMatches: bridgeView.ryujinxMatches,
     catalogReady,
-    catalogState: state.catalog.connectionState,
-    catalogLabel: state.catalog.label,
-    itemCount: state.catalog.searchableCount || state.items.length,
+    catalogState: catalogView.connectionState,
+    catalogLabel: catalogView.label,
+    itemCount: catalogView.searchableCount || state.items.length,
     quickCheats: getEnabledQuickCheatSummary(),
     ...buildSelectedSlotPayload(selectedSlot),
-    message: state.bridge.message,
-    lastError: state.bridge.lastError,
-    lastCommand: state.bridge.lastCommand,
-    lastResponse: state.bridge.lastResponse,
-    remoteStatus: state.bridge.remoteStatus,
-    lastAction: state.bridge.lastAction
+    message: bridgeView.message,
+    lastError: bridgeView.lastError,
+    lastCommand: bridgeView.lastCommand,
+    lastResponse: bridgeView.lastResponse,
+    remoteStatus: bridgeView.remoteStatus,
+    lastAction: bridgeView.lastAction,
+    testDataMode: state.testDataMode,
+    testPayloadKey: state.testDataMode ? state.testPayloadKey : DEFAULT_TEST_PAYLOAD_KEY,
+    testPayloadSource: state.testDataMode ? selectedOption.path : null,
+    testPayloadLoaded: state.testPayloadLoaded,
+    testPayloadMeta: state.testDataMode ? testPayload.meta : null
   };
 
   el.bridgeStatus.textContent = JSON.stringify(block, null, 2);

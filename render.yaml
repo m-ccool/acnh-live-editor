@@ -18,5 +18,7 @@ services:
         value: 32840
       - key: BRIDGE_REQUEST_TIMEOUT_MS
         value: 5000
+      - key: NOOKIPEDIA_API_KEY
+        sync: false
       - key: NOOKIPEDIA_ACCEPT_VERSION
         value: 1.7.0

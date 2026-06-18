@@ -1,0 +1,29 @@
+{
+  "meta": {
+    "name": "acnh-error",
+    "version": 2,
+    "source": "repo-static"
+  },
+  "catalog": {
+    "connectionState": "syncing",
+    "label": "Syncing",
+    "message": "TEST payload active: catalog syncing while game data errors.",
+    "searchableCount": 1020
+  },
+  "bridge": {
+    "connected": true,
+    "ip": "10.99.0.42",
+    "listenerIp": "10.99.0.1",
+    "host": "0.0.0.0",
+    "port": 32840,
+    "listening": true,
+    "mode": "test-payload",
+    "message": "TEST payload active: game data read error.",
+    "lastAction": "Injected acnh-error profile",
+    "gameDataSource": "error",
+    "lastError": "Simulated ACNH memory reader timeout",
+    "ryujinxRunning": true,
+    "ryujinxMatchCount": 1,
+    "inventorySource": "test-payload"
+  }
+}

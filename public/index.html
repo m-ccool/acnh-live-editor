@@ -23,7 +23,7 @@
   <link rel="icon" type="image/png" href="./assets/icons/Apple_NL_Icon.png" />
   <link rel="manifest" href="./manifest.webmanifest" />
   <meta name="theme-color" content="#09090b" />
-  <link rel="stylesheet" href="./styles.css?v=102" />
+  <link rel="stylesheet" href="./styles.css?v=103" />
 </head>
 <body>
   <!-- Sticky selected-item bar lives at body level so backdrop-filter on shell-card doesn't trap fixed positioning -->
@@ -89,6 +89,33 @@
             <span id="connect-bridge-dot" class="bridge-dot" aria-hidden="true"></span>
             <span id="deploy-button-label">Connect</span>
           </button>
+          <div class="topbar-test-menu-wrap">
+            <button
+              id="test-state-menu-button"
+              class="action-pill-btn test-state-menu-button"
+              type="button"
+              aria-label="Open test state menu"
+              aria-haspopup="menu"
+              aria-expanded="false"
+              title="Select test status profile"
+            >
+              TEST OFF
+            </button>
+            <div id="test-state-menu" class="test-state-menu" role="menu" aria-hidden="true">
+              <button id="test-state-option-off" class="test-state-option" type="button" role="menuitem" data-test-payload-key="off">
+                Live Mode (Off)
+              </button>
+              <button id="test-state-option-live" class="test-state-option" type="button" role="menuitem" data-test-payload-key="live-ok">
+                Test: Live OK
+              </button>
+              <button id="test-state-option-disconnected" class="test-state-option" type="button" role="menuitem" data-test-payload-key="bridge-disconnected">
+                Test: Bridge Disconnected
+              </button>
+              <button id="test-state-option-error" class="test-state-option" type="button" role="menuitem" data-test-payload-key="acnh-error">
+                Test: ACNH Error
+              </button>
+            </div>
+          </div>
           <button
             id="settings-button"
             class="action-pill-btn"
@@ -126,6 +153,9 @@
     <section class="log-panel shell-card">
       <div class="log-panel-head">
         <span>CMD / Log view</span>
+        <div class="log-panel-head-actions" aria-live="polite">
+          <span id="log-test-payload-version" class="log-test-payload-version" hidden>TEST payload v-</span>
+        </div>
       </div>
 
       <div class="log-console-wrap">
@@ -1129,9 +1159,9 @@
   <script defer src="./react/components/MusicLibraryOptions.js?v=47"></script>
   <script defer src="./react/components/VillagerModal.js?v=97"></script>
   <script defer src="./react/renderers.js?v=47"></script>
-  <script defer src="./app-core.js?v=97"></script>
+  <script defer src="./app-core.js?v=98"></script>
   <script defer src="./app-music.js?v=47"></script>
-  <script defer src="./app-workspaces.js?v=96"></script>
+  <script defer src="./app-workspaces.js?v=97"></script>
   <script defer src="./app.js?v=97"></script>
 </body>
 </html>

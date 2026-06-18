@@ -1,0 +1,28 @@
+{
+  "meta": {
+    "name": "bridge-disconnected",
+    "version": 2,
+    "source": "repo-static"
+  },
+  "catalog": {
+    "connectionState": "cached",
+    "label": "Cached",
+    "message": "TEST payload active: catalog cached while bridge is offline.",
+    "searchableCount": 812
+  },
+  "bridge": {
+    "connected": false,
+    "ip": "00.00.00.00",
+    "listenerIp": "10.99.0.1",
+    "host": "0.0.0.0",
+    "port": 32840,
+    "listening": true,
+    "mode": "test-payload",
+    "message": "TEST payload active: bridge disconnected.",
+    "lastAction": "Injected bridge-disconnected profile",
+    "gameDataSource": "none",
+    "ryujinxRunning": null,
+    "ryujinxMatchCount": 0,
+    "inventorySource": "local-cache"
+  }
+}
