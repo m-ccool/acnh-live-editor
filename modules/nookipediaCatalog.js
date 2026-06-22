@@ -234,8 +234,10 @@ function refreshCatalogInBackground() {
     return
   }
 
-  getCatalogItems().catch(() => {
+  getCatalogItems().catch((error) => {
     // Errors are surfaced via getCatalogSyncState().lastSyncError.
+    // Log but don't crash the server on API failures.
+    console.error(`Catalog sync error (non-fatal): ${error.message}`)
   })
 }
 
