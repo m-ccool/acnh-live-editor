@@ -139,13 +139,20 @@
         list.forEach(function (entry) {
           var name = (entry.name || '').trim();
           if (!name) return;
-          // Client-side guard in case Nookipedia name param returns unfiltered results
+          // Client-side filter as fallback if Nookipedia name param returned unfiltered results
           if (query && name.toLowerCase().indexOf(query.toLowerCase()) === -1) return;
+          // Image: top-level first, then first variation, then render_url fallback
+          var imageUrl = entry.image_url || '';
+          if (!imageUrl && Array.isArray(entry.variations) && entry.variations.length) {
+            imageUrl = (entry.variations[0] && entry.variations[0].image_url) || '';
+          }
+          if (!imageUrl) imageUrl = entry.render_url || '';
+          if (!imageUrl) return; // skip items with no image, matching server behaviour
           items.push({
             name: name,
             category: entry.category || '',
-            icon_url: entry.image_url || entry.render_url || '',
-            image_url: entry.image_url || entry.render_url || ''
+            icon_url: imageUrl,
+            image_url: imageUrl
           });
         });
       });
