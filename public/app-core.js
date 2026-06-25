@@ -879,7 +879,7 @@ function initPresetItemSearch() {
       let items = [];
       try {
         const params = new URLSearchParams({ q, limit: '15' });
-        const res = await fetch(`/api/items/search?${params}`, { cache: 'no-store' });
+        const res = await apiFetch(`/api/items/search?${params}`, { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
           items = Array.isArray(data.items) ? data.items : (Array.isArray(data) ? data : []);

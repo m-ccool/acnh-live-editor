@@ -24,6 +24,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Inject API key
+        run: |
+          echo "window.NOOKIPEDIA_API_KEY='${{ secrets.NOOKIPEDIA_API_KEY }}';" > public/api-config.js
+
+      - name: Copy starter items
+        run: cp data/items.json public/items.json
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
