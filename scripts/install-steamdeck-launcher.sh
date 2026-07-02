@@ -11,6 +11,7 @@ ICON_PATH="${REPO_DIR}/public/assets/icons/Apple_NL_Icon.png"
 DESKTOP_FILE="${HOME}/Desktop/ACNH Live Editor.desktop"
 APP_FILE="${HOME}/.local/share/applications/acnh-live-editor.desktop"
 APP_URL="http://127.0.0.1:3000"
+SERVER_ENTRY="${REPO_DIR}/server.js"
 
 SYSTEMD_USER_DIR="${HOME}/.config/systemd/user"
 SERVER_SERVICE_FILE="${SYSTEMD_USER_DIR}/acnh-live-server.service"
@@ -19,8 +20,55 @@ BRIDGE_SERVICE_FILE="${SYSTEMD_USER_DIR}/acnh-live-bridge.service"
 SERVER_LOG_FILE="${HOME}/.acnh-live-server.log"
 BRIDGE_LOG_FILE="${HOME}/.acnh-live-bridge.log"
 
+resolve_node_bin() {
+  if command -v node >/dev/null 2>&1; then
+    command -v node
+    return 0
+  fi
+
+  if [[ -x "/usr/bin/node" ]]; then
+    echo "/usr/bin/node"
+    return 0
+  fi
+
+  if [[ -x "/usr/local/bin/node" ]]; then
+    echo "/usr/local/bin/node"
+    return 0
+  fi
+
+  local nvm_script="${HOME}/.nvm/nvm.sh"
+  if [[ -f "${nvm_script}" ]]; then
+    # shellcheck source=/dev/null
+    source "${nvm_script}" >/dev/null 2>&1 || true
+    if command -v node >/dev/null 2>&1; then
+      command -v node
+      return 0
+    fi
+  fi
+
+  local newest_nvm_node
+  newest_nvm_node="$(find "${HOME}/.nvm/versions/node" -maxdepth 3 -type f -name node 2>/dev/null | sort | tail -n 1 || true)"
+  if [[ -n "${newest_nvm_node}" && -x "${newest_nvm_node}" ]]; then
+    echo "${newest_nvm_node}"
+    return 0
+  fi
+
+  return 1
+}
+
 mkdir -p "${HOME}/.local/share/applications"
 mkdir -p "${SYSTEMD_USER_DIR}"
+
+NODE_BIN="$(resolve_node_bin || true)"
+if [[ -z "${NODE_BIN}" ]]; then
+  echo "[acnh-install] node is not available. Install node on Steam Deck or add it to PATH."
+  exit 1
+fi
+
+if [[ ! -f "${SERVER_ENTRY}" ]]; then
+  echo "[acnh-install] Missing ${SERVER_ENTRY}"
+  exit 1
+fi
 
 chmod +x "${RUN_BRIDGE_SCRIPT}"
 chmod +x "${LAUNCH_APP_SCRIPT}"
@@ -74,7 +122,7 @@ Type=simple
 WorkingDirectory=${REPO_DIR}
 Environment=HOME=${HOME}
 EnvironmentFile=-${ENV_FILE}
-ExecStart=/usr/bin/env npm run dev
+ExecStart=${NODE_BIN} ${SERVER_ENTRY}
 Restart=on-failure
 RestartSec=5
 StandardOutput=append:${SERVER_LOG_FILE}
@@ -114,6 +162,7 @@ systemctl --user disable --now acnh-live-bridge.service >/dev/null 2>&1 || true
 echo "[acnh-install] Services installed (on-demand mode):"
 echo "[acnh-install]   - ${SERVER_SERVICE_FILE}"
 echo "[acnh-install]   - ${BRIDGE_SERVICE_FILE}"
+echo "[acnh-install] Server node: ${NODE_BIN}"
 
 echo "[acnh-install] Desktop launch opens: ${APP_URL}"
 echo "[acnh-install] Steam Library helper: bash ${REGISTER_STEAM_SCRIPT}"
