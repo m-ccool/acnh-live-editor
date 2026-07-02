@@ -7,6 +7,7 @@ ENV_FILE="${REPO_DIR}/.steamdeck-bridge.env"
 BRIDGE_CLIENT_ENTRY="scripts/steamdeck-bridge-client.js"
 LOG_FILE="${HOME}/.acnh-live-bridge.log"
 DEFAULT_WINDOWS_BRIDGE_HOST="10.0.0.25"
+SAME_DECK_MODE="${SAME_DECK_MODE:-0}"
 
 pause_if_interactive() {
   if [[ -t 0 && -t 1 ]]; then
@@ -131,6 +132,11 @@ load_env_file() {
 }
 
 validate_target() {
+  if ! [[ "${SAME_DECK_MODE}" =~ ^(0|1)$ ]]; then
+    echo "[acnh-bridge] SAME_DECK_MODE must be 0 or 1"
+    exit 1
+  fi
+
   if ! [[ "${BRIDGE_TARGET_PORT}" =~ ^[0-9]+$ ]] || (( BRIDGE_TARGET_PORT < 1 || BRIDGE_TARGET_PORT > 65535 )); then
     echo "[acnh-bridge] BRIDGE_TARGET_PORT must be a number between 1 and 65535"
     exit 1
@@ -150,9 +156,11 @@ validate_target() {
 
   case "${BRIDGE_TARGET_HOST}" in
     localhost|127.0.0.1)
-      echo "[acnh-bridge] BRIDGE_TARGET_HOST=${BRIDGE_TARGET_HOST} points to Steam Deck itself, not your Windows host"
-      echo "[acnh-bridge] Set BRIDGE_TARGET_HOST=10.0.0.25 in ${ENV_FILE} for this MVP setup"
-      exit 1
+      if [[ "${SAME_DECK_MODE}" != "1" ]]; then
+        echo "[acnh-bridge] BRIDGE_TARGET_HOST=${BRIDGE_TARGET_HOST} points to Steam Deck itself"
+        echo "[acnh-bridge] Set SAME_DECK_MODE=1 for same-device runs, or set BRIDGE_TARGET_HOST=${DEFAULT_WINDOWS_BRIDGE_HOST} for cross-machine"
+        exit 1
+      fi
       ;;
   esac
 
@@ -164,15 +172,25 @@ normalize_target_host() {
   trimmed_host="${trimmed_host%${trimmed_host##*[![:space:]]}}"
 
   if [[ -z "${trimmed_host}" ]]; then
-    BRIDGE_TARGET_HOST="${DEFAULT_WINDOWS_BRIDGE_HOST}"
-    echo "[acnh-bridge] BRIDGE_TARGET_HOST not set, using default Windows host ${BRIDGE_TARGET_HOST}"
+    if [[ "${SAME_DECK_MODE}" == "1" ]]; then
+      BRIDGE_TARGET_HOST="127.0.0.1"
+      echo "[acnh-bridge] BRIDGE_TARGET_HOST not set, using localhost for same-deck mode"
+    else
+      BRIDGE_TARGET_HOST="${DEFAULT_WINDOWS_BRIDGE_HOST}"
+      echo "[acnh-bridge] BRIDGE_TARGET_HOST not set, using default Windows host ${BRIDGE_TARGET_HOST}"
+    fi
     return
   fi
 
   case "${trimmed_host}" in
     YOUR_PC_LAN_IP|YOUR_WINDOWS_PC_IP|YOUR_PC_IP|REPLACE_ME|CHANGEME|"<YOUR_PC_LAN_IP>"|"<YOUR_WINDOWS_PC_IP>")
-      BRIDGE_TARGET_HOST="${DEFAULT_WINDOWS_BRIDGE_HOST}"
-      echo "[acnh-bridge] BRIDGE_TARGET_HOST placeholder detected (${trimmed_host}); using ${BRIDGE_TARGET_HOST}"
+      if [[ "${SAME_DECK_MODE}" == "1" ]]; then
+        BRIDGE_TARGET_HOST="127.0.0.1"
+        echo "[acnh-bridge] BRIDGE_TARGET_HOST placeholder detected (${trimmed_host}); using localhost for same-deck mode"
+      else
+        BRIDGE_TARGET_HOST="${DEFAULT_WINDOWS_BRIDGE_HOST}"
+        echo "[acnh-bridge] BRIDGE_TARGET_HOST placeholder detected (${trimmed_host}); using ${BRIDGE_TARGET_HOST}"
+      fi
       return
       ;;
   esac
@@ -189,7 +207,11 @@ probe_bridge_listener() {
     return 0
   fi
 
-  fail "Unable to reach Windows bridge listener at ${BRIDGE_TARGET_HOST}:${BRIDGE_TARGET_PORT}. Start the Windows app server first, then rerun this launcher."
+  if [[ "${SAME_DECK_MODE}" == "1" ]]; then
+    fail "Unable to reach local bridge listener at ${BRIDGE_TARGET_HOST}:${BRIDGE_TARGET_PORT}. Start the local app server first, then rerun this launcher."
+  fi
+
+  fail "Unable to reach bridge listener at ${BRIDGE_TARGET_HOST}:${BRIDGE_TARGET_PORT}. Start the app server first, then rerun this launcher."
 }
 
 clear_existing_bridge_client() {
@@ -222,6 +244,7 @@ trap 'handle_unexpected_error "${LINENO}" "${BASH_COMMAND}" "$?"' ERR
 normalize_target_host
 
 : "${BRIDGE_TARGET_PORT:=32840}"
+: "${SAME_DECK_MODE:=0}"
 : "${BRIDGE_DEVICE_NAME:=steamdeck-bridge-client}"
 : "${BRIDGE_HEARTBEAT_MS:=5000}"
 : "${BRIDGE_RECONNECT_DELAY_MS:=3000}"
@@ -248,6 +271,7 @@ fi
 
 export BRIDGE_TARGET_HOST
 export BRIDGE_TARGET_PORT
+export SAME_DECK_MODE
 export BRIDGE_DEVICE_NAME
 export BRIDGE_HEARTBEAT_MS
 export BRIDGE_RECONNECT_DELAY_MS
@@ -272,6 +296,7 @@ printf '\033[36m=============================================\033[0m\n'
 printf '\033[36m  ACNH Live Bridge MVP (Steam Deck) Starting \033[0m\n'
 printf '\033[36m=============================================\033[0m\n'
 echo "[acnh-bridge] Repo: ${REPO_DIR}"
+echo "[acnh-bridge] Mode: $([[ "${SAME_DECK_MODE}" == "1" ]] && echo "same-deck" || echo "cross-machine")"
 echo "[acnh-bridge] Target: ${BRIDGE_TARGET_HOST}:${BRIDGE_TARGET_PORT}"
 echo "[acnh-bridge] Reader mode: ${ACNH_READER_MODE}"
 echo "[acnh-bridge] Node: ${NODE_BIN}"
