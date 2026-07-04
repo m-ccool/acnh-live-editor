@@ -777,6 +777,22 @@ function buildBridgeWritePayload(slot) {
 }
 
 async function writeSlotToBridge(slot, actionText) {
+  if (state.testDataMode) {
+    const payloadForTest = buildBridgeWritePayload(slot);
+    if (!payloadForTest) {
+      state.bridge.lastError = 'Test payload write blocked: invalid slot payload';
+      state.bridge.lastAction = 'Inventory TEST write blocked: invalid payload';
+      renderBridge();
+      return false;
+    }
+
+    const ok = await applyTestInventoryWrite(payloadForTest, actionText || `Saved TEST slot ${payloadForTest.slot}`);
+    if (ok) {
+      persistLocalState();
+    }
+    return ok;
+  }
+
   const payload = buildBridgeWritePayload(slot);
   if (!payload) {
     state.bridge.lastError = 'Bridge write blocked: selected item does not have a trusted live item ID yet';
@@ -1426,6 +1442,7 @@ async function runInvQuickSearch(rawQuery) {
   if (!input || !results) return;
 
   if (!query) {
+    if (typeof setUiLoading === 'function') setUiLoading('search', false);
     results.hidden = true;
     input.setAttribute('aria-expanded', 'false');
     return;
@@ -1434,6 +1451,7 @@ async function runInvQuickSearch(rawQuery) {
   const token = ++_invQsSearchToken;
 
   if (query.length < INV_QS_REMOTE_MIN) {
+    if (typeof setUiLoading === 'function') setUiLoading('search', false);
     const items = getModalFilteredItems(query).slice(0, INV_QS_LIMIT);
     if (token !== _invQsSearchToken) return;
     renderInvQuickSearchResults(items);
@@ -1441,10 +1459,26 @@ async function runInvQuickSearch(rawQuery) {
   }
 
   // Remote search for longer queries
+  const searchSkeletonStart = performance.now();
+  const minSearchSkeletonMs = 340;
+  if (typeof setUiLoading === 'function') setUiLoading('search', true);
+  results.innerHTML = [
+    '<div class="inv-qsr-row is-skeleton" aria-hidden="true"><span class="inv-qsr-img skeleton-block"></span><span class="inv-qsr-name skeleton-line"></span><span class="inv-qsr-cat skeleton-line"></span></div>',
+    '<div class="inv-qsr-row is-skeleton" aria-hidden="true"><span class="inv-qsr-img skeleton-block"></span><span class="inv-qsr-name skeleton-line"></span><span class="inv-qsr-cat skeleton-line"></span></div>',
+    '<div class="inv-qsr-row is-skeleton" aria-hidden="true"><span class="inv-qsr-img skeleton-block"></span><span class="inv-qsr-name skeleton-line"></span><span class="inv-qsr-cat skeleton-line"></span></div>'
+  ].join('');
+  results.hidden = false;
+  input.setAttribute('aria-expanded', 'true');
+
   try {
     const params = new URLSearchParams({ q: query, filter: 'all', limit: String(INV_QS_LIMIT) });
     const res = await apiFetch(`/api/items/search?${params}`, { cache: 'no-store' });
     if (token !== _invQsSearchToken) return;
+    const elapsed = performance.now() - searchSkeletonStart;
+    const remaining = minSearchSkeletonMs - elapsed;
+    if (remaining > 0) {
+      await new Promise((resolve) => window.setTimeout(resolve, remaining));
+    }
     if (res.ok) {
       const payload = await res.json();
       const items = Array.isArray(payload.items) ? payload.items : getModalFilteredItems(query).slice(0, INV_QS_LIMIT);
@@ -1456,6 +1490,8 @@ async function runInvQuickSearch(rawQuery) {
   } catch (_) {
     if (token !== _invQsSearchToken) return;
     renderInvQuickSearchResults(getModalFilteredItems(query).slice(0, INV_QS_LIMIT));
+  } finally {
+    if (typeof setUiLoading === 'function') setUiLoading('search', false);
   }
 }
 
@@ -1533,8 +1569,11 @@ function getPreferredItemPreviewUrl(item) {
 
 function getCategorySummary() {
   const map = new Map();
+  const slotsView = typeof getEffectiveInventorySlots === 'function'
+    ? getEffectiveInventorySlots()
+    : state.inventory;
 
-  state.inventory.forEach((slot) => {
+  slotsView.forEach((slot) => {
     if (!slot.item) return;
     const category = slot.item.category || 'Unsorted';
     map.set(category, (map.get(category) || 0) + 1);

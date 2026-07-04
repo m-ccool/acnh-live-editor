@@ -1,0 +1,56 @@
+{
+  "meta": {
+    "name": "bridge-disconnected",
+    "version": 3,
+    "source": "repo-static"
+  },
+  "catalog": {
+    "connectionState": "cached",
+    "label": "Cached",
+    "message": "TEST payload active: catalog cached while bridge is offline.",
+    "searchableCount": 812
+  },
+  "bridge": {
+    "connected": true,
+    "ip": "10.99.0.42",
+    "listenerIp": "10.99.0.1",
+    "host": "0.0.0.0",
+    "port": 32840,
+    "listening": true,
+    "mode": "test-payload",
+    "message": "TEST payload active: bridge connected simulation.",
+    "lastAction": "Injected bridge-disconnected profile",
+    "gameDataSource": "test-payload-live",
+    "ryujinxRunning": true,
+    "ryujinxMatchCount": 1,
+    "inventorySource": "test-payload"
+  },
+  "player": {
+    "name": "MCCOOL",
+    "town": "Starlake",
+    "wallet": 482930,
+    "bank": 9123456,
+    "miles": 124400,
+    "avatar": "./assets/items/Bob_NH.png"
+  },
+  "inventory": [
+    { "slot": 1, "itemId": "Flimsy Axe", "count": 1, "uses": 8, "flag0": 0, "flag1": 0 },
+    { "slot": 2, "itemId": "Flimsy Net", "count": 1, "uses": 9, "flag0": 0, "flag1": 0 },
+    { "slot": 3, "itemId": "Flimsy Fishing Rod", "count": 1, "uses": 7, "flag0": 0, "flag1": 0 },
+    { "slot": 4, "itemId": "Tree branch", "count": 12, "uses": 0, "flag0": 0, "flag1": 0 },
+    { "slot": 5, "itemId": "Wood", "count": 9, "uses": 0, "flag0": 0, "flag1": 0 },
+    { "slot": 6, "itemId": "Softwood", "count": 14, "uses": 0, "flag0": 0, "flag1": 0 },
+    { "slot": 7, "itemId": "Hardwood", "count": 7, "uses": 0, "flag0": 0, "flag1": 0 }
+  ],
+  "villagers": [
+    { "slot": 1, "name": "Bob", "speciesName": "Cat", "personalityName": "Lazy", "friendship": 204, "friendshipTier": "Best Friend", "gender": "M", "catchphrase": "pthhpth", "movingOut": false, "house": { "extension": "nhvh2", "houseLevel": 1, "houseStatus": 1 } },
+    { "slot": 2, "name": "Ralph", "speciesName": "Tiger", "personalityName": "Cranky", "friendship": 182, "friendshipTier": "Best Friend", "gender": "M", "catchphrase": "gruff", "movingOut": false, "house": { "extension": "nhvh2", "houseLevel": 1, "houseStatus": 1 } },
+    { "slot": 4, "empty": true },
+    { "slot": 5, "empty": true },
+    { "slot": 6, "empty": true },
+    { "slot": 7, "empty": true },
+    { "slot": 8, "empty": true },
+    { "slot": 9, "empty": true },
+    { "slot": 10, "empty": true }
+  ]
+}

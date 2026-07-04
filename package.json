@@ -14,6 +14,9 @@
     "import:catalogue": "node scripts/import-catalogue.js",
     "sync:nookipedia": "node scripts/sync-nookipedia-catalog.js",
     "bridge:steamdeck": "node scripts/steamdeck-bridge-client.js",
+    "steamdeck:install": "bash scripts/install-steamdeck-launcher.sh",
+    "steamdeck:launch": "bash scripts/steamdeck-launch-app.sh",
+    "steamdeck:steam-library": "bash scripts/register-steam-library-shortcut.sh",
     "bridge:adapter:game": "node scripts/steamdeck-adapters/read-game-data.js",
     "bridge:adapter:read": "node scripts/steamdeck-adapters/read-inventory.js",
     "bridge:adapter:write": "node scripts/steamdeck-adapters/write-inventory-slot.js"

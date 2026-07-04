@@ -130,43 +130,109 @@ git pull --ff-only origin dev
 bash scripts/steamdeck-run-bridge.sh
 ```
 
-### One-Click Deck Launcher (No Re-Typing In Konsole)
+### SteamOS Install + Launch Runbook
 
-This repo now includes a single run file for Deck testing:
+Use this runbook for both Desktop Mode and Steam Library launch on Steam Deck.
 
-- `scripts/steamdeck-run-bridge.sh`
+#### What This Installs
 
-And an installer that creates a clickable Desktop icon:
+- Desktop launcher: `~/Desktop/ACNH Live Editor.desktop`
+- Application menu entry: `~/.local/share/applications/acnh-live-editor.desktop`
+- On-demand user services:
+  - `acnh-live-server.service`
+  - `acnh-live-bridge.service`
+- Launch helper script: `scripts/steamdeck-launch-app.sh`
+- Steam Library helper script: `scripts/register-steam-library-shortcut.sh`
 
-- `scripts/install-steamdeck-launcher.sh`
-
-Setup on Steam Deck once:
-
-```bash
-cd ~/acnh-live-editor
-cp -n .steamdeck-bridge.env.example .steamdeck-bridge.env
-nano .steamdeck-bridge.env
-bash scripts/install-steamdeck-launcher.sh
-```
-
-Daily restart block on Steam Deck (clear existing client, refresh launcher, launch):
+#### Step 1: One-Time Install (Steam Deck)
 
 ```bash
 cd ~/acnh-live-editor
-pkill -f "node .*scripts/steamdeck-bridge-client.js" || true
-pkill -f "bash .*scripts/steamdeck-run-bridge.sh" || true
+npm install
 bash scripts/install-steamdeck-launcher.sh
-bash scripts/steamdeck-run-bridge.sh
 ```
 
-After that, you can also double-click the `ACNH Live Bridge` icon on Desktop.
+Equivalent npm command:
 
-What you should see on launch:
+```bash
+npm run steamdeck:install
+```
 
-- A short Steam Deck connector startup banner from `scripts/steamdeck-run-bridge.sh`.
-- A themed status panel from `scripts/steamdeck-bridge-client.js`.
-- The panel status transitions from `CONNECTING` to `CONNECTED` when the bridge socket is live.
-- If the PC bridge is unavailable, the Deck client stays open and retries automatically.
+#### Step 2: Launch On Demand
+
+```bash
+bash scripts/steamdeck-launch-app.sh
+```
+
+Equivalent npm command:
+
+```bash
+npm run steamdeck:launch
+```
+
+Launch behavior:
+
+- Starts `acnh-live-server` and `acnh-live-bridge` only when launched.
+- Opens `http://127.0.0.1:3000`.
+- Does not auto-start services at login.
+
+#### Step 3: Add To Steam Library (One-Time)
+
+```bash
+bash scripts/register-steam-library-shortcut.sh
+```
+
+Equivalent npm command:
+
+```bash
+npm run steamdeck:steam-library
+```
+
+Then in Steam Desktop client:
+
+1. `Games` -> `Add a Non-Steam Game to My Library`
+2. Select `ACNH Live Editor`
+3. Click `Add Selected Programs`
+
+#### Step 4: Service Controls
+
+```bash
+systemctl --user start acnh-live-server acnh-live-bridge
+systemctl --user stop acnh-live-bridge acnh-live-server
+systemctl --user restart acnh-live-server acnh-live-bridge
+systemctl --user status acnh-live-server acnh-live-bridge
+journalctl --user -u acnh-live-server -n 100 --no-pager
+journalctl --user -u acnh-live-bridge -n 100 --no-pager
+```
+
+#### Mode Selection In `.steamdeck-bridge.env`
+
+- Same-deck mode (recommended for Deck-only editing):
+  - `SAME_DECK_MODE=1`
+  - `BRIDGE_TARGET_HOST=127.0.0.1`
+  - `BRIDGE_TARGET_PORT=32840`
+- Cross-machine mode (Deck bridge connecting to Windows host):
+  - `SAME_DECK_MODE=0`
+  - `BRIDGE_TARGET_HOST=10.0.0.25`
+  - `BRIDGE_TARGET_PORT=32840`
+
+#### Daily Update + Relaunch (Steam Deck)
+
+```bash
+cd ~/acnh-live-editor
+git checkout dev
+git pull --ff-only origin dev
+npm install
+bash scripts/install-steamdeck-launcher.sh
+bash scripts/steamdeck-launch-app.sh
+```
+
+#### Expected Launch Output
+
+- Bridge startup banner from `scripts/steamdeck-run-bridge.sh`.
+- Bridge panel from `scripts/steamdeck-bridge-client.js`.
+- Status transitions from `CONNECTING` to `CONNECTED`.
+- On same-deck mode, target shows `127.0.0.1:32840`.
 
 ### Hazard Checks (Required For MVP Run Validation)
 
@@ -181,8 +247,8 @@ If it keeps retrying and does not connect:
 
 1. On PC, start the app server (`npm run dev`) and confirm bridge port `32840` is open.
 2. On Steam Deck, verify `.steamdeck-bridge.env` contains `BRIDGE_TARGET_HOST=10.0.0.25` and `BRIDGE_TARGET_PORT=32840`.
-3. On Steam Deck, run the daily restart block above.
-4. Relaunch `ACNH Live Bridge` and watch the panel detail line for connection errors.
+3. On Steam Deck, reinstall launcher/services with `bash scripts/install-steamdeck-launcher.sh`.
+4. Relaunch with `bash scripts/steamdeck-launch-app.sh` and watch the panel detail line for connection errors.
 
 Notes:
 
