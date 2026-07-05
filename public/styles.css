@@ -1227,12 +1227,22 @@ body.is-test-data .status-pill::after {
   border: 1px solid var(--line);
   border-radius: 10px;
   background: rgba(255,255,255,0.06);
-  color: #fff;
+  color: var(--text);
   cursor: pointer;
-  transition: background var(--ease), box-shadow var(--ease);
+  transition: background var(--ease), box-shadow var(--ease), color var(--ease);
 }
 .action-pill-btn:hover { background: rgba(255,255,255,0.11); box-shadow: 0 0 0 1px rgba(255,255,255,0.1); }
 .action-pill-btn .icon-img { width: 16px; height: 16px; }
+
+/* Day theme adjustments */
+body:not([data-theme='night']) .action-pill-btn {
+  background: rgba(0,0,0,0.08);
+  border-color: rgba(0,0,0,0.12);
+}
+body:not([data-theme='night']) .action-pill-btn:hover {
+  background: rgba(0,0,0,0.12);
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+}
 
 /* ── Reload button with spinning animation ────────────────────────────── */
 .reload-button:disabled,
