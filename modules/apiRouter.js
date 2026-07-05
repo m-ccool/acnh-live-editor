@@ -593,6 +593,14 @@ function createApiRouter(options = {}) {
     })().catch(err => res.status(500).json({ ok: false, error: err.message, steps }))
   })
 
+  // Reload server — graceful restart
+  router.post('/api/reload-server', (req, res) => {
+    res.json({ ok: true, message: 'Server reloading...' })
+    setTimeout(() => {
+      process.exit(0);
+    }, 100);
+  })
+
   return router
 }
 

@@ -1618,6 +1618,32 @@ function toggleTheme() {
   persistLocalState();
 }
 
+async function handleReloadClick() {
+  if (!el.reloadButton || el.reloadButton.disabled) return;
+  
+  el.reloadButton.disabled = true;
+  el.reloadButton.classList.add('is-reloading');
+  
+  try {
+    const res = await fetch('/api/reload-server', { method: 'POST' });
+    if (res.ok) {
+      state.bridge.lastAction = 'Server reload initiated...';
+      renderBridge();
+      // Wait 1 second for server to restart, then reload page
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } else {
+      throw new Error(`HTTP ${res.status}`);
+    }
+  } catch (err) {
+    state.bridge.lastAction = `Reload failed: ${String(err).slice(0, 40)}`;
+    renderBridge();
+    el.reloadButton.classList.remove('is-reloading');
+    el.reloadButton.disabled = false;
+  }
+}
+
 function applyTheme(shouldPersist = false) {
   document.body.dataset.theme = state.theme;
 

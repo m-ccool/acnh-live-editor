@@ -1234,6 +1234,18 @@ body.is-test-data .status-pill::after {
 .action-pill-btn:hover { background: rgba(255,255,255,0.11); box-shadow: 0 0 0 1px rgba(255,255,255,0.1); }
 .action-pill-btn .icon-img { width: 16px; height: 16px; }
 
+/* ── Reload button with spinning animation ────────────────────────────── */
+.reload-button:disabled,
+.reload-button.is-reloading { opacity: 0.55; cursor: not-allowed; }
+.reload-icon { display: block; }
+.reload-button.is-reloading .reload-icon {
+  animation: spin-reload 0.8s linear infinite;
+}
+@keyframes spin-reload {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .topbar-test-menu-wrap {
   position: relative;
   display: inline-flex;

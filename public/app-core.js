@@ -431,6 +431,7 @@ function cacheDom() {
   el.themeToggle = document.getElementById('theme-toggle');
   el.themeToggleIconDay = document.getElementById('theme-toggle-icon-day');
   el.themeToggleIconNight = document.getElementById('theme-toggle-icon-night');
+  el.reloadButton = document.getElementById('reload-button');
   el.bridgeToggle = document.getElementById('bridge-toggle');
   el.logRefreshButton = document.getElementById('log-refresh-button');
   el.testStateMenuWrap = document.querySelector('.topbar-test-menu-wrap');
@@ -1013,6 +1014,9 @@ function bindEvents() {
   }
   if (el.themeToggle) {
     el.themeToggle.addEventListener('click', toggleTheme);
+  }
+  if (el.reloadButton) {
+    el.reloadButton.addEventListener('click', handleReloadClick);
   }
   el.musicRibbonToggle.addEventListener('click', handleMusicRibbonToggleClick);
   el.musicRibbonToggle.addEventListener('pointerdown', handleMusicRibbonDragStart);
