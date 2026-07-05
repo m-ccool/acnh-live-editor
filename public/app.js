@@ -67,7 +67,6 @@ async function refreshBridgeStatus(lastAction) {
     syncedFromBridge = await refreshBridgeInventory({ reason: lastAction, force: true });
     await refreshBridgeGameData();
     await refreshBridgeVillagers();
-    finalizeConnectedState();
   } catch (error) {
     console.error('Bridge sync error:', error.message);
   }
