@@ -1625,22 +1625,33 @@ async function handleReloadClick() {
   el.reloadButton.classList.add('is-reloading');
   
   try {
-    const res = await fetch('/api/reload-server', { method: 'POST' });
-    if (res.ok) {
-      state.bridge.lastAction = 'Server reload initiated...';
-      renderBridge();
-      // Wait 3.5 seconds for server to exit and systemd to restart it
-      setTimeout(() => {
-        window.location.reload();
-      }, 3500);
-    } else {
+    state.bridge.lastAction = 'Sending reload request...';
+    renderBridge();
+    
+    // Mark that we're reloading so boot sequence can retry aggressively
+    sessionStorage.setItem('justReloaded', '1');
+    
+    const res = await fetch('/api/reload-server', { method: 'POST', timeout: 5000 });
+    if (!res.ok) {
       throw new Error(`HTTP ${res.status}`);
     }
+    
+    state.bridge.lastAction = 'Server restarting (waiting 3.5s)...';
+    renderBridge();
+    
+    // Wait for server to exit and systemd to restart it, then force full page reload
+    // (not from cache) to fetch fresh HTML and execute new JS
+    setTimeout(() => {
+      // Add timestamp to bust any caching
+      const now = Date.now();
+      window.location.href = `${window.location.pathname}?t=${now}`;
+    }, 3500);
   } catch (err) {
-    state.bridge.lastAction = `Reload failed: ${String(err).slice(0, 40)}`;
+    state.bridge.lastAction = `Reload failed: ${String(err).slice(0, 50)}`;
     renderBridge();
     el.reloadButton.classList.remove('is-reloading');
     el.reloadButton.disabled = false;
+    sessionStorage.removeItem('justReloaded');
   }
 }
 

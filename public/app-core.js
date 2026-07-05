@@ -390,14 +390,35 @@ async function init() {
   if (typeof initVillagersTab === 'function') initVillagersTab();
   const bootLoadingStart = performance.now();
   const minBootLoadingMs = 520;
+  const justReloaded = sessionStorage.getItem('justReloaded') === '1';
+  const maxRetries = justReloaded ? 5 : 1;
+  let lastError = null;
+  
   try {
     setUiLoading('boot', true);
     setUiLoading('player', true);
     setUiLoading('inventory', true);
-    await refreshBridgeStatus('Boot live sync');
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        await refreshBridgeStatus(`Boot live sync (attempt ${attempt}/${maxRetries})`);
+        lastError = null;
+        break;
+      } catch (error) {
+        lastError = error;
+        if (attempt < maxRetries) {
+          await new Promise((resolve) => window.setTimeout(resolve, 400));
+        }
+      }
+    }
+    
+    if (lastError && justReloaded) {
+      console.warn('Boot sync failed after reload:', lastError);
+    }
   } catch (error) {
-    console.error(error);
+    console.error('Boot initialization error:', error);
   } finally {
+    sessionStorage.removeItem('justReloaded');
     const elapsed = performance.now() - bootLoadingStart;
     const remaining = minBootLoadingMs - elapsed;
     if (remaining > 0) {
