@@ -389,9 +389,9 @@ async function init() {
   primeSelectedMusicSource();
   if (typeof initVillagersTab === 'function') initVillagersTab();
   const bootLoadingStart = performance.now();
-  const minBootLoadingMs = 520;
+  const minBootLoadingMs = 1200;
   const justReloaded = sessionStorage.getItem('justReloaded') === '1';
-  const maxRetries = justReloaded ? 5 : 1;
+  const maxRetries = justReloaded ? 8 : 3;
   let bridgeConnected = false;
   let lastAttempt = 0;
   
@@ -410,12 +410,12 @@ async function init() {
           break;
         } else if (attempt < maxRetries) {
           // Bridge sync completed but didn't connect, retry
-          await new Promise((resolve) => window.setTimeout(resolve, 400));
+          await new Promise((resolve) => window.setTimeout(resolve, 600));
         }
       } catch (error) {
         console.error(`Boot sync attempt ${attempt} failed:`, error);
         if (attempt < maxRetries) {
-          await new Promise((resolve) => window.setTimeout(resolve, 400));
+          await new Promise((resolve) => window.setTimeout(resolve, 600));
         }
       }
     }
