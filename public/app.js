@@ -90,7 +90,6 @@ async function pollBridgeStatus() {
       await refreshBridgeInventory({ reason: 'Background inventory sync' });
       await refreshBridgeGameData();
       await refreshBridgeVillagers();
-      finalizeConnectedState();
 
       const playerChanged = hasPlayerDataChanged();
       const inventoryChanged = hasInventoryChanged();
