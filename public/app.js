@@ -1629,10 +1629,10 @@ async function handleReloadClick() {
     if (res.ok) {
       state.bridge.lastAction = 'Server reload initiated...';
       renderBridge();
-      // Wait 1 second for server to restart, then reload page
+      // Wait 3.5 seconds for server to exit and systemd to restart it
       setTimeout(() => {
         window.location.reload();
-      }, 1000);
+      }, 3500);
     } else {
       throw new Error(`HTTP ${res.status}`);
     }

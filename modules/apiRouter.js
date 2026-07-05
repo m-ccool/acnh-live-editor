@@ -598,7 +598,7 @@ function createApiRouter(options = {}) {
     res.json({ ok: true, message: 'Server reloading...' })
     setTimeout(() => {
       process.exit(0);
-    }, 100);
+    }, 2000);
   })
 
   return router
