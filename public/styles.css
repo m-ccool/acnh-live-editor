@@ -2801,8 +2801,15 @@ body[data-theme='night'] .selected-item-artbox {
   height: 16px;
   display: inline-block;
   vertical-align: middle;
-  filter: invert(1);
   opacity: 0.7;
+}
+
+body:not([data-theme='night']) .reload-icon {
+  filter: invert(1);
+}
+
+body[data-theme='night'] .reload-icon {
+  filter: none;
 }
 
 .field-reload-icon {
