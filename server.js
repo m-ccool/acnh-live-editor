@@ -1,5 +1,6 @@
 const express = require('express')
 const dgram = require('dgram')
+const http = require('http')
 const path = require('path')
 const fs = require('fs')
 require('dotenv').config({
@@ -50,7 +51,16 @@ app.get('*', (req, res) => {
   res.send(getIndexHtml())
 })
 
-app.listen(PORT, async () => {
+const server = http.createServer(app)
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} in use. Ensure old process is killed.`)
+  }
+  throw err
+})
+
+server.listen(PORT, '0.0.0.0', async () => {
   try {
     await bridgeService.start()
   } catch (error) {
