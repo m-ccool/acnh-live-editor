@@ -20,6 +20,55 @@ SAVE_SYNC_ENV_BY_ACTION = {
 }
 
 
+def find_actual_ryujinx_pid() -> int | None:
+    """Find the actual Ryujinx process PID (not the Steam wrapper)."""
+    try:
+        import glob
+        for proc_dir in glob.glob("/proc/[0-9]*"):
+            try:
+                with open(proc_dir + "/cmdline", "rb") as f:
+                    cmdline = f.read().decode("utf-8", "ignore").replace("\x00", " ")
+                    cmdline_lc = cmdline.lower()
+                
+                # Try to read the actual executable
+                try:
+                    exe_path = os.readlink(proc_dir + "/exe")
+                    exe_name = os.path.basename(exe_path).lower()
+                except:
+                    exe_name = ""
+                
+                # Prefer the actual Ryujinx executable (not Steam wrapper)
+                if exe_name in {"ryujinx", "ryujinx.headless"}:
+                    pid = int(proc_dir.split("/")[-1])
+                    return pid
+                
+                # Check if this is a wrapper that contains the actual Ryujinx in /proc/[pid]/task/*/children
+                if "ryujinx" in cmdline_lc and "/applications/publish/Ryujinx" in cmdline:
+                    # This is likely a SteamLaunch wrapper; check for child process
+                    pid = int(proc_dir.split("/")[-1])
+                    # Look for the actual Ryujinx in children
+                    try:
+                        children_dir = f"/proc/{pid}/task/{pid}/children"
+                        if os.path.exists(children_dir):
+                            with open(children_dir) as f:
+                                children = f.read().strip().split()
+                                for child_pid in children:
+                                    try:
+                                        child_exe = os.readlink(f"/proc/{child_pid}/exe")
+                                        if "ryujinx" in os.path.basename(child_exe).lower():
+                                            return int(child_pid)
+                                    except:
+                                        pass
+                    except:
+                        pass
+            except:
+                pass
+    except:
+        pass
+    
+    return None
+
+
 def resolve_live_command(action: str) -> str:
     env_var = COMMAND_ENV_BY_ACTION[action]
     explicit = os.environ.get(env_var, "").strip()
@@ -28,6 +77,12 @@ def resolve_live_command(action: str) -> str:
 
     reader_path = Path(__file__).with_name("acnh_memory_reader.py")
     if reader_path.exists() and reader_path.is_file():
+        # Try to find and set the correct Ryujinx PID for Steam Deck launches
+        if not os.environ.get("ACNH_RYUJINX_PID"):
+            actual_pid = find_actual_ryujinx_pid()
+            if actual_pid:
+                os.environ["ACNH_RYUJINX_PID"] = str(actual_pid)
+        
         return f"python3 {shlex.quote(str(reader_path))} {action}"
 
     return ""
