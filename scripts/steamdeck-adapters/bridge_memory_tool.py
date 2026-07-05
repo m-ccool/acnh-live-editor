@@ -78,12 +78,14 @@ def resolve_live_command(action: str) -> str:
     reader_path = Path(__file__).with_name("acnh_memory_reader.py")
     if reader_path.exists() and reader_path.is_file():
         # Try to find and set the correct Ryujinx PID for Steam Deck launches
-        if not os.environ.get("ACNH_RYUJINX_PID"):
+        env_prefix = ""
+        existing_pid = os.environ.get("ACNH_RYUJINX_PID", "").strip()
+        if not existing_pid:
             actual_pid = find_actual_ryujinx_pid()
             if actual_pid:
-                os.environ["ACNH_RYUJINX_PID"] = str(actual_pid)
+                env_prefix = f"ACNH_RYUJINX_PID={actual_pid} "
         
-        return f"python3 {shlex.quote(str(reader_path))} {action}"
+        return f"{env_prefix}python3 {shlex.quote(str(reader_path))} {action}"
 
     return ""
 
