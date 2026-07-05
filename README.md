@@ -96,6 +96,17 @@ NOOKIPEDIA_ACCEPT_VERSION=1.7.0
 - If you launch the server from another working directory (for example via a process manager), make sure the app can still read `<repo>/.env`; the server now resolves `.env` from the project root.
 - If diagnostics show `API: HTTP 403`, the key is being sent but rejected by Nookipedia (invalid/revoked/not approved for the requested version).
 
+### Error Codes Reference
+
+| Code | Symptom | Cause | User Fix | Debug |
+|------|---------|-------|----------|-------|
+| **E001** | Bridge shows "not connected" in UI | Bridge service failed to start or lost connection to emulator | Check service: `systemctl --user status acnh-live-bridge` | `journalctl --user -u acnh-live-bridge -n 50 --no-pager` |
+| **E002** | Browser shows blank/white page | Server crashed or port 3000 not listening | Wait 5s and reload. If persists: `systemctl --user restart acnh-live-server` | `curl -v http://127.0.0.1:3000` |
+| **E003** | App won't launch from applet | Services not enabled or failed to start | Re-run installer: `bash scripts/install-steamdeck-launcher.sh` | `systemctl --user status acnh-live-server acnh-live-bridge` |
+| **E004** | "Cannot read villagers" or "API timeout" | Memory reader blocked or emulator not running | Verify Ryujinx is running, check ptrace: `cat /proc/sys/kernel/yama/ptrace_scope` (must be 0) | `journalctl --user -u acnh-live-bridge -n 20 --no-pager \| grep -i ptrace` |
+| **E005** | Inventory/villager data empty or "undefined" | Bridge connected but memory read failed | Reconnect: Stop services, restart Ryujinx, then `systemctl --user start acnh-live-server acnh-live-bridge` | Check logs for `read_villagers` errors |
+| **E006** | Services stuck in "activating" (>10s) | Startup deadlock, usually network or node initialization | Kill and restart: `systemctl --user restart acnh-live-server acnh-live-bridge` | Check /tmp for stuck processes: `ps aux \| grep node` |
+
 ## Available Scripts
 
 - `npm run dev`: start the local server
