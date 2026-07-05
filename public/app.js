@@ -66,6 +66,7 @@ async function refreshBridgeStatus(lastAction) {
     syncBridgeStatus(data);
     syncedFromBridge = await refreshBridgeInventory({ reason: lastAction, force: true });
     await refreshBridgeGameData();
+    await refreshBridgeVillagers();
     finalizeConnectedState();
   } catch (error) {
     console.error('Bridge sync error:', error.message);
@@ -89,6 +90,7 @@ async function pollBridgeStatus() {
       syncBridgeStatus(await statusResponse.json());
       await refreshBridgeInventory({ reason: 'Background inventory sync' });
       await refreshBridgeGameData();
+      await refreshBridgeVillagers();
       finalizeConnectedState();
 
       const playerChanged = hasPlayerDataChanged();
@@ -211,6 +213,38 @@ async function refreshBridgeGameData() {
   } catch (error) {
     state.bridge.lastError = error.message;
     state.bridge.gameDataSource = 'error';
+    return false;
+  }
+}
+
+async function refreshBridgeVillagers() {
+  if (!state.bridge.connected) {
+    state.villagers = [];
+    if (typeof renderVillagers === 'function') renderVillagers();
+    return false;
+  }
+
+  try {
+    const response = await apiFetch('/api/bridge/read-villagers', { cache: 'no-store' });
+    const body = await response.json().catch(() => ({}));
+
+    if (!response.ok || body.ok === false) {
+      const message = body && body.error ? String(body.error) : `Bridge villager read failed with ${response.status}`;
+      throw new Error(message);
+    }
+
+    const payload = body && body.payload && typeof body.payload === 'object' ? body.payload : body;
+    const villagers = Array.isArray(payload && payload.villagers) ? payload.villagers : [];
+    
+    state.villagers = villagers;
+    if (typeof renderVillagers === 'function') renderVillagers();
+    persistLocalState();
+    return true;
+  } catch (error) {
+    console.error('Bridge villager read error:', error.message);
+    state.villagers = [];
+    if (typeof renderVillagers === 'function') renderVillagers();
+    persistLocalState();
     return false;
   }
 }

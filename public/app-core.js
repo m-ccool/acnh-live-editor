@@ -463,6 +463,9 @@ function cacheDom() {
   el.reloadButton = document.getElementById('reload-button');
   el.bridgeToggle = document.getElementById('bridge-toggle');
   el.logRefreshButton = document.getElementById('log-refresh-button');
+  el.villagerRoster = document.getElementById('villager-roster');
+  el.villagerCountBadge = document.getElementById('villager-count-badge');
+  el.refreshVillagersBtn = document.getElementById('refresh-villagers-btn');
   el.testStateMenuWrap = document.querySelector('.topbar-test-menu-wrap');
   el.testStateMenuButton = document.getElementById('test-state-menu-button');
   el.testStateMenu = document.getElementById('test-state-menu');
@@ -1084,6 +1087,12 @@ function bindEvents() {
     persistLocalState();
   });
 
+  if (el.refreshVillagersBtn) {
+    el.refreshVillagersBtn.addEventListener('click', () => {
+      refreshBridgeVillagers();
+    });
+  }
+
   if (el.musicAudio) {
     el.musicAudio.addEventListener('play', () => {
       state.music.isPlaying = true;
@@ -1699,6 +1708,7 @@ function renderAll() {
   renderSelectedPreview();
   renderClipboardState();
   renderTabs();
+  renderVillagers();
   renderDerivedPanels();
   renderItemModal();
 }
@@ -2251,4 +2261,50 @@ function renderBridge() {
   el.bridgeStatus.textContent = JSON.stringify(block, null, 2);
 }
 
+function renderVillagers() {
+  if (!el.villagerRoster) return;
+
+  const villagers = Array.isArray(state.villagers) ? state.villagers : [];
+  
+  if (el.villagerCountBadge) {
+    el.villagerCountBadge.textContent = villagers.length > 0 ? `${villagers.length}` : '';
+  }
+
+  if (villagers.length === 0) {
+    el.villagerRoster.innerHTML = '<p class="villager-placeholder">No villagers loaded. Connect bridge to read island residents.</p>';
+    return;
+  }
+
+  let html = '';
+  villagers.forEach((v, idx) => {
+    if (!v || v.empty) return;
+    
+    const villagerName = (v.name || `Villager ${idx + 1}`).trim();
+    const internalId = v.internalId || v.id || '';
+    const species = v.species || 'Unknown';
+    const furniture = Array.isArray(v.furniture) ? v.furniture.filter(f => f && !f.empty).length : 0;
+    const clothes = Array.isArray(v.clothes) ? v.clothes.filter(c => c && !c.empty).length : 0;
+    
+    html += `
+      <div class="villager-card">
+        <div class="villager-header">
+          <h4>${villagerName}</h4>
+          <span class="villager-species">${species}</span>
+        </div>
+        <div class="villager-details">
+          <div class="villager-stat">
+            <span class="stat-label">Furniture</span>
+            <span class="stat-value">${furniture}</span>
+          </div>
+          <div class="villager-stat">
+            <span class="stat-label">Clothes</span>
+            <span class="stat-value">${clothes}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  el.villagerRoster.innerHTML = html;
+}
 

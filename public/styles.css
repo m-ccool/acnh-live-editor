@@ -1238,6 +1238,7 @@ body.is-test-data .status-pill::after {
 body:not([data-theme='night']) .action-pill-btn {
   background: rgba(0,0,0,0.08);
   border-color: rgba(0,0,0,0.12);
+  color: #2c2c2e;
 }
 body:not([data-theme='night']) .action-pill-btn:hover {
   background: rgba(0,0,0,0.12);
