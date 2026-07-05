@@ -56,14 +56,19 @@ async function refreshBridgeStatus(lastAction) {
 
   try {
     const statusResponse = await apiFetch('/api/status', { cache: 'no-store' });
-    if (statusResponse.ok) {
-      syncBridgeStatus(await statusResponse.json());
-      syncedFromBridge = await refreshBridgeInventory({ reason: lastAction, force: true });
-      await refreshBridgeGameData();
-      finalizeConnectedState();
+    if (!statusResponse.ok) {
+      throw new Error(`API returned ${statusResponse.status}: ${statusResponse.statusText}`);
     }
+    const data = await statusResponse.json();
+    if (!data) {
+      throw new Error('API returned empty response');
+    }
+    syncBridgeStatus(data);
+    syncedFromBridge = await refreshBridgeInventory({ reason: lastAction, force: true });
+    await refreshBridgeGameData();
+    finalizeConnectedState();
   } catch (error) {
-    console.error(error);
+    console.error('Bridge sync error:', error.message);
   }
 
   await refreshCatalogStatus();

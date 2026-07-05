@@ -392,7 +392,8 @@ async function init() {
   const minBootLoadingMs = 520;
   const justReloaded = sessionStorage.getItem('justReloaded') === '1';
   const maxRetries = justReloaded ? 5 : 1;
-  let lastError = null;
+  let bridgeConnected = false;
+  let lastAttempt = 0;
   
   try {
     setUiLoading('boot', true);
@@ -400,20 +401,27 @@ async function init() {
     setUiLoading('inventory', true);
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      lastAttempt = attempt;
       try {
         await refreshBridgeStatus(`Boot live sync (attempt ${attempt}/${maxRetries})`);
-        lastError = null;
-        break;
+        // Check if bridge is actually connected
+        bridgeConnected = state.bridge && state.bridge.connected;
+        if (bridgeConnected) {
+          break;
+        } else if (attempt < maxRetries) {
+          // Bridge sync completed but didn't connect, retry
+          await new Promise((resolve) => window.setTimeout(resolve, 400));
+        }
       } catch (error) {
-        lastError = error;
+        console.error(`Boot sync attempt ${attempt} failed:`, error);
         if (attempt < maxRetries) {
           await new Promise((resolve) => window.setTimeout(resolve, 400));
         }
       }
     }
     
-    if (lastError && justReloaded) {
-      console.warn('Boot sync failed after reload:', lastError);
+    if (!bridgeConnected && justReloaded) {
+      console.warn(`Bridge not connected after ${lastAttempt} attempts`);
     }
   } catch (error) {
     console.error('Boot initialization error:', error);
