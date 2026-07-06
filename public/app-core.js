@@ -2314,21 +2314,25 @@ function renderVillagers() {
     const species = v.species || 'Unknown';
     const furniture = Array.isArray(v.furniture) ? v.furniture.filter(f => f && !f.empty).length : 0;
     const clothes = Array.isArray(v.clothes) ? v.clothes.filter(c => c && !c.empty).length : 0;
+    const artUrl = `/api/villager-art/${encodeURIComponent(villagerName)}`;
     
     html += `
       <div class="villager-card" role="button" tabindex="0" data-villager-slot="${v.slot || idx}">
-        <div class="villager-header">
-          <h4>${villagerName}</h4>
-          <span class="villager-species">${species}</span>
-        </div>
-        <div class="villager-details">
-          <div class="villager-stat">
-            <span class="stat-label">Furniture</span>
-            <span class="stat-value">${furniture}</span>
+        <img class="villager-art" src="${artUrl}" alt="${villagerName}" loading="lazy" onerror="this.style.display='none'" />
+        <div class="villager-info">
+          <div class="villager-header">
+            <h4>${villagerName}</h4>
+            <span class="villager-species">${species}</span>
           </div>
-          <div class="villager-stat">
-            <span class="stat-label">Clothes</span>
-            <span class="stat-value">${clothes}</span>
+          <div class="villager-details">
+            <div class="villager-stat">
+              <span class="stat-label">Furniture</span>
+              <span class="stat-value">${furniture}</span>
+            </div>
+            <div class="villager-stat">
+              <span class="stat-label">Clothes</span>
+              <span class="stat-value">${clothes}</span>
+            </div>
           </div>
         </div>
       </div>
