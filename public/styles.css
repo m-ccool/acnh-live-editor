@@ -1161,9 +1161,12 @@ body[data-theme='night'] .star--bright {
   transform: translateY(10px);
 }
 
+/* When a modal is open, keep the app-shell fully rendered underneath.
+   The dim overlay comes from `.modal` itself (rgba background that fades
+   with the modal opacity), and the modal-card's own backdrop-filter
+   applies blur to whatever is behind it. No filter/opacity animation
+   on the app-shell = no jank, no transparent glitch. */
 body.modal-open .app-shell {
-  opacity: 0.7;
-  transform: translateY(0) scale(0.985);
   pointer-events: none;
 }
 
@@ -4439,7 +4442,10 @@ body[data-theme='night'] .footer-watermark {
   padding-bottom: max(clamp(12px, 2.2vw, 20px), env(safe-area-inset-bottom, 0px));
   padding-left: max(clamp(12px, 2.2vw, 20px), env(safe-area-inset-left, 0px));
   padding-right: max(clamp(12px, 2.2vw, 20px), env(safe-area-inset-right, 0px));
-  background: rgba(255,255,255,0.0);
+  /* Dim overlay behind the card — fades with the modal's own opacity.
+     No filter animation needed; the modal-card's backdrop-filter blurs
+     the app-shell + this dim tint for the proper iOS depth cue. */
+  background: rgba(6, 8, 16, 0.42);
   overflow-y: auto;
   overscroll-behavior: contain;
   opacity: 0;
@@ -4448,6 +4454,10 @@ body[data-theme='night'] .footer-watermark {
   transition:
     opacity var(--dur-base) var(--ease-standard),
     visibility 0s linear var(--dur-base);
+}
+
+body:not([data-theme='night']) .modal {
+  background: rgba(48, 36, 30, 0.28);
 }
 
 .modal.hidden {
