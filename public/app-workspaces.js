@@ -1821,6 +1821,17 @@ function openVillagerModal(v) {
   const titleEl = el.villagerModal.querySelector('.villager-modal-title');
   if (titleEl) titleEl.textContent = safeVillager.name || 'Villager';
 
+  // Wire the pencil Edit button in the modal head to the React view switch
+  const editBtn = el.villagerModal.querySelector('#villager-edit-btn');
+  if (editBtn && !editBtn._wired) {
+    editBtn.addEventListener('click', () => {
+      if (typeof el.villagerModal._openVillagerView === 'function') {
+        el.villagerModal._openVillagerView('edit');
+      }
+    });
+    editBtn._wired = true;
+  }
+
   openModal(el.villagerModal);
 }
 

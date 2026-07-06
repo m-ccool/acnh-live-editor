@@ -245,7 +245,7 @@ const state = {
   modalSearchFilter: 'all',
   modalSearchOpen: false,
   modalPendingItem: null,
-  activeTab: 'village',
+  activeTab: 'villagers',
   activeFilter: 'all',
   theme: THEME_NIGHT,
   playerModalSection: 'player',
@@ -509,10 +509,14 @@ document.addEventListener('DOMContentLoaded', init);
     setInterval(syncStatusMirror, 3000);
 
     function syncThemeLabel() {
-      if (!themeLabel) return;
       const isNight = document.body.dataset.theme === 'night';
-      themeLabel.textContent = isNight ? 'Night Mode' : 'Day Mode';
+      if (themeLabel) themeLabel.textContent = isNight ? 'Night Mode' : 'Day Mode';
+      // Flip which animated theme icon is visible (day/night) to mirror the
+      // legacy topbar theme toggle behavior.
+      const themeBtn = panel.querySelector('[data-utility-action="theme"]');
+      if (themeBtn) themeBtn.classList.toggle('is-night', isNight);
     }
+    syncThemeLabel();
 
     // Show current git commit short hash + branch in the footer, if we can grab it
     if (versionFoot) {
@@ -541,7 +545,7 @@ document.addEventListener('DOMContentLoaded', init);
           await runUpdateAction(btn);
           break;
         case 'test':
-          document.getElementById('test-state-menu-button')?.click();
+          toggleTestMode(btn);
           break;
         case 'loadsave':
           document.getElementById('open-backups-btn')?.click();
@@ -560,6 +564,53 @@ document.addEventListener('DOMContentLoaded', init);
           break;
       }
     });
+
+    // ── Test-mode inline pill toggle ─────────────────────────────
+    // Selects the "off" or "live-ok" test-state option in the hidden legacy
+    // menu, then reflects state on the panel button (pill + aria-pressed).
+    const TEST_OFF_KEY = 'off';
+    const TEST_ON_KEY  = 'live-ok';
+
+    function detectTestModeOn() {
+      // window.state is set up by app-core; use it if available.
+      const s = window.state;
+      return !!(s && s.testDataMode);
+    }
+
+    function reflectTestPill() {
+      const btn = panel.querySelector('[data-utility-action="test"]');
+      if (!btn) return;
+      const on = detectTestModeOn();
+      const pill = btn.querySelector('#utility-test-pill');
+      btn.classList.toggle('is-active', on);
+      btn.setAttribute('aria-pressed', String(on));
+      if (pill) pill.textContent = on ? 'ON' : 'OFF';
+    }
+
+    function toggleTestMode() {
+      const on = detectTestModeOn();
+      const nextKey = on ? TEST_OFF_KEY : TEST_ON_KEY;
+      const opt = document.querySelector(`.test-state-option[data-test-payload-key="${nextKey}"]`);
+      if (opt) opt.click();
+      // Delay reflect so state has propagated.
+      setTimeout(reflectTestPill, 30);
+    }
+    reflectTestPill();
+    setInterval(reflectTestPill, 3000);
+
+    // ── Download-Assets green-dot indicator ──────────────────────
+    async function reflectDownloadDot() {
+      const dot = document.getElementById('utility-download-dot');
+      if (!dot || !('caches' in window)) return;
+      try {
+        const cache = await caches.open('acnh-villager-assets-v1');
+        const keys = await cache.keys();
+        dot.classList.toggle('is-ok', keys.length > 0);
+        const hint = document.getElementById('utility-download-hint');
+        if (hint) hint.textContent = keys.length > 0 ? `${keys.length} cached` : '';
+      } catch (_) { /* ignore */ }
+    }
+    reflectDownloadDot();
 
     async function runUpdateAction(btn) {
       btn.classList.add('is-busy');
@@ -622,6 +673,7 @@ document.addEventListener('DOMContentLoaded', init);
         }
         if (label) label.textContent = 'Assets cached';
         if (downloadHint) downloadHint.textContent = `${done} files stored locally`;
+        reflectDownloadDot();
         setTimeout(() => {
           if (label) label.textContent = original;
           btn.classList.remove('is-busy');
@@ -788,9 +840,11 @@ function cacheDom() {
   el.selectedItemStickyImg = document.getElementById('selected-item-sticky-img');
   el.selectedItemStickyName = document.getElementById('selected-item-sticky-name');
 
-  // Cheats sidebar ribbon toggle
+  // Cheats sidebar ribbon toggle + vertical drag (mirrors music ribbon drag)
   if (el.cheatsRibbon && el.cheatsRibbonToggle && el.cheatsRibbonDrawer) {
-    el.cheatsRibbonToggle.addEventListener('click', () => {
+    const cheatsDrag = { active: false, moved: false, suppressClick: false, pointerId: null, startY: 0, startTopVh: 32 };
+
+    function togglePanel() {
       const isOpen = el.cheatsRibbon.classList.toggle('is-open');
       el.cheatsRibbonToggle.setAttribute('aria-expanded', String(isOpen));
       el.cheatsRibbonDrawer.setAttribute('aria-hidden', String(!isOpen));
@@ -798,7 +852,58 @@ function cacheDom() {
         'aria-label',
         isOpen ? 'Close cheats menu' : 'Open cheats menu'
       );
+    }
+
+    el.cheatsRibbonToggle.addEventListener('click', (event) => {
+      if (cheatsDrag.suppressClick) {
+        cheatsDrag.suppressClick = false;
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+      togglePanel();
     });
+
+    el.cheatsRibbonToggle.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return;
+      cheatsDrag.pointerId = event.pointerId;
+      cheatsDrag.active = true;
+      cheatsDrag.moved = false;
+      cheatsDrag.suppressClick = false;
+      cheatsDrag.startY = event.clientY;
+      const currentTop = parseFloat(el.cheatsRibbon.style.top) || 32;
+      cheatsDrag.startTopVh = currentTop;
+      if (typeof el.cheatsRibbonToggle.setPointerCapture === 'function') {
+        el.cheatsRibbonToggle.setPointerCapture(event.pointerId);
+      }
+    });
+
+    el.cheatsRibbonToggle.addEventListener('pointermove', (event) => {
+      if (!cheatsDrag.active || cheatsDrag.pointerId !== event.pointerId) return;
+      const deltaY = event.clientY - cheatsDrag.startY;
+      if (!cheatsDrag.moved && Math.abs(deltaY) < 6) return;
+      if (!cheatsDrag.moved) {
+        cheatsDrag.moved = true;
+        cheatsDrag.suppressClick = true;
+        el.cheatsRibbon.classList.add('is-dragging');
+      }
+      const vh = Math.max(window.innerHeight || 1, 1);
+      const nextVh = Math.min(90, Math.max(8, cheatsDrag.startTopVh + ((deltaY / vh) * 100)));
+      el.cheatsRibbon.style.top = `${nextVh.toFixed(2)}vh`;
+      event.preventDefault();
+    });
+
+    function endDrag(event) {
+      if (!cheatsDrag.active || cheatsDrag.pointerId !== event.pointerId) return;
+      el.cheatsRibbon.classList.remove('is-dragging');
+      if (typeof el.cheatsRibbonToggle.releasePointerCapture === 'function') {
+        try { el.cheatsRibbonToggle.releasePointerCapture(event.pointerId); } catch (_) {}
+      }
+      cheatsDrag.active = false;
+      cheatsDrag.pointerId = null;
+    }
+    el.cheatsRibbonToggle.addEventListener('pointerup', endDrag);
+    el.cheatsRibbonToggle.addEventListener('pointercancel', endDrag);
   }
 
   // Sticky selected-item bar — show when artbox scrolled off, hide when panel ends

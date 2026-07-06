@@ -221,9 +221,13 @@
 
   // ── ArtPanel ──────────────────────────────────────────────────────────────
 
-  function ArtPanel({ artUrl, name }) {
+  function ArtPanel({ artUrl, name, villager, onOpenFlags, onOpenHouse, onSave, saveDisabled }) {
     const [failed, setFailed] = useState(false);
     const [loaded, setLoaded] = useState(false);
+    const friendshipVal = (villager && villager.friendship) || 0;
+    const friendshipPct = Math.round((friendshipVal / 255) * 100);
+    const tier = (villager && villager.friendshipTier) || 'Stranger';
+
     return h('aside', { className: 'villager-modal-aside' },
       h('div', { className: 'villager-modal-art-frame' },
         artUrl && !failed
@@ -238,7 +242,49 @@
         artUrl && !failed && !loaded
           ? h('div', { className: 'skeleton-block villager-modal-art-shimmer' })
           : null
-      )
+      ),
+      // Compact friendship strip with heart icon, directly under the art
+      villager ? h('div', { className: 'vmod-aside-friendship', title: `${friendshipVal} / 255 · ${tier}` },
+        h('span', { className: 'vmod-aside-heart', 'aria-hidden': 'true' }, '♥'),
+        h('div', { className: 'vmod-aside-friendship-bar' },
+          h('div', { className: 'vmod-aside-friendship-fill', style: { width: `${friendshipVal === 0 ? 5 : friendshipPct}%`, opacity: friendshipVal === 0 ? 0.4 : 1 } })
+        ),
+        h('span', { className: 'vmod-aside-friendship-value' }, `${friendshipVal}`)
+      ) : null,
+      // Action row: Save (profile) · Flags · House
+      villager ? h('div', { className: 'vmod-aside-actions' },
+        h('button', {
+          type: 'button',
+          className: 'vmod-aside-btn vmod-aside-btn-primary',
+          onClick: onSave,
+          disabled: saveDisabled,
+          title: 'Save profile changes',
+        },
+          h('span', { className: 'vmod-aside-btn-label' }, 'Save')
+        ),
+        h('button', {
+          type: 'button',
+          className: 'vmod-aside-btn',
+          onClick: onOpenFlags,
+          title: 'Open villager flags',
+        },
+          h('svg', { viewBox: '0 0 24 24', width: 16, height: 16, fill: 'none', stroke: 'currentColor', strokeWidth: 2, 'aria-hidden': 'true' },
+            h('path', { d: 'M4 21V4h12l-2 4 2 4H4' })
+          ),
+          h('span', { className: 'vmod-aside-btn-label' }, 'Flags')
+        ),
+        h('button', {
+          type: 'button',
+          className: 'vmod-aside-btn',
+          onClick: onOpenHouse,
+          title: 'Open house data',
+        },
+          h('svg', { viewBox: '0 0 24 24', width: 16, height: 16, fill: 'none', stroke: 'currentColor', strokeWidth: 2, 'aria-hidden': 'true' },
+            h('path', { d: 'M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z' })
+          ),
+          h('span', { className: 'vmod-aside-btn-label' }, 'House')
+        )
+      ) : null
     );
   }
 
@@ -280,10 +326,8 @@
 
   // ── ProfileView ───────────────────────────────────────────────────────────
 
-  function ProfileView({ v, catchphrase, setCatchphrase, movingOut, setMovingOut, onSave }) {
+  function ProfileView({ v, catchphrase, setCatchphrase, movingOut, setMovingOut }) {
     const pColor = PERSONALITY_COLORS[v.personalityName] || 'rgba(255,255,255,0.2)';
-    const friendshipVal = v.friendship || 0;
-    const friendshipPct = Math.round((friendshipVal / 255) * 100);
 
     return h('div', { className: 'vmod-main-view' },
       // iOS large-title hero
@@ -298,18 +342,6 @@
           h('span', { className: 'vmod-hero-sep' }, '·'),
           h('span', { className: 'villager-modal-gender-label' }, v.gender === 'F' ? 'Female' : 'Male'),
         ),
-      ),
-
-      // Friendship card — promoted to top under the hero
-      h('div', { className: 'villager-modal-friendship' },
-        h('div', { className: 'villager-modal-friendship-label' },
-          h('span', null, 'Friendship'),
-          h('span', { className: 'vmod-friendship-value' }, `${friendshipVal} / 255`),
-          h('span', { className: 'villager-friendship-tier' }, v.friendshipTier || 'Stranger')
-        ),
-        h('div', { className: 'villager-friendship-bar-track' },
-          h('div', { className: 'villager-friendship-bar-fill', style: { width: `${friendshipVal === 0 ? 5 : friendshipPct}%`, opacity: friendshipVal === 0 ? 0.4 : 1 } })
-        )
       ),
 
       // Section: About (Species + Variant details)
@@ -371,14 +403,6 @@
       ),
 
       v.slot != null ? h('div', { className: 'villager-modal-slot' }, `Island slot ${v.slot}`) : null,
-
-      h('div', { className: 'villager-modal-footer' },
-        h('button', {
-          type: 'button',
-          className: 'action-btn action-btn-solid',
-          onClick: () => onSave({ catchphrase, movingOut }),
-        }, 'Save')
-      )
     );
   }
 
@@ -1060,8 +1084,6 @@
     const [movingOut, setMovingOut] = useState(v ? !!v.movingOut : false);
     const [isPending, startTransition] = useTransition();
 
-    // Reset local state whenever the villager changes — wrapped in startTransition
-    // (React 18 concurrent: marks updates as non-urgent, shows skeleton during transition).
     useEffect(() => {
       startTransition(() => {
         setCatchphrase(v ? (v.catchphrase || '') : '');
@@ -1070,21 +1092,22 @@
       });
     }, [villagerKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    if (!v) return null;
-
-    const handleSave = useCallback((edits) => {
-      if (onSave) onSave(edits);
-    }, [onSave]);
-
-    const handleLoadBackup = useCallback((backup) => {
-      if (backup.catchphrase != null) setCatchphrase(backup.catchphrase);
-      if (backup.movingOut   != null) setMovingOut(!!backup.movingOut);
-      setView('profile');
+    // Expose view-switch to the modal head Edit button (mounted outside React).
+    useEffect(() => {
+      const modal = document.getElementById('villager-modal');
+      if (!modal) return;
+      modal._openVillagerView = (name) => setView(name);
+      return () => { if (modal._openVillagerView) delete modal._openVillagerView; };
     }, []);
 
-    const showArt = view === 'profile' || view === 'savemanager';
+    if (!v) return null;
 
-    // Pending UI: show shimmer skeleton while transitioning between villagers
+    const handleProfileSave = useCallback(() => {
+      if (onSave) onSave({ catchphrase, movingOut });
+    }, [onSave, catchphrase, movingOut]);
+
+    const showArt = view === 'profile';
+
     if (isPending) {
       return h('div', { className: 'villager-modal-body-inner' },
         h('div', { className: 'villager-modal-shell' },
@@ -1094,34 +1117,25 @@
     }
 
     return h('div', { className: 'villager-modal-body-inner' },
-      // Tab bar promoted to full-width above the split shell. Fits all 5 tabs
-      // without horizontal scroll on any modal width.
-      h('div', { className: 'vmod-tab-bar', role: 'tablist' },
-        VILLAGER_TABS.map(tab =>
-          h('button', {
-            key: tab.key,
-            type: 'button',
-            className: `tab-btn vmod-tab-btn${view === tab.key ? ' is-active' : ''}`,
-            role: 'tab',
-            'aria-selected': view === tab.key,
-            onClick: () => setView(tab.key),
-          }, tab.label)
-        )
-      ),
       h('div', { className: `villager-modal-shell${showArt ? '' : ' vmod-fullwidth'}` },
-        showArt ? h(ArtPanel, { artUrl, name: v.name }) : null,
+        showArt ? h(ArtPanel, {
+          artUrl,
+          name: v.name,
+          villager: v,
+          onSave: handleProfileSave,
+          onOpenFlags: () => setView('flags'),
+          onOpenHouse: () => setView('house'),
+        }) : null,
         h('div', { className: 'villager-modal-info' },
           view === 'profile'
-            ? h(ProfileView, { v, catchphrase, setCatchphrase, movingOut, setMovingOut, onSave: handleSave })
-            : view === 'savemanager'
-              ? h(SaveManagerView, { v, onLoadBackup: handleLoadBackup })
-              : view === 'house'
-                ? h(HouseView, { v, onBack: () => setView('profile') })
-                : view === 'flags'
-                  ? h(FlagsView, { v, onBack: () => setView('profile') })
-                  : view === 'edit'
-                    ? h(EditView, { v, onBack: () => setView('profile') })
-                    : null
+            ? h(ProfileView, { v, catchphrase, setCatchphrase, movingOut, setMovingOut })
+            : view === 'house'
+              ? h(HouseView, { v, onBack: () => setView('profile') })
+              : view === 'flags'
+                ? h(FlagsView, { v, onBack: () => setView('profile') })
+                : view === 'edit'
+                  ? h(EditView, { v, onBack: () => setView('profile') })
+                  : null
         )
       )
     );
