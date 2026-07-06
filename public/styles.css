@@ -7075,23 +7075,6 @@ body:not([data-theme='night']) .action-btn-solid {
   border-color: var(--line);
 }
 
-.villager-art {
-  width: 64px;
-  height: 64px;
-  min-width: 64px;
-  object-fit: cover;
-  border-radius: var(--radius-sm);
-  background: rgba(0, 0, 0, 0.1);
-}
-
-.villager-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  flex: 1;
-  min-width: 0;
-}
-
 .villager-card.is-moving-out {
   border-color: rgba(255, 120, 80, 0.5);
   background: rgba(255, 100, 60, 0.07);
