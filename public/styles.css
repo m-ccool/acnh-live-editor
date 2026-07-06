@@ -4576,11 +4576,29 @@ body:not([data-theme='night']) .modal-filter-btn {
 
 /* ── Villager edit modal ───────────────────────────── */
 .modal-card-villager {
-  width: min(580px, 100%);
+  width: min(720px, 100%);
   overflow-x: hidden;
   height: min(92vh, calc(100svh - 24px));
   max-height: min(92vh, calc(100svh - 24px));
-  --vmod-inset: 20px;
+  --vmod-inset: 16px;
+}
+
+/* Compact modal-head for villager modal ONLY (does not affect other modals) */
+.modal-card-villager .modal-head {
+  padding: 10px var(--vmod-inset);
+}
+
+.modal-card-villager .modal-head h2 {
+  font-size: 0.98rem;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+.modal-card-villager .modal-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  font-size: 1.4rem;
 }
 
 /* React body mount fills the card below the modal-head */
@@ -4596,8 +4614,8 @@ body:not([data-theme='night']) .modal-filter-btn {
 .villager-modal-shell {
   display: flex;
   flex: 1;
-  gap: 18px;
-  padding: 0 20px 0;
+  gap: 16px;
+  padding: 14px var(--vmod-inset) 0;
   align-items: flex-start;
   min-height: 0;
   overflow: hidden;
@@ -4610,23 +4628,21 @@ body:not([data-theme='night']) .modal-filter-btn {
 
 .villager-modal-aside {
   flex-shrink: 0;
-  width: clamp(220px, 30vw, 280px);
+  width: clamp(180px, 26vw, 240px);
   display: flex;
   flex-direction: column;
-  align-self: stretch;
-  padding-top: 4px;
+  align-self: flex-start;
 }
 
-/* iOS-style hero art: aspect-ratio-locked frame = art aspect matches frame,
-   ZERO blank space. Radial spotlight backdrop with a soft floor gradient
-   makes the villager feel grounded. */
+/* iOS-style hero art: aspect-ratio locked so the frame's height exactly
+   matches the art aspect — ZERO letterbox. Anchored to the frame floor. */
 .villager-modal-art-frame {
   position: relative;
   width: 100%;
   aspect-ratio: 3 / 4;
-  max-height: none;
-  min-height: 220px;
-  border-radius: 20px;
+  max-height: 320px;
+  min-height: 200px;
+  border-radius: 18px;
   overflow: hidden;
   background:
     radial-gradient(120% 80% at 50% 70%, rgba(144, 168, 224, 0.14), rgba(255,255,255,0) 65%),
@@ -5159,27 +5175,29 @@ body:not([data-theme='night']) .modal-filter-btn {
   flex-shrink: 0;
 }
 
-/* Villager modal top-level tab bar — matches global .tab-bar/.tab-btn look. */
+/* Villager modal top-level tab bar — now full-width above the split shell.
+   Tabs distribute across the entire modal body so there's no crampy scroll. */
 .vmod-tab-bar {
   display: flex;
-  gap: 2px;
+  gap: 4px;
   margin-bottom: 0;
   flex-wrap: nowrap;
   overflow-x: auto;
   scrollbar-width: none;
-  padding: 14px var(--vmod-inset) 0;
-  border-bottom: 1px solid rgba(255,255,255,0.09);
+  padding: 12px var(--vmod-inset) 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  justify-content: flex-start;
 }
 .vmod-tab-bar::-webkit-scrollbar { display: none; }
 
-/* Inherits .tab-btn pill + active glow; only compacted for modal space. */
+/* Inherits .tab-btn pill + active glow; distributes tabs evenly. */
 .vmod-tab-btn {
-  min-width: 84px;
+  flex: 1 1 0;
+  min-width: 60px;
   min-height: 34px;
-  padding: 0 14px;
+  padding: 0 12px;
   font-size: 0.82rem;
   white-space: nowrap;
-  flex-shrink: 0;
   letter-spacing: 0.01em;
 }
 

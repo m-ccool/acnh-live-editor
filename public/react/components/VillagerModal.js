@@ -1094,21 +1094,23 @@
     }
 
     return h('div', { className: 'villager-modal-body-inner' },
+      // Tab bar promoted to full-width above the split shell. Fits all 5 tabs
+      // without horizontal scroll on any modal width.
+      h('div', { className: 'vmod-tab-bar', role: 'tablist' },
+        VILLAGER_TABS.map(tab =>
+          h('button', {
+            key: tab.key,
+            type: 'button',
+            className: `tab-btn vmod-tab-btn${view === tab.key ? ' is-active' : ''}`,
+            role: 'tab',
+            'aria-selected': view === tab.key,
+            onClick: () => setView(tab.key),
+          }, tab.label)
+        )
+      ),
       h('div', { className: `villager-modal-shell${showArt ? '' : ' vmod-fullwidth'}` },
         showArt ? h(ArtPanel, { artUrl, name: v.name }) : null,
         h('div', { className: 'villager-modal-info' },
-          h('div', { className: 'vmod-tab-bar', role: 'tablist' },
-            VILLAGER_TABS.map(tab =>
-              h('button', {
-                key: tab.key,
-                type: 'button',
-                className: `tab-btn vmod-tab-btn${view === tab.key ? ' is-active' : ''}`,
-                role: 'tab',
-                'aria-selected': view === tab.key,
-                onClick: () => setView(tab.key),
-              }, tab.label)
-            )
-          ),
           view === 'profile'
             ? h(ProfileView, { v, catchphrase, setCatchphrase, movingOut, setMovingOut, onSave: handleSave })
             : view === 'savemanager'
