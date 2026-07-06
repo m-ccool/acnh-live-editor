@@ -368,6 +368,21 @@ function showToast(message, duration) {
   el._toastTimeout = setTimeout(() => { if (el.deployToast) el.deployToast.classList.remove('is-visible'); }, duration || 3000);
 }
 
+// Global tab-enter shimmer: brief loading overlay on every tab switch so the
+// user sees a consistent transition regardless of the panel's data-load path.
+function playTabEnterShimmer(tabName) {
+  const panel = document.getElementById(`tab-panel-${tabName}`);
+  if (!panel) return;
+  panel.classList.remove('is-tab-entering');
+  // Force reflow so the class removal + re-add restarts the animation cleanly.
+  void panel.offsetWidth;
+  panel.classList.add('is-tab-entering');
+  clearTimeout(panel._tabShimmerTimeout);
+  panel._tabShimmerTimeout = setTimeout(() => {
+    panel.classList.remove('is-tab-entering');
+  }, 600);
+}
+
 document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
@@ -1230,8 +1245,11 @@ function bindEvents() {
 
   el.tabButtons.forEach((button) => {
     button.addEventListener('click', () => {
-      state.activeTab = button.dataset.tab;
+      const nextTab = button.dataset.tab;
+      if (nextTab === state.activeTab) return;
+      state.activeTab = nextTab;
       renderTabs();
+      playTabEnterShimmer(nextTab);
       persistLocalState();
     });
   });

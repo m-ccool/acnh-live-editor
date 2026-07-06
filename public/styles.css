@@ -818,6 +818,39 @@ body[data-theme='night'] .star--bright {
   border-radius: 12px;
 }
 
+/* ── Global tab-enter shimmer transition ─────────────────
+   Applied to any .tab-panel receiving `.is-tab-entering` for ~600ms after
+   the user clicks a tab. Gives every tab switch a consistent load feel. */
+@keyframes tab-enter-fade {
+  0%   { opacity: 0.35; transform: translateY(4px); }
+  100% { opacity: 1;    transform: translateY(0);   }
+}
+@keyframes tab-enter-sweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%);  }
+}
+.tab-panel.is-tab-entering {
+  position: relative;
+  animation: tab-enter-fade 380ms ease-out both;
+}
+.tab-panel.is-tab-entering::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background: linear-gradient(
+    100deg,
+    rgba(255,255,255,0) 20%,
+    rgba(255,255,255,0.08) 50%,
+    rgba(255,255,255,0) 80%
+  );
+  background-size: 200% 100%;
+  animation: tab-enter-sweep 600ms ease-out forwards;
+  z-index: 5;
+  border-radius: inherit;
+}
+
 /* Villager modal skeleton layout */
 .vmod-skeleton {
   display: flex;
