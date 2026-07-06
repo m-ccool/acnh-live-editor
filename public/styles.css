@@ -4586,7 +4586,7 @@ body:not([data-theme='night']) .modal-filter-btn {
 .villager-modal-shell {
   display: flex;
   flex: 1;
-  gap: 20px;
+  gap: 18px;
   padding: 0 20px 0;
   align-items: stretch;
   min-height: 0;
@@ -4600,32 +4600,37 @@ body:not([data-theme='night']) .modal-filter-btn {
 
 .villager-modal-aside {
   flex-shrink: 0;
-  width: clamp(140px, 22vw, 200px);
+  width: clamp(220px, 34vw, 300px);
   display: flex;
   flex-direction: column;
 }
 
+/* iOS-style hero art: fills the aside, image sits on the "floor" with a soft
+   radial spotlight behind it. No visible frame padding — no wasted space. */
 .villager-modal-art-frame {
   position: relative;
   width: 100%;
   flex: 1;
-  max-height: clamp(200px, 46vh, 260px);
-  border-radius: 16px;
+  min-height: 240px;
+  border-radius: 18px;
   overflow: hidden;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.1);
+  background:
+    radial-gradient(120% 90% at 50% 30%, rgba(255,255,255,0.08), rgba(255,255,255,0) 65%),
+    linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.008));
+  border: 1px solid rgba(255,255,255,0.08);
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
-  padding: 10px;
+  padding: 0;
 }
 
 .villager-modal-art {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  object-position: center center;
+  object-position: center bottom;
   transition: opacity 0.2s ease;
+  filter: drop-shadow(0 6px 16px rgba(0,0,0,0.28));
 }
 
 .villager-modal-art.art-pending {
@@ -4656,7 +4661,7 @@ body:not([data-theme='night']) .modal-filter-btn {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 14px;
   padding: 4px 0 0;
   overflow: hidden;
 }
@@ -4666,36 +4671,41 @@ body:not([data-theme='night']) .modal-filter-btn {
   align-items: baseline;
   gap: 10px;
   flex-wrap: wrap;
-  margin-bottom: 2px;
+  margin-bottom: 0;
 }
 
+/* iOS large-title style — heavier weight, tighter tracking. */
 .villager-modal-name {
-  font-size: 1.45rem;
+  font-size: 1.6rem;
   font-weight: 700;
-  letter-spacing: -0.01em;
-  color: var(--text-primary, rgba(255,255,255,0.92));
+  letter-spacing: -0.02em;
+  color: var(--text);
+  line-height: 1.05;
 }
 
 .villager-modal-gender-label {
-  font-size: 0.8rem;
-  color: rgba(255,255,255,0.4);
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.5);
+  font-weight: 500;
 }
 
-/* NHSE-style field rows */
+/* iOS grouped-list style: rounded card, subtle inset bg, hairline separators. */
 .vmod-fields {
   display: flex;
   flex-direction: column;
   gap: 0;
   border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 10px;
+  border-radius: 12px;
   overflow: hidden;
+  background: rgba(255,255,255,0.03);
 }
 
 .vmod-field-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
+  gap: 10px;
+  padding: 10px 14px;
+  min-height: 44px;
   border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 
@@ -4705,12 +4715,12 @@ body:not([data-theme='night']) .modal-filter-btn {
 
 .vmod-label {
   flex-shrink: 0;
-  width: 94px;
-  font-size: 0.73rem;
-  color: rgba(255,255,255,0.42);
+  width: 108px;
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.55);
   font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .vmod-value {
@@ -4718,7 +4728,10 @@ body:not([data-theme='night']) .modal-filter-btn {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: flex-end;
+  gap: 8px;
+  color: var(--text);
+  font-size: 0.9rem;
 }
 
 .vmod-id-pair {
@@ -4726,7 +4739,7 @@ body:not([data-theme='night']) .modal-filter-btn {
 }
 
 .vmod-num {
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   color: rgba(255,255,255,0.5);
   font-variant-numeric: tabular-nums;
   min-width: 22px;
@@ -4734,8 +4747,8 @@ body:not([data-theme='night']) .modal-filter-btn {
 }
 
 .vmod-name {
-  font-size: 0.88rem;
-  color: rgba(255,255,255,0.8);
+  font-size: 0.9rem;
+  color: rgba(255,255,255,0.9);
 }
 
 .vmod-catchphrase-wrap {
@@ -4744,23 +4757,24 @@ body:not([data-theme='night']) .modal-filter-btn {
   align-items: center;
   flex: 1;
   min-width: 0;
+  justify-content: flex-end;
 }
 
 .vmod-input {
   flex: 1;
   min-width: 0;
-  background: rgba(0,0,0,0.25);
-  border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 6px;
-  color: rgba(255,255,255,0.9);
+  background: rgba(0,0,0,0.24);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 8px;
+  color: rgba(255,255,255,0.92);
   font-size: 0.88rem;
-  padding: 4px 8px;
+  padding: 6px 10px;
   outline: none;
   transition: border-color 0.15s;
 }
 
 .vmod-input:focus {
-  border-color: rgba(255,255,255,0.4);
+  border-color: rgba(255,255,255,0.32);
 }
 
 .vmod-btn-sm {
@@ -4771,7 +4785,7 @@ body:not([data-theme='night']) .modal-filter-btn {
   flex-shrink: 0;
 }
 
-/* Moving Out toggle */
+/* iOS toggle switch: 46x26 with 20px knob, green when on, spring on slide. */
 .vmod-checkbox-label {
   display: flex;
   align-items: center;
@@ -4781,17 +4795,18 @@ body:not([data-theme='night']) .modal-filter-btn {
 }
 
 .vmod-checkbox-label input[type="checkbox"] {
-  width: 36px;
-  height: 20px;
+  width: 46px;
+  height: 26px;
   appearance: none;
   -webkit-appearance: none;
-  background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.2);
-  border-radius: 10px;
+  background: rgba(255,255,255,0.16);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 999px;
   position: relative;
   cursor: pointer;
-  transition: background 0.2s, border-color 0.2s;
+  transition: background 0.22s ease, border-color 0.22s ease;
   flex-shrink: 0;
+  touch-action: manipulation;
 }
 
 .vmod-checkbox-label input[type="checkbox"]::after {
@@ -4799,59 +4814,83 @@ body:not([data-theme='night']) .modal-filter-btn {
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 14px;
-  height: 14px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.5);
-  transition: transform 0.2s, background 0.2s;
+  background: #fff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.28), 0 0 1px rgba(0,0,0,0.16);
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .vmod-checkbox-label input[type="checkbox"]:checked {
-  background: rgba(255, 120, 80, 0.6);
-  border-color: rgba(255, 100, 60, 0.8);
+  background: rgba(52, 199, 89, 0.92);
+  border-color: rgba(52, 199, 89, 1);
 }
 
 .vmod-checkbox-label input[type="checkbox"]:checked::after {
-  transform: translateX(16px);
+  transform: translateX(20px);
   background: #fff;
 }
 
-/* Friendship row */
+/* Friendship — wrapped in its own iOS card. Nested selectors keep the
+   home page's .villager-friendship-* classes untouched. */
 .villager-modal-friendship {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
 }
 
 .villager-modal-friendship-label {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.78rem;
-  color: rgba(255,255,255,0.45);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.55);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+}
+
+.villager-modal-friendship .villager-friendship-bar-track {
+  height: 6px;
+  border-radius: 999px;
+}
+
+.villager-modal-friendship .villager-friendship-bar-fill {
+  border-radius: 999px;
+}
+
+.villager-modal-friendship .villager-friendship-tier {
+  font-size: 0.82rem;
+  color: var(--text);
+  font-weight: 500;
 }
 
 .vmod-friendship-value {
   font-variant-numeric: tabular-nums;
-  color: rgba(255,255,255,0.65);
+  color: rgba(255,255,255,0.85);
   margin-left: auto;
 }
 
 .villager-modal-slot {
-  font-size: 0.78rem;
-  color: rgba(255,255,255,0.3);
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.4);
+  padding: 0 4px;
 }
 
-/* Main view wrapper */
+/* Main view wrapper — scrolls inside the modal card */
 .vmod-main-view {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 14px;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  padding-bottom: 4px;
 }
 
 /* Action button bar (Backup / Load / House / Flags / Edit) */
@@ -4870,20 +4909,29 @@ body:not([data-theme='night']) .modal-filter-btn {
   font-size: 0.75rem;
 }
 
-/* Footer (main + sub-views) */
+/* Footer — iOS action bar, larger primary Save pill */
 .villager-modal-footer {
   border-top: 1px solid rgba(255,255,255,0.08);
-  padding: 12px var(--vmod-inset) max(16px, env(safe-area-inset-bottom, 0px));
+  padding: 12px var(--vmod-inset) max(14px, env(safe-area-inset-bottom, 0px));
   display: flex;
   justify-content: flex-end;
   align-items: center;
   flex-shrink: 0;
+  gap: 8px;
+}
+
+.villager-modal-footer .action-btn-solid {
+  min-height: 40px;
+  padding: 0 20px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  border-radius: 999px;
 }
 
 /* Sub-view footer: left cluster + right Save */
 .vmod-subview-footer {
   justify-content: space-between;
-  padding: 12px var(--vmod-inset) max(16px, env(safe-area-inset-bottom, 0px));
+  padding: 12px var(--vmod-inset) max(14px, env(safe-area-inset-bottom, 0px));
 }
 
 .vmod-footer-left {
