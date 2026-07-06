@@ -417,6 +417,220 @@ document.addEventListener('DOMContentLoaded', init);
   document.addEventListener('focusin', schedule);
 })();
 
+// ── Utility panel (topbar controls popover) ──────────────────────
+// Wires the single hamburger trigger to a slide-in panel that dispatches
+// actions to the (now hidden) legacy action buttons. Keeps all existing
+// wiring intact — only routes clicks through the new surface.
+(function setupUtilityPanel() {
+  if (typeof document === 'undefined') return;
+  document.addEventListener('DOMContentLoaded', () => {
+    const panel = document.getElementById('utility-panel');
+    const backdrop = document.getElementById('utility-panel-backdrop');
+    const trigger = document.getElementById('utility-panel-trigger');
+    const closeBtn = document.getElementById('utility-panel-close');
+    const statusMirror = document.getElementById('utility-status-mirror');
+    const themeLabel = document.getElementById('utility-theme-label');
+    const downloadHint = document.getElementById('utility-download-hint');
+    const versionFoot = document.getElementById('utility-foot-version');
+    const brandVersion = document.getElementById('brand-version');
+    const triggerDot = document.getElementById('utility-trigger-status-dot');
+
+    if (!panel || !trigger || !backdrop) return;
+
+    function openPanel() {
+      panel.classList.add('is-visible');
+      backdrop.classList.add('is-visible');
+      trigger.setAttribute('aria-expanded', 'true');
+      panel.setAttribute('aria-modal', 'true');
+      syncStatusMirror();
+      syncThemeLabel();
+    }
+    function closePanel() {
+      panel.classList.remove('is-visible');
+      backdrop.classList.remove('is-visible');
+      trigger.setAttribute('aria-expanded', 'false');
+      panel.setAttribute('aria-modal', 'false');
+    }
+    trigger.addEventListener('click', () => {
+      if (panel.classList.contains('is-visible')) closePanel();
+      else openPanel();
+    });
+    if (closeBtn) closeBtn.addEventListener('click', closePanel);
+    backdrop.addEventListener('click', closePanel);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && panel.classList.contains('is-visible')) closePanel();
+    });
+
+    // Mirror the top-bar status pills into the panel + update trigger dot.
+    function syncStatusMirror() {
+      if (!statusMirror) return;
+      const rows = [
+        { id: 'api-status-pill', label: 'API', valueId: 'catalog-status-label' },
+        { id: 'ryujinx-status-chip', label: 'System · Ryujinx', valueId: null },
+        { id: 'acnh-data-status-chip', label: 'Game', valueId: null },
+      ];
+      let overallState = 'is-ok';
+      const html = rows.map((row) => {
+        const source = document.getElementById(row.id);
+        let stateClass = '';
+        if (source) {
+          if (source.classList.contains('is-good')) stateClass = 'is-ok';
+          else if (source.classList.contains('is-warn')) stateClass = '';
+          else if (source.classList.contains('is-error')) stateClass = 'is-error';
+        }
+        if (stateClass === 'is-error') overallState = 'is-error';
+        else if (stateClass === '' && overallState === 'is-ok') overallState = '';
+        const valueEl = row.valueId ? document.getElementById(row.valueId) : null;
+        const valueText = valueEl ? (valueEl.textContent || '').trim() : '';
+        return `<div class="utility-status-row">
+          <span class="utility-status-row-dot ${stateClass}"></span>
+          <span class="utility-status-row-label">${row.label}</span>
+          <span class="utility-status-row-value">${valueText}</span>
+        </div>`;
+      }).join('');
+      statusMirror.innerHTML = html;
+
+      if (triggerDot) {
+        triggerDot.classList.remove('is-ok', 'is-error');
+        if (overallState === 'is-ok') triggerDot.classList.add('is-ok');
+        else if (overallState === 'is-error') triggerDot.classList.add('is-error');
+      }
+    }
+    // Sync periodically so the panel status stays fresh while open,
+    // and the trigger dot reflects overall health always.
+    syncStatusMirror();
+    setInterval(syncStatusMirror, 3000);
+
+    function syncThemeLabel() {
+      if (!themeLabel) return;
+      const isNight = document.body.dataset.theme === 'night';
+      themeLabel.textContent = isNight ? 'Night Mode' : 'Day Mode';
+    }
+
+    // Show current git commit short hash + branch in the footer, if we can grab it
+    if (versionFoot) {
+      fetch('/api/status', { cache: 'no-store' })
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => {
+          if (!data) return;
+          const version = data.version || 'dev';
+          versionFoot.textContent = `ACNH Live Editor · ${version}`;
+          if (brandVersion) brandVersion.textContent = `${version}`;
+        })
+        .catch(() => {});
+    }
+
+    // Dispatch panel actions to the corresponding legacy button/element.
+    panel.addEventListener('click', async (event) => {
+      const btn = event.target.closest('[data-utility-action]');
+      if (!btn) return;
+      const action = btn.dataset.utilityAction;
+      switch (action) {
+        case 'reload':
+          document.getElementById('reload-button')?.click();
+          closePanel();
+          break;
+        case 'update':
+          await runUpdateAction(btn);
+          break;
+        case 'test':
+          document.getElementById('test-state-menu-button')?.click();
+          break;
+        case 'loadsave':
+          document.getElementById('open-backups-btn')?.click();
+          closePanel();
+          break;
+        case 'download-assets':
+          await runDownloadAssets(btn);
+          break;
+        case 'settings':
+          document.getElementById('settings-button')?.click();
+          closePanel();
+          break;
+        case 'theme':
+          document.getElementById('theme-toggle')?.click();
+          syncThemeLabel();
+          break;
+      }
+    });
+
+    async function runUpdateAction(btn) {
+      btn.classList.add('is-busy');
+      const label = btn.querySelector('.utility-action-label');
+      const original = label ? label.textContent : 'Update';
+      if (label) label.textContent = 'Updating…';
+      try {
+        const res = await fetch('/api/update-local', { method: 'POST' });
+        const data = await res.json().catch(() => ({}));
+        if (data.ok) {
+          if (label) label.textContent = 'Restarting…';
+          // Server will exit; wait a moment then reload page.
+          setTimeout(() => { window.location.href = `${window.location.pathname}?t=${Date.now()}`; }, 3000);
+        } else {
+          if (label) label.textContent = 'Update failed';
+          setTimeout(() => { if (label) label.textContent = original; btn.classList.remove('is-busy'); }, 2500);
+        }
+      } catch (_) {
+        if (label) label.textContent = 'Update failed';
+        setTimeout(() => { if (label) label.textContent = original; btn.classList.remove('is-busy'); }, 2500);
+      }
+    }
+
+    async function runDownloadAssets(btn) {
+      if (!('caches' in window)) {
+        if (downloadHint) downloadHint.textContent = 'Cache API unavailable';
+        return;
+      }
+      btn.classList.add('is-busy');
+      const label = btn.querySelector('.utility-action-label');
+      const original = label ? label.textContent : 'Download Assets';
+      try {
+        const villagers = Array.isArray(window.state?.villagers) ? window.state.villagers : [];
+        // Also probe API for any known villagers list if state is empty
+        const names = Array.from(new Set(villagers.map(v => v && v.name).filter(Boolean)));
+        if (names.length === 0) {
+          const res = await fetch('/api/bridge/read-villagers', { cache: 'no-store' });
+          if (res.ok) {
+            const data = await res.json().catch(() => ({}));
+            const payload = data.payload || data;
+            const bridgeVillagers = Array.isArray(payload.villagers) ? payload.villagers : [];
+            bridgeVillagers.forEach(v => { if (v && v.name) names.push(v.name); });
+          }
+        }
+        const cache = await caches.open('acnh-villager-assets-v1');
+        const urls = [];
+        names.forEach((n) => {
+          const safe = String(n).trim().replace(/[^a-zA-Z0-9 _'\-]/g, '');
+          if (!safe) return;
+          urls.push(`/api/villager-icon/${encodeURIComponent(safe)}?v=4`);
+          urls.push(`/api/villager-art/${encodeURIComponent(safe)}`);
+        });
+        let done = 0;
+        for (const url of urls) {
+          try {
+            await cache.add(url);
+          } catch (_) { /* ignore individual failures */ }
+          done += 1;
+          if (label) label.textContent = `Cached ${done}/${urls.length}`;
+        }
+        if (label) label.textContent = 'Assets cached';
+        if (downloadHint) downloadHint.textContent = `${done} files stored locally`;
+        setTimeout(() => {
+          if (label) label.textContent = original;
+          btn.classList.remove('is-busy');
+        }, 2500);
+      } catch (err) {
+        if (label) label.textContent = 'Cache failed';
+        setTimeout(() => {
+          if (label) label.textContent = original;
+          btn.classList.remove('is-busy');
+        }, 2500);
+      }
+    }
+  });
+})();
+
+
 async function init() {
   cacheDom();
   bindEvents();

@@ -601,6 +601,40 @@ function createApiRouter(options = {}) {
     }, 2000);
   })
 
+  // Update local repo from origin/dev, then exit so systemd restarts with new code
+  router.post('/api/update-local', (req, res) => {
+    const path = require('path')
+    const { execFile } = require('child_process')
+    const repoRoot = path.join(__dirname, '..')
+
+    const steps = []
+    function runStep(file, args) {
+      return new Promise(resolve => {
+        execFile(file, args, { cwd: repoRoot, timeout: 30000 }, (err, stdout, stderr) => {
+          const out = ((stdout || '') + (stderr || '')).trim().slice(0, 800)
+          resolve({ ok: !err, out, code: err ? (err.code || 1) : 0 })
+        })
+      })
+    }
+
+    ;(async () => {
+      const fetch = await runStep('git', ['fetch', 'origin', 'dev'])
+      steps.push({ step: 'git fetch', ...fetch })
+
+      const pull = await runStep('git', ['pull', '--ff-only', 'origin', 'dev'])
+      steps.push({ step: 'git pull', ...pull })
+
+      const rev = await runStep('git', ['rev-parse', '--short', 'HEAD'])
+      steps.push({ step: 'git rev-parse', ...rev })
+
+      res.json({ ok: pull.ok, commit: rev.out, steps })
+
+      if (pull.ok) {
+        setTimeout(() => { process.exit(0) }, 1500)
+      }
+    })().catch(err => res.status(500).json({ ok: false, error: err.message, steps }))
+  })
+
   return router
 }
 

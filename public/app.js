@@ -23,22 +23,26 @@ function clearLiveGameDataDisplay() {
 }
 
 function updateClock() {
-  const now = new Date();
+  // Prefer the in-game date/time if the bridge has surfaced it via state.player.
+  // Falls back to a placeholder — never falls back to the user's real system clock
+  // (per project fail-closed live-data policy).
+  const gameDate = state && state.player && state.player.gameDate;
+  const gameTime = state && state.player && state.player.gameTime;
 
   if (el.dateDisplay) {
-    el.dateDisplay.textContent = now.toLocaleDateString(undefined, {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric'
-    });
+    if (gameDate) {
+      el.dateDisplay.textContent = gameDate;
+    } else {
+      el.dateDisplay.textContent = 'In-game date —';
+    }
   }
 
   if (el.timeDisplay) {
-    el.timeDisplay.textContent = now.toLocaleTimeString([], {
-      hour: 'numeric',
-      minute: '2-digit'
-    });
+    if (gameTime) {
+      el.timeDisplay.textContent = gameTime;
+    } else {
+      el.timeDisplay.textContent = '—:—';
+    }
   }
 }
 

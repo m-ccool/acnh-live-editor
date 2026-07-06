@@ -1228,18 +1228,134 @@ body.modal-open .app-shell {
 .topbar {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: clamp(14px, 2.5vw, 22px);
+  gap: 10px;
+  padding: clamp(12px, 2vw, 18px) clamp(14px, 2.5vw, 22px);
 }
 
-/* Kept for backward compat — no longer rendered in HTML */
+/* Compact iOS-style top bar row: identity left, clock center, trigger right */
 .topbar-main {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 0;
 }
 
-/* Row 1: title + action buttons inline */
+.topbar-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.brand-title {
+  font-size: clamp(1.35rem, 1.6vw, 1.75rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.brand-version {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  opacity: 0.7;
+  letter-spacing: 0.02em;
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.topbar-clock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  opacity: 0.72;
+}
+
+.topbar-clock .console-date {
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+.topbar-clock .console-time {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  opacity: 0.85;
+}
+
+.topbar-trigger-wrap {
+  flex-shrink: 0;
+  position: relative;
+}
+
+/* Single hamburger/kebab trigger that opens the controls panel.
+   iOS-large tap target (44x44), soft glass surface. */
+.utility-panel-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)),
+    rgba(255,255,255,0.05);
+  color: var(--text);
+  cursor: pointer;
+  touch-action: manipulation;
+  position: relative;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.utility-panel-trigger:hover {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.03)),
+    rgba(255,255,255,0.08);
+  border-color: var(--line-strong);
+}
+
+.utility-panel-trigger:active {
+  transform: scale(var(--scale-press));
+}
+
+.utility-panel-trigger[aria-expanded="true"] {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.04)),
+    rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.28);
+}
+
+/* Small dot on the trigger to reflect overall bridge status at a glance */
+.utility-trigger-dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--warn);
+  box-shadow: 0 0 6px rgba(255, 209, 102, 0.55);
+  transition: background var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.utility-trigger-dot.is-ok {
+  background: var(--good);
+  box-shadow: 0 0 6px rgba(98, 214, 111, 0.6);
+}
+.utility-trigger-dot.is-error {
+  background: var(--danger);
+  box-shadow: 0 0 6px rgba(255, 95, 115, 0.6);
+}
+
+/* Row 1 (legacy): title + action buttons inline — hidden but kept for wiring */
 .topbar-title-row {
   display: flex;
   align-items: center;
@@ -1248,11 +1364,8 @@ body.modal-open .app-shell {
   min-width: 0;
 }
 
-.brand-title {
-  font-size: clamp(2rem, 2vw, 2.65rem);
-  line-height: 1;
-  letter-spacing: -0.045em;
-  font-weight: 600;
+.topbar-actions-legacy {
+  display: none !important;
 }
 
 .brand-subline {
@@ -1261,7 +1374,7 @@ body.modal-open .app-shell {
   gap: 8px;
   flex-wrap: nowrap;
   overflow: hidden;
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 .brand-datetime {
@@ -6759,6 +6872,233 @@ body[data-theme='night'] .field-wrap input[type='number'],
 body[data-theme='night'] .meta-input[inputmode='numeric'] {
   color-scheme: dark;
 }
+
+/* ── Utility panel (top-bar controls popover) ───────────────────
+   VS Code / GitHub-style slide-in from the right edge. Groups
+   status + all app actions into a single organized surface. */
+.utility-panel-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 88;
+  background: rgba(6, 8, 16, 0.42);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-base) var(--ease-standard);
+}
+.utility-panel-backdrop.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+.utility-panel-backdrop[hidden] { display: block !important; }
+
+.utility-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 89;
+  width: min(360px, calc(100vw - 32px));
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--glass-edge);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015)),
+    rgba(12, 15, 22, 0.72);
+  backdrop-filter: blur(var(--backdrop-blur-strong)) saturate(var(--backdrop-sat));
+  -webkit-backdrop-filter: blur(var(--backdrop-blur-strong)) saturate(var(--backdrop-sat));
+  box-shadow: -18px 0 48px rgba(0,0,0,0.32);
+  transform: translateX(100%);
+  transition: transform var(--dur-modal) var(--ease-spring);
+  contain: paint;
+  isolation: isolate;
+}
+.utility-panel[hidden] { display: flex !important; }
+.utility-panel.is-visible {
+  transform: translateX(0);
+}
+
+.utility-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--glass-edge-soft);
+  padding-top: max(14px, env(safe-area-inset-top, 0px));
+}
+.utility-panel-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.005em;
+}
+.utility-panel-close {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.05);
+  color: var(--text);
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+.utility-panel-close:hover { background: rgba(255,255,255,0.08); }
+.utility-panel-close:active { transform: scale(var(--scale-press)); }
+
+.utility-panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.utility-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.utility-section-title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  padding: 0 4px;
+}
+
+/* Status mirror grid — 3 pill rows */
+.utility-status-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--glass-edge-soft);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+  padding: 8px;
+}
+.utility-status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+.utility-status-row-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--warn);
+  flex-shrink: 0;
+  box-shadow: 0 0 4px rgba(255, 209, 102, 0.5);
+}
+.utility-status-row-dot.is-ok { background: var(--good); box-shadow: 0 0 4px rgba(98, 214, 111, 0.55); }
+.utility-status-row-dot.is-error { background: var(--danger); box-shadow: 0 0 4px rgba(255, 95, 115, 0.55); }
+.utility-status-row-label {
+  flex: 1;
+  min-width: 0;
+  font-weight: 500;
+}
+.utility-status-row-value {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Actions grid — iOS Control Center tile style */
+.utility-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.utility-action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 12px 12px 14px;
+  min-height: 74px;
+  border: 1px solid var(--glass-edge-soft);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.04);
+  color: var(--text);
+  cursor: pointer;
+  touch-action: manipulation;
+  text-align: left;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.utility-action:hover {
+  background: rgba(255,255,255,0.07);
+  border-color: var(--line-strong);
+}
+.utility-action:active {
+  transform: scale(var(--scale-press));
+}
+.utility-action.is-busy {
+  opacity: 0.55;
+  pointer-events: none;
+}
+.utility-action.is-active {
+  background: rgba(122, 175, 255, 0.14);
+  border-color: rgba(122, 175, 255, 0.35);
+  color: var(--text);
+  box-shadow: 0 0 22px rgba(122, 175, 255, 0.12);
+}
+
+.utility-action svg {
+  color: rgba(255,255,255,0.86);
+}
+.utility-action-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+.utility-action-hint {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  opacity: 0.75;
+}
+
+.utility-panel-foot {
+  padding: 10px 16px max(14px, env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--glass-edge-soft);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-align: center;
+  opacity: 0.7;
+}
+.utility-foot-version {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Light theme adjustments */
+body:not([data-theme='night']) .utility-panel {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.7), rgba(255,255,255,0.55)),
+    rgba(240, 236, 232, 0.5);
+  border-left-color: rgba(0,0,0,0.08);
+}
+body:not([data-theme='night']) .utility-action {
+  background: rgba(0,0,0,0.04);
+  border-color: rgba(0,0,0,0.08);
+  color: #2c2c2e;
+}
+body:not([data-theme='night']) .utility-action:hover {
+  background: rgba(0,0,0,0.06);
+}
+
 
 .field-wrap input[type='number']::-webkit-inner-spin-button,
 .field-wrap input[type='number']::-webkit-outer-spin-button {
