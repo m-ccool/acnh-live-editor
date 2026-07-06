@@ -380,10 +380,42 @@ function playTabEnterShimmer(tabName) {
   clearTimeout(panel._tabShimmerTimeout);
   panel._tabShimmerTimeout = setTimeout(() => {
     panel.classList.remove('is-tab-entering');
-  }, 600);
+  }, 420);
 }
 
 document.addEventListener('DOMContentLoaded', init);
+
+// ── On-screen keyboard (Steam Deck / iOS) handling ────────────────
+// When the OSK opens, `window.visualViewport` shrinks. Scroll the currently
+// focused input into the remaining visible area so users can see what they're
+// typing instead of the keyboard covering the field.
+(function setupVisualViewportOsk() {
+  if (typeof window === 'undefined' || !window.visualViewport) return;
+  const vv = window.visualViewport;
+  let scrollScheduled = false;
+  function scrollFocusedIntoView() {
+    scrollScheduled = false;
+    const active = document.activeElement;
+    if (!active) return;
+    const tag = active.tagName;
+    if (tag !== 'INPUT' && tag !== 'TEXTAREA' && !active.isContentEditable) return;
+    const rect = active.getBoundingClientRect();
+    const vvBottom = vv.height + vv.offsetTop;
+    // If the field is below the OSK-adjusted viewport, scroll it into view.
+    if (rect.bottom > vvBottom - 12) {
+      active.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+  }
+  function schedule() {
+    if (scrollScheduled) return;
+    scrollScheduled = true;
+    // Wait one frame so the viewport metrics settle before measuring.
+    requestAnimationFrame(scrollFocusedIntoView);
+  }
+  vv.addEventListener('resize', schedule);
+  vv.addEventListener('scroll', schedule);
+  document.addEventListener('focusin', schedule);
+})();
 
 async function init() {
   cacheDom();

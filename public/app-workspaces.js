@@ -1,7 +1,7 @@
 'use strict';
 
 let itemModalAutoApplyTimeoutId = 0;
-const MODAL_CLOSE_TRANSITION_MS = 240;
+const MODAL_CLOSE_TRANSITION_MS = 180;
 const INVENTORY_TOUCH_HOLD_MS = 320;
 const INVENTORY_TOUCH_HOLD_MOVE_PX = 12;
 let inventoryTouchHoldTimeoutId = 0;
