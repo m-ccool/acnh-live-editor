@@ -1971,10 +1971,11 @@ body:not([data-theme='night']) .music-ribbon-tab:hover {
 }
 
 .music-source-badge {
-  color: rgba(255,255,255,0.58);
-  font-size: 0.7rem;
-  letter-spacing: 0.18em;
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.04em;
   text-transform: uppercase;
+  font-weight: 600;
 }
 
 .music-player-copy strong {
@@ -2029,8 +2030,8 @@ body:not([data-theme='night']) .music-ribbon-tab:hover {
   min-width: 40px;
   height: 40px;
   padding: 0;
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 999px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
   background:
     linear-gradient(180deg, rgba(255,255,255,0.1), rgba(255,255,255,0.03)),
     rgba(255,255,255,0.04);
@@ -2042,15 +2043,23 @@ body:not([data-theme='night']) .music-ribbon-tab:hover {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  touch-action: manipulation;
   transition:
-    transform 0.18s var(--ease),
-    border-color 0.18s var(--ease),
-    background 0.18s var(--ease);
+    transform var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
 }
 
 .music-control-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
   border-color: var(--line-strong);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.04)),
+    rgba(255,255,255,0.06);
+}
+
+.music-control-btn:active:not(:disabled) {
+  transform: scale(var(--scale-press));
+  transition: transform var(--dur-instant) var(--ease-out);
 }
 
 .music-control-btn:disabled {
@@ -2096,29 +2105,36 @@ body:not([data-theme='night']) .music-ribbon-tab:hover {
 }
 
 .music-field > span {
-  color: rgba(255,255,255,0.6);
-  font-size: 0.7rem;
-  letter-spacing: 0.14em;
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.04em;
   text-transform: uppercase;
+  font-weight: 600;
 }
 
 .music-library-field select {
   width: 100%;
-  min-height: 46px;
-  padding: 0 42px 0 16px;
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 16px;
+  min-height: 40px;
+  padding: 0 36px 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
   background:
-    linear-gradient(180deg, rgba(45, 40, 72, 0.96), rgba(33, 29, 56, 0.98)),
-    rgba(20, 18, 34, 0.92);
+    linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)),
+    rgba(18, 21, 35, 0.42);
   color: var(--text);
   outline: none;
   appearance: none;
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.05),
-    0 8px 20px rgba(18, 15, 30, 0.14);
+    inset 0 1px 0 rgba(255,255,255,0.05);
   cursor: pointer;
-  font-size: 0.98rem;
+  font-size: var(--font-size-md);
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+}
+
+.music-library-field select:hover {
+  border-color: var(--line-strong);
 }
 
 .music-library-field {
@@ -2128,9 +2144,9 @@ body:not([data-theme='night']) .music-ribbon-tab:hover {
 .music-library-field::after {
   content: "⌄";
   position: absolute;
-  right: 15px;
-  bottom: 11px;
-  color: rgba(255,255,255,0.66);
+  right: 14px;
+  bottom: 8px;
+  color: var(--text-muted);
   font-size: 1rem;
   pointer-events: none;
 }
@@ -2524,101 +2540,163 @@ body[data-theme='night'] .log-panel {
   letter-spacing: -0.02em;
 }
 
-/* Cheats Menu button — green tint pill */
-.cheats-menu-btn {
+/* ── Cheats sidebar ribbon (left) — mirrors music ribbon (right) ─────
+   Same pull-tab pattern as .music-ribbon but positioned on left side
+   with green tint for cheat identity. Click-to-toggle (no drag). */
+.cheats-ribbon {
+  --cheats-ribbon-width: min(340px, calc(100vw - 40px));
+  --cheats-tab-size: 56px;
+  position: fixed;
+  top: 40vh;
+  left: calc(-1 * (var(--cheats-ribbon-width) - var(--cheats-tab-size)));
+  z-index: 12;
+  width: var(--cheats-ribbon-width);
+  transform: translateY(-50%);
+  pointer-events: none;
+  overflow: visible;
+  transition: left var(--dur-base) var(--ease-standard);
+}
+
+.cheats-ribbon > * {
+  pointer-events: auto;
+}
+
+.cheats-ribbon.is-open {
+  left: 0;
+}
+
+.cheats-ribbon-drawer {
+  position: relative;
+  width: calc(100% - 38px);
+  margin-right: 38px;
+  padding: 16px 18px 14px;
+  border: 1px solid rgba(98,214,111,0.22);
+  border-radius: 28px;
+  background:
+    linear-gradient(180deg, var(--glass-top), var(--glass-bottom)),
+    var(--panel);
+  box-shadow:
+    var(--glass-shadow),
+    inset 0 1px 0 rgba(255,255,255,0.1),
+    inset 0 -1px 0 rgba(255,255,255,0.015);
+  backdrop-filter: blur(var(--backdrop-blur)) saturate(var(--backdrop-sat)) contrast(1.02);
+  -webkit-backdrop-filter: blur(var(--backdrop-blur)) saturate(var(--backdrop-sat)) contrast(1.02);
+  contain: paint;
+  isolation: isolate;
+}
+
+.cheats-ribbon-tab {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: var(--cheats-tab-size);
+  height: var(--cheats-tab-size);
+  transform: translateY(-50%);
+  border: 1px solid rgba(98,214,111,0.35);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.03)),
+    linear-gradient(135deg, rgba(60, 140, 90, 0.48), rgba(48, 120, 90, 0.38) 65%, rgba(38, 90, 68, 0.36)),
+    rgba(26, 46, 34, 0.56);
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
-  border: 1px solid rgba(98,214,111,0.30);
-  border-radius: var(--radius-pill);
-  background: rgba(98,214,111,0.10);
-  color: rgba(98,214,111,0.90);
-  font-size: 0.76rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  justify-content: center;
+  box-shadow:
+    0 16px 34px rgba(20, 40, 26, 0.22),
+    inset 0 1px 0 rgba(255,255,255,0.12);
   cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
   transition:
-    background var(--transition-fast),
-    border-color var(--transition-fast),
-    color var(--transition-fast);
-  width: fit-content;
-  align-self: center;
-  position: relative;
-}
-.cheats-menu-btn:hover,
-.cheats-menu-btn:focus-visible {
-  background: rgba(98,214,111,0.18);
-  border-color: rgba(98,214,111,0.50);
-  color: var(--good);
-}
-.cheats-menu-btn.is-open {
-  background: rgba(98,214,111,0.18);
-  border-color: rgba(98,214,111,0.45);
-  color: var(--good);
-  box-shadow: 0 0 12px rgba(98,214,111,0.18);
+    transform var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
 }
 
-/* Cheats mini-modal — inline expansion below player-panel-head */
-/* Cheats badge dot */
-.cheat-dot {
-  display: none;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--good);
-  box-shadow: 0 0 6px rgba(98,214,111,0.6);
+.cheats-ribbon-tab:hover {
+  transform: translateY(calc(-50% - 1px));
+  border-color: rgba(98,214,111,0.55);
+  box-shadow:
+    0 18px 40px rgba(20, 40, 26, 0.24),
+    inset 0 1px 0 rgba(255,255,255,0.14);
+}
+
+.cheats-ribbon-tab:active {
+  transform: translateY(-50%) scale(var(--scale-press));
+}
+
+/* Visual "grabber" rails on the outer edge of the tab (mirror music) */
+.cheats-ribbon-tab::before,
+.cheats-ribbon-tab::after {
+  content: "";
   position: absolute;
-  top: -3px;
-  right: -3px;
+  left: -12px;
+  width: 2px;
+  height: 17px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.28), rgba(255,255,255,0.04));
   pointer-events: none;
 }
-.cheats-menu-btn.has-active .cheat-dot {
-  display: block;
-}
 
-/* Cheats badge dot */
-.cheat-dot {
-  display: none;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--good);
-  box-shadow: 0 0 6px rgba(98,214,111,0.6);
+.cheats-ribbon-tab::before { top: 9px; }
+.cheats-ribbon-tab::after  { bottom: 9px; }
+
+.cheats-ribbon-tab-rail {
   position: absolute;
-  top: -3px;
-  right: -3px;
+  left: -12px;
+  width: 2px;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.03), rgba(255,255,255,0.12));
   pointer-events: none;
-}
-.cheats-menu-btn.has-active .cheat-dot {
-  display: block;
+  opacity: 0.55;
 }
 
-.cheats-mini-modal {
+.cheats-ribbon-tab-icon {
+  color: var(--good);
+  font-size: 1.5rem;
+  line-height: 1;
+  text-shadow: 0 0 18px rgba(98, 214, 111, 0.5);
+  pointer-events: none;
+  user-select: none;
+}
+
+body:not([data-theme='night']) .cheats-ribbon-tab {
+  border-color: rgba(98,214,111,0.32);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.03)),
+    linear-gradient(135deg, rgba(88, 175, 108, 0.42), rgba(76, 156, 98, 0.38) 65%, rgba(66, 140, 90, 0.32)),
+    rgba(255,255,255,0.06);
+  box-shadow:
+    0 16px 34px rgba(60, 130, 88, 0.16),
+    inset 0 1px 0 rgba(255,255,255,0.16);
+}
+
+.cheats-drawer-shell {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-  padding: 10px 12px;
-  margin-bottom: 12px;
-  border: 1px solid rgba(98,214,111,0.20);
-  border-radius: 12px;
-  background: rgba(98,214,111,0.06);
+  flex-direction: column;
+  gap: var(--space-3);
 }
-.cheats-mini-modal-label {
-  font-size: 0.62rem;
+
+.cheats-drawer-label {
+  font-size: 0.68rem;
   font-weight: 600;
-  color: rgba(98,214,111,0.70);
+  color: rgba(98,214,111,0.75);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  width: 100%;
-  margin-bottom: 2px;
+}
+
+.cheats-drawer-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 /* Ensure hidden attribute always wins regardless of media query display rules */
-.selected-item-sticky[hidden],
-.cheats-mini-modal[hidden] { display: none !important; }
+.selected-item-sticky[hidden] { display: none !important; }
+
+
 
 /* player-toolbar kept for compat but no longer rendered */
 .player-toolbar {

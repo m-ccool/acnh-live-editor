@@ -560,19 +560,23 @@ function cacheDom() {
 
   el.playerPanel = document.getElementById('player-panel');
   el.playerPanelEnd = document.getElementById('player-panel-end');
-  el.cheatsMenuBtn = document.getElementById('cheats-menu-btn');
-  el.cheatsMiniModal = document.getElementById('cheats-mini-modal');
+  el.cheatsRibbon = document.getElementById('cheats-ribbon');
+  el.cheatsRibbonDrawer = document.getElementById('cheats-ribbon-drawer');
+  el.cheatsRibbonToggle = document.getElementById('cheats-ribbon-toggle');
   el.selectedItemSticky = document.getElementById('selected-item-sticky');
   el.selectedItemStickyImg = document.getElementById('selected-item-sticky-img');
   el.selectedItemStickyName = document.getElementById('selected-item-sticky-name');
 
-  // Cheats menu toggle
-  if (el.cheatsMenuBtn && el.cheatsMiniModal) {
-    el.cheatsMenuBtn.addEventListener('click', () => {
-      const isOpen = !el.cheatsMiniModal.hidden;
-      el.cheatsMiniModal.hidden = isOpen;
-      el.cheatsMenuBtn.setAttribute('aria-expanded', String(!isOpen));
-      el.cheatsMenuBtn.classList.toggle('is-open', !isOpen);
+  // Cheats sidebar ribbon toggle
+  if (el.cheatsRibbon && el.cheatsRibbonToggle && el.cheatsRibbonDrawer) {
+    el.cheatsRibbonToggle.addEventListener('click', () => {
+      const isOpen = el.cheatsRibbon.classList.toggle('is-open');
+      el.cheatsRibbonToggle.setAttribute('aria-expanded', String(isOpen));
+      el.cheatsRibbonDrawer.setAttribute('aria-hidden', String(!isOpen));
+      el.cheatsRibbonToggle.setAttribute(
+        'aria-label',
+        isOpen ? 'Close cheats menu' : 'Open cheats menu'
+      );
     });
   }
 

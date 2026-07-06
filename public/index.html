@@ -219,13 +219,6 @@
       <div class="player-panel-head">
         <div class="player-panel-head-row">
           <div class="panel-label">Player</div>
-          <button
-            id="cheats-menu-btn"
-            class="cheats-menu-btn"
-            type="button"
-            aria-expanded="false"
-            aria-controls="cheats-mini-modal"
-          >Cheats Menu<span class="cheat-dot" aria-hidden="true"></span></button>
           <div class="player-save-load-bar">
             <button
               id="player-load-btn"
@@ -241,56 +234,6 @@
               disabled
             >Save</button>
           </div>
-        </div>
-      </div>
-
-      <!-- Cheats mini-modal — inline expansion, toggled by #cheats-menu-btn -->
-      <div id="cheats-mini-modal" class="cheats-mini-modal" hidden>
-        <span class="cheats-mini-modal-label">Inject cheats</span>
-        <div id="quick-cheat-controls" class="player-toolbar-actions" role="group" aria-label="Quick cheat toggles">
-          <button
-            type="button"
-            class="quick-cheat-btn"
-            data-quick-cheat="halfSpeed"
-            title="Slow the island clock to 0.5x for relaxed testing."
-            aria-label="Toggle half-speed cheat"
-            aria-pressed="false"
-          >
-            <span class="quick-cheat-label">0.5x</span>
-          </button>
-
-          <button
-            type="button"
-            class="quick-cheat-btn"
-            data-quick-cheat="doubleSpeed"
-            title="Run the island clock at 2x to fast-forward routines."
-            aria-label="Toggle double-speed cheat"
-            aria-pressed="false"
-          >
-            <span class="quick-cheat-label">2x</span>
-          </button>
-
-          <button
-            type="button"
-            class="quick-cheat-btn"
-            data-quick-cheat="wallWalk"
-            title="Phase through collision edges for movement testing."
-            aria-label="Toggle wall walk cheat"
-            aria-pressed="false"
-          >
-            <span class="quick-cheat-label">wall walk</span>
-          </button>
-
-          <button
-            type="button"
-            class="quick-cheat-btn"
-            data-quick-cheat="wallet"
-            title="Inject max wallet bells."
-            aria-label="Inject max wallet bells"
-            aria-pressed="false"
-          >
-            <span class="quick-cheat-label">wallet</span>
-          </button>
         </div>
       </div>
 
@@ -593,6 +536,72 @@
         doxxus.us
       </a>
     </footer>
+  </div>
+
+  <!-- Cheats sidebar ribbon (left side, mirror of music ribbon on right) -->
+  <div id="cheats-ribbon" class="cheats-ribbon" aria-live="polite">
+    <button
+      id="cheats-ribbon-toggle"
+      class="cheats-ribbon-tab"
+      type="button"
+      aria-expanded="false"
+      aria-controls="cheats-ribbon-drawer"
+      aria-label="Open cheats menu"
+    >
+      <span class="cheats-ribbon-tab-rail" aria-hidden="true"></span>
+      <span class="cheats-ribbon-tab-icon" aria-hidden="true">⚡</span>
+    </button>
+
+    <div id="cheats-ribbon-drawer" class="cheats-ribbon-drawer" aria-hidden="true">
+      <div class="cheats-drawer-shell">
+        <span class="cheats-drawer-label">Inject cheats</span>
+        <div id="quick-cheat-controls" class="cheats-drawer-controls" role="group" aria-label="Quick cheat toggles">
+          <button
+            type="button"
+            class="quick-cheat-btn"
+            data-quick-cheat="halfSpeed"
+            title="Slow the island clock to 0.5x for relaxed testing."
+            aria-label="Toggle half-speed cheat"
+            aria-pressed="false"
+          >
+            <span class="quick-cheat-label">0.5x</span>
+          </button>
+
+          <button
+            type="button"
+            class="quick-cheat-btn"
+            data-quick-cheat="doubleSpeed"
+            title="Run the island clock at 2x to fast-forward routines."
+            aria-label="Toggle double-speed cheat"
+            aria-pressed="false"
+          >
+            <span class="quick-cheat-label">2x</span>
+          </button>
+
+          <button
+            type="button"
+            class="quick-cheat-btn"
+            data-quick-cheat="wallWalk"
+            title="Phase through collision edges for movement testing."
+            aria-label="Toggle wall walk cheat"
+            aria-pressed="false"
+          >
+            <span class="quick-cheat-label">wall walk</span>
+          </button>
+
+          <button
+            type="button"
+            class="quick-cheat-btn"
+            data-quick-cheat="wallet"
+            title="Inject max wallet bells."
+            aria-label="Inject max wallet bells"
+            aria-pressed="false"
+          >
+            <span class="quick-cheat-label">wallet</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div id="music-ribbon" class="music-ribbon" aria-live="polite">
