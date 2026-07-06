@@ -4779,7 +4779,7 @@ body:not([data-theme='night']) .modal-filter-btn {
   flex-shrink: 0;
   display: flex;
   gap: 2px;
-  padding: 0 4px;
+  padding: 14px 4px 0;
   overflow-x: auto;
   flex-wrap: nowrap;
   scrollbar-width: none;
@@ -4810,7 +4810,7 @@ body:not([data-theme='night']) .modal-filter-btn {
   flex-wrap: nowrap;
   overflow-x: auto;
   scrollbar-width: none;
-  padding: 0 var(--vmod-inset);
+  padding: 14px var(--vmod-inset) 0;
   border-bottom: 1px solid rgba(255,255,255,0.09);
 }
 .vmod-tab-bar::-webkit-scrollbar { display: none; }
