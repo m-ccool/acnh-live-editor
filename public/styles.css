@@ -7065,6 +7065,7 @@ body:not([data-theme='night']) .action-btn-solid {
   backdrop-filter: blur(16px) saturate(125%);
   -webkit-backdrop-filter: blur(16px) saturate(125%);
   transition: border-color var(--transition-fast), background var(--transition-fast);
+  cursor: pointer;
 }
 
 .villager-card:hover {

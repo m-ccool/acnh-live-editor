@@ -1178,6 +1178,8 @@ function bindEvents() {
     queueModalSearch(true);
   });
 
+  bindVillagerCardEvents();
+
   if (el.modalSearchStack) {
     el.modalSearchStack.addEventListener('focusin', () => {
       state.modalSearchOpen = true;
@@ -1391,6 +1393,34 @@ function hasOpenModal() {
   return [el.settingsModal, el.playerModal, el.itemModal, el.backupsModal, el.villagerModal, el.presetManagerModal].some((modal) => {
     return modal && !modal.classList.contains('hidden');
   });
+}
+
+function bindVillagerCardEvents() {
+  const cards = document.querySelectorAll('.villager-card');
+  cards.forEach((card) => {
+    card.addEventListener('click', handleVillagerCardClick);
+    card.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        handleVillagerCardClick.call(card);
+      }
+    });
+  });
+}
+
+function handleVillagerCardClick(event) {
+  const slot = this.getAttribute('data-villager-slot');
+  if (!slot) return;
+  
+  const slotIndex = parseInt(slot, 10);
+  if (isNaN(slotIndex) || !Array.isArray(state.villagers) || slotIndex >= state.villagers.length) return;
+  
+  const villager = state.villagers[slotIndex];
+  if (!villager || villager.empty) return;
+  
+  if (typeof openVillagerModal === 'function') {
+    openVillagerModal(villager);
+  }
 }
 
 // ── Inventory quick-search (inline assign, no modal) ──────────────────────
@@ -2286,7 +2316,7 @@ function renderVillagers() {
     const clothes = Array.isArray(v.clothes) ? v.clothes.filter(c => c && !c.empty).length : 0;
     
     html += `
-      <div class="villager-card">
+      <div class="villager-card" role="button" tabindex="0" data-villager-slot="${v.slot || idx}">
         <div class="villager-header">
           <h4>${villagerName}</h4>
           <span class="villager-species">${species}</span>
@@ -2306,5 +2336,6 @@ function renderVillagers() {
   });
 
   el.villagerRoster.innerHTML = html;
+  bindVillagerCardEvents();
 }
 

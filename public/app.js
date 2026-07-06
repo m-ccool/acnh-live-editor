@@ -1673,16 +1673,16 @@ async function handleReloadClick() {
       throw new Error(`HTTP ${res.status}`);
     }
     
-    state.bridge.lastAction = 'Server restarting (waiting 3.5s)...';
+    state.bridge.lastAction = 'Server restarting (waiting 5.5s for systemd)...';
     renderBridge();
     
-    // Wait for server to exit and systemd to restart it, then force full page reload
-    // (not from cache) to fetch fresh HTML and execute new JS
+    // Wait for server process to exit and systemd to detect and restart it
+    // On Steam Deck, systemd detection + restart can take 3-5s; use 5.5s for safety margin
+    // Then force full page reload to fetch fresh assets and execute new JS
     setTimeout(() => {
-      // Add timestamp to bust any caching
       const now = Date.now();
       window.location.href = `${window.location.pathname}?t=${now}`;
-    }, 3500);
+    }, 5500);
   } catch (err) {
     state.bridge.lastAction = `Reload failed: ${String(err).slice(0, 50)}`;
     renderBridge();

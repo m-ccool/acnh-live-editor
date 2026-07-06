@@ -87,6 +87,12 @@ fi
 
 create_desktop_entry() {
   local target="$1"
+  local abs_icon_path="${HOME}/.local/share/applications/acnh-live-editor-icon.png"
+  
+  if [[ ! -f "${abs_icon_path}" ]] && [[ -f "${ICON_PATH}" ]]; then
+    mkdir -p "${HOME}/.local/share/applications"
+    cp "${ICON_PATH}" "${abs_icon_path}"
+  fi
 
   cat > "${target}" <<EOF
 [Desktop Entry]
@@ -97,7 +103,7 @@ Comment=Launch ACNH Live Editor on Steam Deck
 Terminal=false
 Path=${REPO_DIR}
 Exec=/bin/bash ${LAUNCH_APP_SCRIPT}
-Icon=${ICON_PATH}
+Icon=${abs_icon_path}
 Categories=Game;Utility;
 StartupNotify=true
 EOF
