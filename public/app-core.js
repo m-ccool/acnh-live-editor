@@ -437,6 +437,13 @@ document.addEventListener('DOMContentLoaded', init);
 
     if (!panel || !trigger || !backdrop) return;
 
+    // The panel is authored inside #app-root for markup locality, but #app-root
+    // has a `transform` on it — which makes it a containing block for any
+    // position:fixed descendants. That would break the panel's viewport-fixed
+    // slide-in. Reparent to document.body so it's fixed to the actual viewport.
+    if (panel.parentNode !== document.body) document.body.appendChild(panel);
+    if (backdrop.parentNode !== document.body) document.body.appendChild(backdrop);
+
     function openPanel() {
       panel.classList.add('is-visible');
       backdrop.classList.add('is-visible');
