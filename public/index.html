@@ -166,10 +166,14 @@
             onerror="this.style.display='none';this.parentNode.textContent='⚙';"
           />
         </button>
-        <div id="deploy-toast" class="deploy-toast" aria-live="polite"></div>
       </div>
 
-      <div class="brand-subline">
+      <!-- Toast lives OUTSIDE the hidden legacy container so it stays visible -->
+      <div id="deploy-toast" class="deploy-toast" aria-live="polite"></div>
+
+      <!-- Legacy status pills kept in DOM (hidden) — their state classes are
+           read by the utility panel to mirror status. Do not remove. -->
+      <div class="brand-subline" hidden aria-hidden="true">
         <span id="api-status-pill" class="status-pill is-warn" title="API / Catalog status">
           <span class="status-pill-dot"></span>
           <span class="status-pill-label">API</span>

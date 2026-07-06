@@ -1368,6 +1368,12 @@ body.modal-open .app-shell {
   display: none !important;
 }
 
+/* Legacy status pill row — hidden in top bar (status now lives in the
+   utility panel). Kept in DOM so panel can read the state classes. */
+.brand-subline[hidden] {
+  display: none !important;
+}
+
 .brand-subline {
   display: flex;
   align-items: center;
