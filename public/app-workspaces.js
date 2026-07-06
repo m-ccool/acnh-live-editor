@@ -1961,12 +1961,17 @@ async function loadVillagersFromBridge() {
   try {
     const res = await fetchPromise;
     const data = await res.json();
-    if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+    if (!res.ok || data.error) {
+      console.error('Villagers API error:', data.error || `HTTP ${res.status}`);
+      throw new Error(data.error || `HTTP ${res.status}`);
+    }
     const villagers = (data.payload && data.payload.villagers) ? data.payload.villagers : (data.villagers || []);
+    console.log('Villagers loaded:', villagers.length, villagers);
     state.villagers = villagers;
     renderVillagersPanel(villagers);
     if (dot) { dot.classList.remove('is-busy', 'is-error'); dot.classList.add('is-ok'); }
   } catch (err) {
+    console.error('Villagers fetch error:', err);
     // Fall back to last known villager data so data persists while offline
     if (dot) { dot.classList.remove('is-busy', 'is-ok'); dot.classList.add('is-error'); }
     if (state.villagers && state.villagers.length > 0) {
