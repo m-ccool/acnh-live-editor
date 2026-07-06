@@ -1668,22 +1668,43 @@ async function handleReloadClick() {
     // Mark that we're reloading so boot sequence can retry aggressively
     sessionStorage.setItem('justReloaded', '1');
     
-    const res = await fetch('/api/reload-server', { method: 'POST', timeout: 5000 });
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}`);
+    // Use AbortController for proper timeout (fetch doesn't support timeout option in browsers)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
+    try {
+      const res = await fetch('/api/reload-server', { 
+        method: 'POST',
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+    } catch (fetchErr) {
+      clearTimeout(timeoutId);
+      // Fetch fails when server restarts (connection reset) — that's expected
+      // Just treat it as success and proceed with the reload
+      if (fetchErr.name === 'AbortError') {
+        console.error('Reload request timed out (server may be restarting)');
+      } else {
+        console.log('Reload request failed (expected during restart):', fetchErr.message);
+      }
     }
     
-    state.bridge.lastAction = 'Server restarting (waiting 5.5s for systemd)...';
+    state.bridge.lastAction = 'Server restarting (waiting 6s for systemd and startup)...';
     renderBridge();
     
-    // Wait for server process to exit and systemd to detect and restart it
-    // On Steam Deck, systemd detection + restart can take 3-5s; use 5.5s for safety margin
+    // Wait for server process to exit, systemd to detect, restart, and bind to port
+    // On Steam Deck, this can take 3-5s; use 6s for safety
     // Then force full page reload to fetch fresh assets and execute new JS
     setTimeout(() => {
       const now = Date.now();
       window.location.href = `${window.location.pathname}?t=${now}`;
-    }, 5500);
+    }, 6000);
   } catch (err) {
+    console.error('Reload handler error:', err);
     state.bridge.lastAction = `Reload failed: ${String(err).slice(0, 50)}`;
     renderBridge();
     el.reloadButton.classList.remove('is-reloading');
