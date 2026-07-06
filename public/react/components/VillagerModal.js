@@ -286,11 +286,34 @@
     const friendshipPct = Math.round((friendshipVal / 255) * 100);
 
     return h('div', { className: 'vmod-main-view' },
-      h('div', { className: 'villager-modal-name-row' },
-        h('span', { className: 'villager-modal-name' }, v.name || 'Unknown'),
-        h('span', { className: 'villager-modal-gender-label' }, v.gender === 'F' ? 'Female' : 'Male')
+      // iOS large-title hero
+      h('div', { className: 'vmod-hero' },
+        h('div', { className: 'villager-modal-name-row' },
+          h('span', { className: 'villager-modal-name' }, v.name || 'Unknown'),
+        ),
+        h('div', { className: 'vmod-hero-meta' },
+          h('span', { className: 'villager-personality-badge', style: { background: pColor } }, v.personalityName || ''),
+          h('span', { className: 'vmod-hero-sep' }, '·'),
+          h('span', { className: 'vmod-hero-species' }, v.speciesName || 'Unknown'),
+          h('span', { className: 'vmod-hero-sep' }, '·'),
+          h('span', { className: 'villager-modal-gender-label' }, v.gender === 'F' ? 'Female' : 'Male'),
+        ),
       ),
 
+      // Friendship card — promoted to top under the hero
+      h('div', { className: 'villager-modal-friendship' },
+        h('div', { className: 'villager-modal-friendship-label' },
+          h('span', null, 'Friendship'),
+          h('span', { className: 'vmod-friendship-value' }, `${friendshipVal} / 255`),
+          h('span', { className: 'villager-friendship-tier' }, v.friendshipTier || 'Stranger')
+        ),
+        h('div', { className: 'villager-friendship-bar-track' },
+          h('div', { className: 'villager-friendship-bar-fill', style: { width: `${friendshipVal === 0 ? 5 : friendshipPct}%`, opacity: friendshipVal === 0 ? 0.4 : 1 } })
+        )
+      ),
+
+      // Section: About (Species + Variant details)
+      h('div', { className: 'vmod-section-title' }, 'About'),
       h('div', { className: 'vmod-fields' },
         h('div', { className: 'vmod-field-row' },
           h('span', { className: 'vmod-label' }, 'Species'),
@@ -306,14 +329,12 @@
             h('span', { className: 'vmod-name' }, v.internalId || '')
           )
         ),
-        h('div', { className: 'vmod-field-row' },
-          h('span', { className: 'vmod-label' }, 'Personality'),
-          h('span', { className: 'vmod-value' },
-            h('span', { className: 'villager-personality-badge', style: { background: pColor } }, v.personalityName || '')
-          )
-        ),
+      ),
+
+      // Section: Catchphrase (own grouped-list card)
+      h('div', { className: 'vmod-section-title' }, 'Catchphrase'),
+      h('div', { className: 'vmod-fields' },
         h('div', { className: 'vmod-field-row vmod-field-catchphrase' },
-          h('span', { className: 'vmod-label' }, 'Catchphrase'),
           h('span', { className: 'vmod-value vmod-catchphrase-wrap' },
             h('input', {
               className: 'vmod-input',
@@ -321,6 +342,7 @@
               maxLength: 12,
               value: catchphrase,
               onChange: (e) => setCatchphrase(e.target.value),
+              placeholder: v.catchphrase || 'Catchphrase',
             }),
             h('button', {
               type: 'button',
@@ -329,6 +351,11 @@
             }, 'Original')
           )
         ),
+      ),
+
+      // Section: Status (toggle row)
+      h('div', { className: 'vmod-section-title' }, 'Status'),
+      h('div', { className: 'vmod-fields' },
         h('div', { className: 'vmod-field-row' },
           h('span', { className: 'vmod-label' }, 'Moving Out'),
           h('span', { className: 'vmod-value' },
@@ -340,18 +367,7 @@
               })
             )
           )
-        )
-      ),
-
-      h('div', { className: 'villager-modal-friendship' },
-        h('div', { className: 'villager-modal-friendship-label' },
-          h('span', null, 'Friendship'),
-          h('span', { className: 'vmod-friendship-value' }, `${friendshipVal} / 255`),
-          h('span', { className: 'villager-friendship-tier' }, v.friendshipTier || 'Stranger')
         ),
-        h('div', { className: 'villager-friendship-bar-track' },
-          h('div', { className: 'villager-friendship-bar-fill', style: { width: `${friendshipVal === 0 ? 5 : friendshipPct}%`, opacity: friendshipVal === 0 ? 0.4 : 1 } })
-        )
       ),
 
       v.slot != null ? h('div', { className: 'villager-modal-slot' }, `Island slot ${v.slot}`) : null,
