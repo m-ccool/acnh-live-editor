@@ -1665,44 +1665,61 @@ async function handleReloadClick() {
     state.bridge.lastAction = 'Sending reload request...';
     renderBridge();
     
-    // Mark that we're reloading so boot sequence can retry aggressively
     sessionStorage.setItem('justReloaded', '1');
     
-    // Use AbortController for proper timeout (fetch doesn't support timeout option in browsers)
+    // Fire the reload request. Fetch will fail once the server exits — that's
+    // expected. We swallow the error and move on to the readiness poll.
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-    
+    const abortTimeout = setTimeout(() => controller.abort(), 4000);
     try {
-      const res = await fetch('/api/reload-server', { 
-        method: 'POST',
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-      
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-    } catch (fetchErr) {
-      clearTimeout(timeoutId);
-      // Fetch fails when server restarts (connection reset) — that's expected
-      // Just treat it as success and proceed with the reload
-      if (fetchErr.name === 'AbortError') {
-        console.error('Reload request timed out (server may be restarting)');
-      } else {
-        console.log('Reload request failed (expected during restart):', fetchErr.message);
-      }
+      await fetch('/api/reload-server', { method: 'POST', signal: controller.signal });
+    } catch (_) {
+      // Server exit during response is expected; keep going.
+    } finally {
+      clearTimeout(abortTimeout);
     }
     
-    state.bridge.lastAction = 'Server restarting (waiting 6s for systemd and startup)...';
+    state.bridge.lastAction = 'Waiting for server to come back up...';
     renderBridge();
     
-    // Wait for server process to exit, systemd to detect, restart, and bind to port
-    // On Steam Deck, this can take 3-5s; use 6s for safety
-    // Then force full page reload to fetch fresh assets and execute new JS
+    // Poll /api/status until it responds 200 OK (server + Express fully back).
+    // Server exits at T+2s, systemd restarts at T+4s, Express listens ~T+5s.
+    // Give it up to 20s before we give up and force-reload anyway.
+    const readyDeadline = Date.now() + 20000;
+    const pollDelay = 500;
+    
+    // Initial grace period so we don't hammer during the systemd restart window
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+    
+    let serverReady = false;
+    while (Date.now() < readyDeadline) {
+      try {
+        const probeController = new AbortController();
+        const probeTimeout = setTimeout(() => probeController.abort(), 1500);
+        const probeRes = await fetch('/api/status', { cache: 'no-store', signal: probeController.signal });
+        clearTimeout(probeTimeout);
+        if (probeRes.ok) {
+          serverReady = true;
+          break;
+        }
+      } catch (_) {
+        // Server not yet accepting connections — keep polling.
+      }
+      await new Promise((resolve) => setTimeout(resolve, pollDelay));
+    }
+    
+    if (!serverReady) {
+      console.warn('Server did not respond within 20s; reloading anyway.');
+    }
+    
+    state.bridge.lastAction = serverReady ? 'Server back up. Reloading...' : 'Server slow to respond. Reloading...';
+    renderBridge();
+    
+    // Small settle so the user sees the "back up" message briefly.
     setTimeout(() => {
       const now = Date.now();
       window.location.href = `${window.location.pathname}?t=${now}`;
-    }, 6000);
+    }, 400);
   } catch (err) {
     console.error('Reload handler error:', err);
     state.bridge.lastAction = `Reload failed: ${String(err).slice(0, 50)}`;
