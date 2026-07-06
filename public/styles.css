@@ -4763,59 +4763,34 @@ body:not([data-theme='night']) .modal-filter-btn {
 .vmod-edit-tabs {
   flex-shrink: 0;
   display: flex;
-  gap: 0;
+  gap: 2px;
   padding: 0 4px;
   overflow-x: auto;
   flex-wrap: nowrap;
   scrollbar-width: none;
-  background: rgba(255,255,255,0.015);
-  border-bottom: 1px solid rgba(255,255,255,0.07);
+  background: transparent;
+  border-bottom: 1px solid rgba(255,255,255,0.09);
   -webkit-overflow-scrolling: touch;
   touch-action: pan-x;
 }
 
 .vmod-edit-tabs::-webkit-scrollbar { display: none; }
 
-/* Inner edit tab — underline indicator, fully resets .tab-btn base */
+/* Modal edit tabs inherit the global .tab-btn styling (pill top + active glow).
+   Only smaller sizing so all 6 tabs fit inside the modal without excess scroll. */
 .vmod-edit-tab-btn {
-  font-size: 0.72rem;
-  font-weight: 500;
-  padding: 8px 10px 6px;
+  min-width: 72px;
+  min-height: 32px;
+  padding: 0 12px;
+  font-size: 0.78rem;
   white-space: nowrap;
   flex-shrink: 0;
-  min-width: unset;
-  min-height: unset;
-  border: none;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-  background: rgba(255,255,255,0.5);
-  box-shadow: none;
-  color: rgba(255,255,255,0.42);
-  transition: color 0.18s, border-color 0.18s;
-  transform: none !important;
 }
 
-.vmod-edit-tab-btn:hover {
-  color: rgba(255,255,255,0.72);
-  background: rgba(255,255,255,0.5);
-  border-color: transparent;
-  transform: none !important;
-}
-
-.vmod-edit-tab-btn.is-active {
-  color: rgba(255,255,255,0.9);
-  font-weight: 600;
-  border-bottom-color: rgba(255,255,255,0.6);
-  background: rgba(255,255,255,0.5);
-  box-shadow: none;
-  text-shadow: none;
-  transform: none !important;
-}
-
-/* Villager modal top-level tab bar — underline indicator system */
+/* Villager modal top-level tab bar — matches global .tab-bar/.tab-btn look. */
 .vmod-tab-bar {
   display: flex;
-  gap: 0;
+  gap: 2px;
   margin-bottom: 0;
   flex-wrap: nowrap;
   overflow-x: auto;
@@ -4825,41 +4800,15 @@ body:not([data-theme='night']) .modal-filter-btn {
 }
 .vmod-tab-bar::-webkit-scrollbar { display: none; }
 
-/* Fully resets .tab-btn base shape/glow — villager tabs use clean underline */
+/* Inherits .tab-btn pill + active glow; only compacted for modal space. */
 .vmod-tab-btn {
-  font-size: 0.8rem;
-  font-weight: 500;
-  padding: 10px 14px 9px;
+  min-width: 84px;
+  min-height: 34px;
+  padding: 0 14px;
+  font-size: 0.82rem;
   white-space: nowrap;
   flex-shrink: 0;
-  min-width: unset;
-  min-height: unset;
-  border: none;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-  background: rgba(255,255,255,0.5);
-  box-shadow: none;
-  color: rgba(255,255,255,0.42);
   letter-spacing: 0.01em;
-  transition: color 0.18s, border-color 0.18s;
-  transform: none !important;
-}
-
-.vmod-tab-btn:hover {
-  color: rgba(255,255,255,0.72);
-  background: rgba(255,255,255,0.5);
-  border-color: transparent;
-  transform: none !important;
-}
-
-.vmod-tab-btn.is-active {
-  color: rgba(255,255,255,0.92);
-  font-weight: 600;
-  border-bottom-color: rgba(255,255,255,0.72);
-  background: rgba(255,255,255,0.5);
-  box-shadow: none;
-  text-shadow: none;
-  transform: none !important;
 }
 
 /* Save Manager panel */
