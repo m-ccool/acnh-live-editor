@@ -1962,22 +1962,29 @@ async function loadVillagersFromBridge() {
     const res = await fetchPromise;
     const data = await res.json();
     if (!res.ok || data.error) {
-      console.error('Villagers API error:', data.error || `HTTP ${res.status}`);
-      throw new Error(data.error || `HTTP ${res.status}`);
+      const errMsg = data.error || `HTTP ${res.status}`;
+      console.error('Villagers API error:', errMsg);
+      if (roster) roster.innerHTML = `<p class="villager-placeholder" style="color:#e87070">API error: ${escapeHtml(errMsg)}</p>`;
+      throw new Error(errMsg);
     }
     const villagers = (data.payload && data.payload.villagers) ? data.payload.villagers : (data.villagers || []);
     console.log('Villagers loaded:', villagers.length, villagers);
     state.villagers = villagers;
-    renderVillagersPanel(villagers);
+    try {
+      renderVillagersPanel(villagers);
+    } catch (renderErr) {
+      console.error('renderVillagersPanel threw:', renderErr);
+      if (roster) roster.innerHTML = `<p class="villager-placeholder" style="color:#e87070">Render error: ${escapeHtml(renderErr.message)}</p>`;
+      throw renderErr;
+    }
     if (dot) { dot.classList.remove('is-busy', 'is-error'); dot.classList.add('is-ok'); }
   } catch (err) {
     console.error('Villagers fetch error:', err);
-    // Fall back to last known villager data so data persists while offline
     if (dot) { dot.classList.remove('is-busy', 'is-ok'); dot.classList.add('is-error'); }
-    if (state.villagers && state.villagers.length > 0) {
-      renderVillagersPanel(state.villagers);
-    } else {
-      renderVillagersPanel([]);
+    if (roster && (!state.villagers || state.villagers.length === 0)) {
+      roster.innerHTML = `<p class="villager-placeholder" style="color:#e87070">Failed to load villagers: ${escapeHtml(err.message || String(err))}</p>`;
+    } else if (state.villagers && state.villagers.length > 0) {
+      try { renderVillagersPanel(state.villagers); } catch (_) {}
     }
   }
 }

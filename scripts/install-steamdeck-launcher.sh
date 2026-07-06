@@ -129,8 +129,8 @@ WorkingDirectory=${REPO_DIR}
 Environment=HOME=${HOME}
 EnvironmentFile=-${ENV_FILE}
 ExecStart=${NODE_BIN} ${SERVER_ENTRY}
-Restart=on-failure
-RestartSec=5
+Restart=always
+RestartSec=2
 StandardOutput=append:${SERVER_LOG_FILE}
 StandardError=append:${SERVER_LOG_FILE}
 
