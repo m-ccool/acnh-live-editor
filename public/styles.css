@@ -1899,14 +1899,14 @@ body:not([data-theme='night']) .debug-reload-orbit-icon {
   --music-ribbon-width: min(466px, calc(100vw - 40px));
   --music-tab-size: 56px;
   position: fixed;
-  top: 56vh;
-  right: calc(-1 * (var(--music-ribbon-width) - var(--music-tab-size)));
+  top: 68vh;
+  left: calc(-1 * (var(--music-ribbon-width) - var(--music-tab-size)));
   z-index: 12;
   width: var(--music-ribbon-width);
   transform: translateY(-50%);
   pointer-events: none;
   overflow: visible;
-  transition: right 0.32s cubic-bezier(.2,.82,.2,1);
+  transition: left 0.32s cubic-bezier(.2,.82,.2,1);
 }
 
 .music-ribbon > * {
@@ -1914,13 +1914,14 @@ body:not([data-theme='night']) .debug-reload-orbit-icon {
 }
 
 .music-ribbon.is-open {
-  right: 0;
+  left: 0;
 }
 
 .music-ribbon-drawer {
   position: relative;
-  width: calc(100% - 38px);
-  margin-left: 38px;
+  /* Drawer stops exactly where the tab starts — no body-strip peek. */
+  width: calc(100% - var(--music-tab-size));
+  margin-right: var(--music-tab-size);
   padding: 16px 18px 14px;
   border: 1px solid var(--glass-edge);
   border-radius: 28px;
@@ -1949,9 +1950,10 @@ body:not([data-theme='night']) .debug-reload-orbit-icon {
 .music-ribbon-tab {
   position: absolute;
   top: 50%;
-  left: 0;
+  right: 0;
   width: var(--music-tab-size);
   height: var(--music-tab-size);
+  padding: 0;
   transform: translateY(-50%);
   border: 1px solid rgba(255,255,255,0.13);
   border-radius: 18px;
@@ -2662,14 +2664,14 @@ body[data-theme='night'] .log-panel {
   letter-spacing: -0.02em;
 }
 
-/* ── Cheats sidebar ribbon (left) — mirrors music ribbon (right) ─────
-   Same pull-tab pattern as .music-ribbon but positioned on left side
-   with green tint for cheat identity. Click-to-toggle (no drag). */
+/* ── Cheats sidebar ribbon (left, upper) — pull-tab pattern ─────────
+   Drawer body is fully covered by the visible tab strip when closed;
+   only the pull-tab + icon peek onto the viewport. */
 .cheats-ribbon {
   --cheats-ribbon-width: min(340px, calc(100vw - 40px));
   --cheats-tab-size: 56px;
   position: fixed;
-  top: 40vh;
+  top: 32vh;
   left: calc(-1 * (var(--cheats-ribbon-width) - var(--cheats-tab-size)));
   z-index: 12;
   width: var(--cheats-ribbon-width);
@@ -2689,8 +2691,9 @@ body[data-theme='night'] .log-panel {
 
 .cheats-ribbon-drawer {
   position: relative;
-  width: calc(100% - 38px);
-  margin-right: 38px;
+  /* Drawer stops exactly where the tab starts — no body-strip peek. */
+  width: calc(100% - var(--cheats-tab-size));
+  margin-right: var(--cheats-tab-size);
   padding: 16px 18px 14px;
   border: 1px solid rgba(98,214,111,0.22);
   border-radius: 28px;
@@ -2713,6 +2716,7 @@ body[data-theme='night'] .log-panel {
   right: 0;
   width: var(--cheats-tab-size);
   height: var(--cheats-tab-size);
+  padding: 0;
   transform: translateY(-50%);
   border: 1px solid rgba(98,214,111,0.35);
   border-radius: 18px;
@@ -2748,12 +2752,12 @@ body[data-theme='night'] .log-panel {
   transform: translateY(-50%) scale(var(--scale-press));
 }
 
-/* Visual "grabber" rails on the outer edge of the tab (mirror music) */
+/* Visual "grabber" rails on the outer edge of the tab (viewport-facing side) */
 .cheats-ribbon-tab::before,
 .cheats-ribbon-tab::after {
   content: "";
   position: absolute;
-  left: -12px;
+  right: -12px;
   width: 2px;
   height: 17px;
   border-radius: 999px;
@@ -2766,7 +2770,7 @@ body[data-theme='night'] .log-panel {
 
 .cheats-ribbon-tab-rail {
   position: absolute;
-  left: -12px;
+  right: -12px;
   width: 2px;
   height: 100%;
   border-radius: 999px;
