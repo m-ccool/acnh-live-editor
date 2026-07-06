@@ -2294,8 +2294,17 @@ function renderBridge() {
 function renderVillagers() {
   if (!el.villagerRoster) return;
 
+  // Delegate to the canonical panel renderer in app-workspaces.js so the DOM
+  // is only ever written by one source. Prevents flashing between the simple
+  // text view and the full card view when both pipelines fire.
+  if (typeof renderVillagersPanel === 'function') {
+    const villagers = Array.isArray(state.villagers) ? state.villagers : [];
+    renderVillagersPanel(villagers);
+    return;
+  }
+
   const villagers = Array.isArray(state.villagers) ? state.villagers : [];
-  
+
   if (el.villagerCountBadge) {
     el.villagerCountBadge.textContent = villagers.length > 0 ? `${villagers.length}` : '';
   }

@@ -1928,17 +1928,25 @@ async function loadVillagersFromBridge() {
   const roster = document.getElementById('villager-roster');
   const dot = document.getElementById('villagers-status-dot');
 
-  if (dot) { dot.classList.remove('is-ok', 'is-error'); dot.classList.add('is-busy'); }
+  // First load = no villager data yet in state AND no rendered cards in DOM.
+  // Background refresh = we already have cards; keep them visible.
+  const hasExistingData = Array.isArray(state.villagers) && state.villagers.length > 0;
+  const hasRenderedCards = roster && roster.querySelector('.villager-card:not(.villager-card-skeleton)');
+  const isFirstLoad = !hasExistingData && !hasRenderedCards;
 
-  if (roster) {
-    // Keep all 10 villager slots visible with shimmer while loading.
+  // Only flip status dot to busy (yellow) on first load. Background refreshes
+  // stay green so the tab indicator does not flash on every poll cycle.
+  if (dot && isFirstLoad) { dot.classList.remove('is-ok', 'is-error'); dot.classList.add('is-busy'); }
+
+  // Only wipe roster to skeletons on first load. Never on background refresh.
+  if (roster && isFirstLoad) {
     roster.innerHTML = Array.from({ length: MAX_VILLAGER_SLOTS }, () =>
       '<article class="villager-card villager-card-skeleton"><div class="villager-skel-avatar skeleton-block"></div><div class="villager-skel-body"><div class="villager-skel-name skeleton-block"></div><div class="villager-skel-line skeleton-block"></div><div class="villager-skel-line skeleton-block"></div></div></article>'
     ).join('');
   }
 
   if (state.testDataMode && typeof getEffectiveVillagersData === 'function') {
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, isFirstLoad ? 5000 : 0));
     const villagers = getEffectiveVillagersData();
     renderVillagersPanel(villagers);
     if (dot) {
@@ -1949,43 +1957,42 @@ async function loadVillagersFromBridge() {
     return;
   }
 
-  // Start the fetch immediately so network time runs in parallel with skeleton display
   const fetchPromise = apiFetch('/api/bridge/read-villagers');
 
+  // Minimum 5s of skeleton on first load; no artificial delay on background refresh.
+  const minDisplayMs = isFirstLoad ? 5000 : 0;
   await Promise.all([
-    new Promise(r => setTimeout(r, 500)),
-    fetchPromise.catch(() => null), // suppress rejection; handled below
+    new Promise(r => setTimeout(r, minDisplayMs)),
+    fetchPromise.catch(() => null),
   ]);
 
-  // On background refresh, keep existing cards visible — no DOM wipe
   try {
     const res = await fetchPromise;
     const data = await res.json();
     if (!res.ok || data.error) {
       const errMsg = data.error || `HTTP ${res.status}`;
       console.error('Villagers API error:', errMsg);
-      if (roster) roster.innerHTML = `<p class="villager-placeholder" style="color:#e87070">API error: ${escapeHtml(errMsg)}</p>`;
+      if (roster && isFirstLoad) roster.innerHTML = `<p class="villager-placeholder" style="color:#e87070">API error: ${escapeHtml(errMsg)}</p>`;
       throw new Error(errMsg);
     }
     const villagers = (data.payload && data.payload.villagers) ? data.payload.villagers : (data.villagers || []);
-    console.log('Villagers loaded:', villagers.length, villagers);
     state.villagers = villagers;
     try {
       renderVillagersPanel(villagers);
     } catch (renderErr) {
       console.error('renderVillagersPanel threw:', renderErr);
-      if (roster) roster.innerHTML = `<p class="villager-placeholder" style="color:#e87070">Render error: ${escapeHtml(renderErr.message)}</p>`;
+      if (roster && isFirstLoad) roster.innerHTML = `<p class="villager-placeholder" style="color:#e87070">Render error: ${escapeHtml(renderErr.message)}</p>`;
       throw renderErr;
     }
     if (dot) { dot.classList.remove('is-busy', 'is-error'); dot.classList.add('is-ok'); }
   } catch (err) {
     console.error('Villagers fetch error:', err);
-    if (dot) { dot.classList.remove('is-busy', 'is-ok'); dot.classList.add('is-error'); }
-    if (roster && (!state.villagers || state.villagers.length === 0)) {
+    // Only flip dot to red on first load; background failures keep last-known green.
+    if (dot && isFirstLoad) { dot.classList.remove('is-busy', 'is-ok'); dot.classList.add('is-error'); }
+    if (roster && isFirstLoad && (!state.villagers || state.villagers.length === 0)) {
       roster.innerHTML = `<p class="villager-placeholder" style="color:#e87070">Failed to load villagers: ${escapeHtml(err.message || String(err))}</p>`;
-    } else if (state.villagers && state.villagers.length > 0) {
-      try { renderVillagersPanel(state.villagers); } catch (_) {}
     }
+    // Background refresh failure: leave existing cards as-is. Do nothing.
   }
 }
 
