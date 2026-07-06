@@ -1267,6 +1267,17 @@ body.is-test-data .status-pill::after {
 .action-pill-btn:hover { background: rgba(255,255,255,0.11); box-shadow: 0 0 0 1px rgba(255,255,255,0.1); }
 .action-pill-btn .icon-img { width: 16px; height: 16px; }
 
+/* Force header reload SVG to match gear icon sizing (16x16). Icon inherits
+   button color via currentColor, keeping parity with gear/theme icons. */
+.action-pill-btn .reload-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+  opacity: 1;
+  filter: none;
+  color: currentColor;
+}
+
 /* Day theme adjustments */
 body:not([data-theme='night']) .action-pill-btn {
   background: rgba(0,0,0,0.08);
@@ -2829,7 +2840,9 @@ body[data-theme='night'] .selected-item-artbox {
   opacity: 1;
 }
 
-.reload-icon {
+/* Scoped to hint/field usages only so header reload button SVG is unaffected. */
+.reload-required-hint .reload-icon,
+.field-reload-icon {
   width: 16px;
   height: 16px;
   display: inline-block;
@@ -2837,11 +2850,13 @@ body[data-theme='night'] .selected-item-artbox {
   opacity: 0.7;
 }
 
-body:not([data-theme='night']) .reload-icon {
+body:not([data-theme='night']) .reload-required-hint .reload-icon,
+body:not([data-theme='night']) .field-reload-icon {
   filter: invert(1);
 }
 
-body[data-theme='night'] .reload-icon {
+body[data-theme='night'] .reload-required-hint .reload-icon,
+body[data-theme='night'] .field-reload-icon {
   filter: none;
 }
 
