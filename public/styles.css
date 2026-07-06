@@ -4615,8 +4615,8 @@ body:not([data-theme='night']) .modal-filter-btn {
   display: flex;
   flex: 1;
   gap: 16px;
-  padding: 14px var(--vmod-inset) 0;
-  align-items: flex-start;
+  padding: 12px var(--vmod-inset) 0;
+  align-items: stretch;
   min-height: 0;
   overflow: hidden;
 }
@@ -4634,18 +4634,17 @@ body:not([data-theme='night']) .modal-filter-btn {
   align-self: flex-start;
 }
 
-/* iOS-style hero art: aspect-ratio locked so the frame's height exactly
-   matches the art aspect — ZERO letterbox. Anchored to the frame floor. */
+/* iOS hero art: aspect-ratio-locked frame so the frame height matches the
+   image aspect — zero letterbox. Anchored flush to the bottom edge. */
 .villager-modal-art-frame {
   position: relative;
   width: 100%;
   aspect-ratio: 3 / 4;
   max-height: 320px;
-  min-height: 200px;
   border-radius: 18px;
   overflow: hidden;
   background:
-    radial-gradient(120% 80% at 50% 70%, rgba(144, 168, 224, 0.14), rgba(255,255,255,0) 65%),
+    radial-gradient(120% 80% at 50% 78%, rgba(144, 168, 224, 0.14), rgba(255,255,255,0) 65%),
     linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.008));
   border: 1px solid rgba(255,255,255,0.08);
   display: block;
@@ -4658,7 +4657,7 @@ body:not([data-theme='night']) .modal-filter-btn {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  object-position: center 92%;
+  object-position: center 100%;
   transition: opacity 0.24s ease;
   filter: drop-shadow(0 8px 22px rgba(0,0,0,0.32));
 }
@@ -5175,8 +5174,9 @@ body:not([data-theme='night']) .modal-filter-btn {
   flex-shrink: 0;
 }
 
-/* Villager modal top-level tab bar — now full-width above the split shell.
-   Tabs distribute across the entire modal body so there's no crampy scroll. */
+/* Villager modal top-level tab bar — full-width sibling directly above the
+   split shell. No border-bottom, minimal padding so tabs feel connected
+   to the content below rather than floating in their own strip. */
 .vmod-tab-bar {
   display: flex;
   gap: 4px;
@@ -5184,8 +5184,8 @@ body:not([data-theme='night']) .modal-filter-btn {
   flex-wrap: nowrap;
   overflow-x: auto;
   scrollbar-width: none;
-  padding: 12px var(--vmod-inset) 8px;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  padding: 6px var(--vmod-inset) 0;
+  border-bottom: none;
   justify-content: flex-start;
 }
 .vmod-tab-bar::-webkit-scrollbar { display: none; }
