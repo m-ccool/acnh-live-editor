@@ -1785,8 +1785,8 @@ function hasOpenModal() {
 }
 
 // Interaction gate — returns true when a background refresh would clobber
-// active user input (open modal, focused input/textarea/select, or an armed
-// copy/move clipboard). Consumed by pollBridgeStatus.
+// active user input (open modal, focused input/textarea/select).
+// Consumed by pollBridgeStatus.
 function isUserInteracting() {
   if (hasOpenModal()) return true;
   const active = document.activeElement;
@@ -1795,7 +1795,6 @@ function isUserInteracting() {
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
     if (active.isContentEditable) return true;
   }
-  if (state && state.copiedSlotPayload) return true;
   return false;
 }
 
