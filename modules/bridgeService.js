@@ -337,6 +337,12 @@ function writePlayerData(playerData) {
   })
 }
 
+function applyCheat(cheatId, enabled) {
+  return sendCommand('apply_cheat', { cheat: cheatId, enabled: !!enabled }, {
+    timeoutMs: 8000
+  })
+}
+
 function readGameData() {
   if (state.supportsReadGameData === false) {
     return buildGameDataUnavailableResponse()
@@ -532,5 +538,6 @@ module.exports = {
   sendCommand,
   start,
   writeInventorySlot,
-  writePlayerData
+  writePlayerData,
+  applyCheat
 }
