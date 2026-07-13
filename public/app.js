@@ -87,6 +87,12 @@ async function refreshBridgeStatus(lastAction) {
 }
 
 async function pollBridgeStatus() {
+  // Interaction gate: pause background polling entirely while the user is
+  // editing a slot, typing in a modal input, or interacting with a picker.
+  // Prevents mid-edit re-renders from wiping input values and killing taps.
+  if (typeof isUserInteracting === 'function' && isUserInteracting()) {
+    return;
+  }
   try {
     const statusResponse = await apiFetch('/api/status', { cache: 'no-store' });
     if (statusResponse.ok) {

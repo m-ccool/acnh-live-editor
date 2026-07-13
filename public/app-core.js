@@ -1563,19 +1563,18 @@ function bindEvents() {
       queueModalSearch(true);
     });
 
-    el.modalSearchStack.addEventListener('focusout', (event) => {
-      const nextTarget = event.relatedTarget;
-      if (nextTarget && el.modalSearchStack.contains(nextTarget)) {
-        return;
+    // Note: intentionally do NOT collapse the results list on focusout.
+    // On touch devices, dismissing the on-screen keyboard blurs the search
+    // input, which previously auto-closed the list mid-scroll. The list now
+    // stays open until an item is assigned, the modal closes, or ESC is
+    // pressed on the search input.
+    el.modalSearchInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        state.modalSearchOpen = false;
+        renderItemModalResults();
+        el.modalSearchInput.blur();
       }
-
-      window.setTimeout(() => {
-        const active = document.activeElement;
-        if (!active || !el.modalSearchStack.contains(active)) {
-          state.modalSearchOpen = false;
-          renderItemModalResults();
-        }
-      }, 0);
     });
   }
 
@@ -1654,10 +1653,20 @@ function bindEvents() {
     });
   });
 
+  // Backdrop close — only close when BOTH pointerdown and click originated
+  // directly on the backdrop. Prevents accidental closes when the on-screen
+  // keyboard dismisses (which can synthesize a click on the underlying node)
+  // or when a drag/tap that started inside the card ends on the backdrop.
   [el.settingsModal, el.playerModal, el.itemModal, el.backupsModal, el.presetManagerModal].forEach((modal) => {
     if (!modal) return;
+    let backdropPointerDown = false;
+    modal.addEventListener('pointerdown', (event) => {
+      backdropPointerDown = event.target === modal;
+    });
     modal.addEventListener('click', (event) => {
-      if (event.target === modal) closeModal(modal);
+      const wasBackdrop = backdropPointerDown;
+      backdropPointerDown = false;
+      if (wasBackdrop && event.target === modal) closeModal(modal);
     });
   });
 
@@ -1773,6 +1782,21 @@ function hasOpenModal() {
   return [el.settingsModal, el.playerModal, el.itemModal, el.backupsModal, el.villagerModal, el.presetManagerModal].some((modal) => {
     return modal && !modal.classList.contains('hidden');
   });
+}
+
+// Interaction gate — returns true when a background refresh would clobber
+// active user input (open modal, focused input/textarea/select, or an armed
+// copy/move clipboard). Consumed by pollBridgeStatus.
+function isUserInteracting() {
+  if (hasOpenModal()) return true;
+  const active = document.activeElement;
+  if (active && active !== document.body) {
+    const tag = active.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+    if (active.isContentEditable) return true;
+  }
+  if (state && state.copiedSlotPayload) return true;
+  return false;
 }
 
 function bindVillagerCardEvents() {

@@ -847,10 +847,13 @@ function renderItemModal() {
 
   el.modalPocketTitle.textContent = `Pocket ${slot.slot} · ${modalLabel}`;
   el.modalItemName.textContent = modalLabel;
-  el.modalInputCount.value = String(slot.count);
-  el.modalInputUses.value = String(slot.uses);
-  el.modalInputFlag0.value = String(slot.flag0);
-  el.modalInputFlag1.value = String(slot.flag1);
+  // Do not overwrite an input the user is currently editing — otherwise a
+  // background refresh or sibling re-render will revert their draft value.
+  const activeEl = document.activeElement;
+  if (activeEl !== el.modalInputCount) el.modalInputCount.value = String(slot.count);
+  if (activeEl !== el.modalInputUses)  el.modalInputUses.value  = String(slot.uses);
+  if (activeEl !== el.modalInputFlag0) el.modalInputFlag0.value = String(slot.flag0);
+  if (activeEl !== el.modalInputFlag1) el.modalInputFlag1.value = String(slot.flag1);
   el.modalHex.textContent = slot.hex || deriveHexFromItem(item) || '00000000';
 
   if (item) {
