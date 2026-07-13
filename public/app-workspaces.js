@@ -367,6 +367,8 @@ function armHeldSlot(index, options = {}) {
 
   state.copiedSlotPayload = buildClipboardPayload(slot);
   state.copiedSlotSourceIndex = index;
+  state.copiedSlotMode = 'move';
+  state.copiedSlotBadgeIndex = index;
   clearOverwriteGuard();
   state.bridge.lastAction = options.actionText || `Holding slot ${slot.slot}: ${slot.item.name}`;
   renderBridge();
@@ -582,6 +584,8 @@ function renderInventory() {
     slots: slotsView,
     selectedSlotIndex: state.selectedSlotIndex,
     clipboardSourceSlotIndex: state.copiedSlotSourceIndex,
+    clipboardMode: state.copiedSlotMode,
+    clipboardBadgeIndex: state.copiedSlotBadgeIndex,
     overwriteGuard: state.overwriteGuard,
     pendingSlot: state.pendingInventorySlot,
     activeFilter: state.activeFilter,
@@ -1038,6 +1042,8 @@ function copySelectedSlotPayload() {
   const payload = buildClipboardPayload(slot);
   state.copiedSlotPayload = payload;
   state.copiedSlotSourceIndex = null;
+  state.copiedSlotMode = 'copy';
+  state.copiedSlotBadgeIndex = Number.isInteger(state.selectedSlotIndex) ? state.selectedSlotIndex : null;
 
   const text = JSON.stringify(payload, null, 2);
 
@@ -1055,6 +1061,8 @@ function copySelectedSlotPayload() {
 function clearCopiedSlotPayload() {
   state.copiedSlotPayload = null;
   state.copiedSlotSourceIndex = null;
+  state.copiedSlotMode = null;
+  state.copiedSlotBadgeIndex = null;
   clearOverwriteGuard();
 
   if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -1432,6 +1440,11 @@ function closeModal(modal) {
   if (modal === el.itemModal) {
     state.modalSearchOpen = false;
     state.modalPendingItem = null;
+  }
+
+  // Batch 2: any modal close clears an armed copy/move clipboard.
+  if (state.copiedSlotPayload) {
+    clearCopiedSlotPayload();
   }
 
   window.setTimeout(() => {

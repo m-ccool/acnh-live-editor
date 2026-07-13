@@ -237,6 +237,8 @@ const state = {
   inventory: [],
   copiedSlotPayload: null,
   copiedSlotSourceIndex: null,
+  copiedSlotMode: null,
+  copiedSlotBadgeIndex: null,
   overwriteGuard: null,
   pendingInventorySlot: null,
   selectedSlotIndex: 0,

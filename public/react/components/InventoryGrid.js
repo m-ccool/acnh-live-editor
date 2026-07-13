@@ -7,6 +7,10 @@
     const slots = Array.isArray(props.slots) ? props.slots : [];
     const selectedSlotIndex = Number(props.selectedSlotIndex || 0);
     const clipboardSourceSlotIndex = Number(props.clipboardSourceSlotIndex ?? -1);
+    const clipboardMode = props.clipboardMode === 'copy' || props.clipboardMode === 'move'
+      ? props.clipboardMode
+      : null;
+    const clipboardBadgeIndex = Number(props.clipboardBadgeIndex ?? -1);
     const pendingSlot = Number(props.pendingSlot || 0);
     const overwriteGuard = props.overwriteGuard || null;
     const activeFilter = String(props.activeFilter || 'all');
@@ -27,6 +31,10 @@
 
         if (index === clipboardSourceSlotIndex) {
           classNames.push('is-clipboard-source');
+        }
+
+        if (clipboardMode && index === clipboardBadgeIndex) {
+          classNames.push(clipboardMode === 'copy' ? 'is-clipboard-copy' : 'is-clipboard-move');
         }
 
         if (overwriteGuard && overwriteGuard.slotIndex === index) {
