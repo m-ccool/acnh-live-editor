@@ -3,6 +3,7 @@ const fs = require('fs')
 const path = require('path')
 
 const bridgeService = require('./bridgeService')
+const cheatsService = require('./cheatsService')
 const {
   BRIDGE_HOST,
   BRIDGE_PORT
@@ -237,6 +238,25 @@ function createApiRouter(options = {}) {
       res.json(result)
     } catch (error) {
       res.status(resolveBridgeErrorStatus(error)).json({ error: error.message })
+    }
+  })
+
+  // ── Cheats: enable/disable + server-persisted list ──
+  router.get('/api/bridge/cheats', (req, res) => {
+    res.json({ ok: true, ...cheatsService.list() })
+  })
+
+  router.post('/api/bridge/cheats/:id', async (req, res) => {
+    const id = String(req.params.id || '')
+    const enabled = !!(req.body && req.body.enabled)
+    try {
+      const result = enabled
+        ? await cheatsService.enable(id)
+        : await cheatsService.disable(id)
+      if (!result.ok) return res.status(400).json(result)
+      res.json(result)
+    } catch (error) {
+      res.status(500).json({ ok: false, error: error.message })
     }
   })
 
@@ -599,6 +619,58 @@ function createApiRouter(options = {}) {
     setTimeout(() => {
       process.exit(0);
     }, 2000);
+  })
+
+  // Batch 3: report how many commits the local checkout is behind origin/dev.
+  // Runs `git fetch` at most once per 15 minutes (cached), then compares HEAD
+  // to origin/dev via rev-list. Fail-closed: any git error returns ok:false
+  // so the client hides the update button rather than showing stale info.
+  const REPO_STATUS_TTL_MS = 15 * 60 * 1000
+  let _repoStatusCache = { at: 0, payload: null }
+  router.get('/api/repo-status', (req, res) => {
+    const now = Date.now()
+    if (_repoStatusCache.payload && (now - _repoStatusCache.at) < REPO_STATUS_TTL_MS) {
+      return res.json(_repoStatusCache.payload)
+    }
+    const path = require('path')
+    const { execFile } = require('child_process')
+    const repoRoot = path.join(__dirname, '..')
+    const branch = 'dev'
+
+    function runGit(args) {
+      return new Promise(resolve => {
+        execFile('git', args, { cwd: repoRoot, timeout: 20000 }, (err, stdout, stderr) => {
+          resolve({ ok: !err, out: String(stdout || '').trim(), err: String(stderr || '').trim() })
+        })
+      })
+    }
+
+    ;(async () => {
+      const fetchStep = await runGit(['fetch', 'origin', branch])
+      if (!fetchStep.ok) {
+        const payload = { ok: false, error: fetchStep.err || 'git fetch failed' }
+        _repoStatusCache = { at: now, payload }
+        return res.json(payload)
+      }
+      const behindStep = await runGit(['rev-list', '--count', `HEAD..origin/${branch}`])
+      const aheadStep = await runGit(['rev-list', '--count', `origin/${branch}..HEAD`])
+      const localStep = await runGit(['rev-parse', '--short', 'HEAD'])
+      const remoteStep = await runGit(['rev-parse', '--short', `origin/${branch}`])
+      const payload = {
+        ok: true,
+        branch,
+        behind: Number(behindStep.out || 0),
+        ahead: Number(aheadStep.out || 0),
+        local: localStep.out || null,
+        remote: remoteStep.out || null
+      }
+      _repoStatusCache = { at: now, payload }
+      res.json(payload)
+    })().catch(err => {
+      const payload = { ok: false, error: String(err && err.message || err) }
+      _repoStatusCache = { at: now, payload }
+      res.status(500).json(payload)
+    })
   })
 
   // Update local repo from origin/dev, then exit so systemd restarts with new code

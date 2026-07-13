@@ -483,9 +483,10 @@ document.addEventListener('DOMContentLoaded', init);
         const source = document.getElementById(row.id);
         let stateClass = '';
         if (source) {
-          if (source.classList.contains('is-good')) stateClass = 'is-ok';
+          // Source pills use is-ok / is-warn / is-bad (also legacy is-good / is-error).
+          if (source.classList.contains('is-ok') || source.classList.contains('is-good')) stateClass = 'is-ok';
+          else if (source.classList.contains('is-bad') || source.classList.contains('is-error')) stateClass = 'is-error';
           else if (source.classList.contains('is-warn')) stateClass = '';
-          else if (source.classList.contains('is-error')) stateClass = 'is-error';
         }
         if (stateClass === 'is-error') overallState = 'is-error';
         else if (stateClass === '' && overallState === 'is-ok') overallState = '';
@@ -509,6 +510,35 @@ document.addEventListener('DOMContentLoaded', init);
     // and the trigger dot reflects overall health always.
     syncStatusMirror();
     setInterval(syncStatusMirror, 3000);
+
+    // ── Repo-update indicator ─────────────────────────────────────
+    // Batch 3: the Update button is hidden by default and only revealed
+    // when the server reports the local checkout is behind origin/dev.
+    // Server caches git fetch results for 15 min, so polling here is cheap.
+    const updateBtn = panel.querySelector('[data-utility-action="update"]');
+    if (updateBtn) {
+      updateBtn.hidden = true;
+      async function refreshRepoStatus() {
+        try {
+          const r = await fetch('/api/repo-status', { cache: 'no-store' });
+          if (!r.ok) { updateBtn.hidden = true; return; }
+          const data = await r.json();
+          const behind = Number(data && data.behind || 0);
+          if (data && data.ok && behind > 0) {
+            updateBtn.hidden = false;
+            const label = updateBtn.querySelector('.utility-action-label');
+            if (label) label.textContent = `Update (${behind})`;
+            updateBtn.title = `${behind} commit${behind === 1 ? '' : 's'} behind origin/${data.branch || 'dev'} — pull + restart`;
+          } else {
+            updateBtn.hidden = true;
+          }
+        } catch (_) {
+          updateBtn.hidden = true;
+        }
+      }
+      refreshRepoStatus();
+      setInterval(refreshRepoStatus, 15 * 60 * 1000);
+    }
 
     function syncThemeLabel() {
       const isNight = document.body.dataset.theme === 'night';
