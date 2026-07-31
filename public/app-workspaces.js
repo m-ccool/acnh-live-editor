@@ -1,6 +1,9 @@
 'use strict';
 
-let itemModalAutoApplyTimeoutId = 0;
+let itemModalCommitTimeoutId = 0;
+let itemModalCommitInFlight = false;
+let itemModalCommitQueued = false;
+let lastItemModalCommitSignature = '';
 const MODAL_CLOSE_TRANSITION_MS = 180;
 const INVENTORY_TOUCH_HOLD_MS = 320;
 const INVENTORY_TOUCH_HOLD_MOVE_PX = 12;
@@ -435,25 +438,27 @@ async function handleHeldSlotTarget(index) {
   return true;
 }
 
-function clearItemModalAutoApplyTimer() {
-  if (itemModalAutoApplyTimeoutId) {
-    window.clearTimeout(itemModalAutoApplyTimeoutId);
-    itemModalAutoApplyTimeoutId = 0;
+function clearItemModalCommitTimer() {
+  if (itemModalCommitTimeoutId) {
+    window.clearTimeout(itemModalCommitTimeoutId);
+    itemModalCommitTimeoutId = 0;
   }
 }
 
-function scheduleItemModalAutoApply(immediate = false) {
+function queueItemModalCommit() {
   if (!el.itemModal || el.itemModal.classList.contains('hidden')) {
     return;
   }
+  if (itemModalCommitInFlight) {
+    itemModalCommitQueued = true;
+    return;
+  }
 
-  clearItemModalAutoApplyTimer();
-
-  const delay = immediate ? 0 : 320;
-  itemModalAutoApplyTimeoutId = window.setTimeout(() => {
-    itemModalAutoApplyTimeoutId = 0;
+  clearItemModalCommitTimer();
+  itemModalCommitTimeoutId = window.setTimeout(() => {
+    itemModalCommitTimeoutId = 0;
     applyItemEdits({ closeModalAfterWrite: false });
-  }, delay);
+  }, 0);
 }
 
 function clearOverwriteGuard() {
@@ -904,11 +909,11 @@ function assignItemToSelectedSlot(item) {
   }
   state.modalSearchOpen = false;
   renderItemModal();
-  scheduleItemModalAutoApply(true);
+  queueItemModalCommit();
 }
 
 async function clearSelectedSlot() {
-  clearItemModalAutoApplyTimer();
+  clearItemModalCommitTimer();
   const slot = getSelectedSlot();
   state.modalPendingItem = null;
 
@@ -940,7 +945,7 @@ async function clearSelectedSlot() {
 }
 
 function openItemModalForSelectedSlot() {
-  clearItemModalAutoApplyTimer();
+  clearItemModalCommitTimer();
   state.modalPendingItem = getSelectedSlot().item || null;
   state.modalSearchQuery = '';
   state.modalSearchFilter = 'all';
@@ -948,19 +953,20 @@ function openItemModalForSelectedSlot() {
   state.catalog.modalResults = [];
   el.modalSearchInput.value = '';
   renderItemModal();
+  lastItemModalCommitSignature = JSON.stringify(buildItemModalWritePayload());
   openModal(el.itemModal);
   queueModalSearch(true);
   focusItemSearch();
 }
 
-async function applyItemEdits(options = {}) {
-  clearItemModalAutoApplyTimer();
+function buildItemModalWritePayload() {
   const slot = getSelectedSlot();
-  const item = state.modalPendingItem
-    ? (findItemByLookup(state.modalPendingItem.file_name || state.modalPendingItem.name, state.modalPendingItem.name) || state.modalPendingItem)
+  const baseItem = state.modalPendingItem || slot.item;
+  const item = baseItem
+    ? (findItemByLookup(baseItem.file_name || baseItem.name, baseItem.name) || baseItem)
     : null;
-  const closeModalAfterWrite = options.closeModalAfterWrite !== false;
-  const payload = {
+
+  return {
     slot: slot.slot,
     itemId: item ? (item.file_name || item.name) : null,
     internalId: item && typeof item.internal_id === 'number' ? item.internal_id : null,
@@ -970,17 +976,43 @@ async function applyItemEdits(options = {}) {
     flag0: normalizeWholeNumber(el.modalInputFlag0.value, slot.flag0),
     flag1: normalizeWholeNumber(el.modalInputFlag1.value, slot.flag1)
   };
+}
+
+async function applyItemEdits(options = {}) {
+  clearItemModalCommitTimer();
+  const slot = getSelectedSlot();
+  const baseItem = state.modalPendingItem || slot.item;
+  const item = baseItem
+    ? (findItemByLookup(baseItem.file_name || baseItem.name, baseItem.name) || baseItem)
+    : null;
+  const closeModalAfterWrite = options.closeModalAfterWrite !== false;
+  const payload = buildItemModalWritePayload();
+  const commitSignature = JSON.stringify(payload);
+  if (commitSignature === lastItemModalCommitSignature) {
+    return;
+  }
 
   const actionText = item
     ? `Updated slot ${slot.slot} to "${item.name}"`
     : `Cleared slot ${slot.slot}`;
   state.bridge.lastAction = actionText;
-  const wrote = await writeSlotToBridge(payload, actionText);
+  itemModalCommitInFlight = true;
+  let wrote;
+  try {
+    wrote = await writeSlotToBridge(payload, actionText);
+  } finally {
+    itemModalCommitInFlight = false;
+    if (itemModalCommitQueued) {
+      itemModalCommitQueued = false;
+      queueItemModalCommit();
+    }
+  }
   if (!wrote) {
     renderBridge();
     renderItemModal();
     return;
   }
+  lastItemModalCommitSignature = commitSignature;
 
   if (item) {
     rememberCatalogItems([item]);
@@ -1455,6 +1487,9 @@ function closeModal(modal) {
     modal.classList.remove('is-closing');
     modal.classList.add('hidden');
     syncModalState();
+    if (modal === el.itemModal && !state.bridge.pollPaused) {
+      pollBridgeStatus();
+    }
   }, MODAL_CLOSE_TRANSITION_MS);
 
   syncModalState();

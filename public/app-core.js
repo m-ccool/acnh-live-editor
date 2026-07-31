@@ -1623,13 +1623,12 @@ function bindEvents() {
 
   [el.modalInputCount, el.modalInputUses, el.modalInputFlag0, el.modalInputFlag1].forEach((input) => {
     input.addEventListener('input', renderItemModalPayload);
-    input.addEventListener('input', () => scheduleItemModalAutoApply());
-    input.addEventListener('change', () => scheduleItemModalAutoApply(true));
-    input.addEventListener('blur', () => scheduleItemModalAutoApply(true));
+    input.addEventListener('change', queueItemModalCommit);
+    input.addEventListener('blur', queueItemModalCommit);
     input.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
         event.preventDefault();
-        scheduleItemModalAutoApply(true);
+        queueItemModalCommit();
       }
     });
   });
