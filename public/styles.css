@@ -2471,6 +2471,10 @@ body[data-theme='night'] .log-panel {
   text-transform: uppercase;
 }
 
+.log-test-payload-version[hidden] {
+  display: none;
+}
+
 .log-panel-head-meta {
   display: inline-flex;
   align-items: center;
