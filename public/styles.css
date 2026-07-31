@@ -7035,10 +7035,6 @@ body[data-theme='night'] .meta-input[inputmode='numeric'] {
     transform var(--dur-fast) var(--ease-out);
 }
 
-.utility-action[hidden] {
-  display: none;
-}
-
 .utility-action:hover {
   background: rgba(255,255,255,0.07);
   border-color: var(--line-strong);

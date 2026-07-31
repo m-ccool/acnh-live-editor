@@ -511,29 +511,27 @@ document.addEventListener('DOMContentLoaded', init);
     syncStatusMirror();
     setInterval(syncStatusMirror, 3000);
 
-    // ── Repo-update indicator ─────────────────────────────────────
-    // Batch 3: the Update button is hidden by default and only revealed
-    // when the server reports the local checkout is behind origin/dev.
     // Server caches git fetch results for 15 min, so polling here is cheap.
     const updateBtn = panel.querySelector('[data-utility-action="update"]');
     if (updateBtn) {
-      updateBtn.hidden = true;
       async function refreshRepoStatus() {
+        const label = updateBtn.querySelector('.utility-action-label');
         try {
           const r = await fetch('/api/repo-status', { cache: 'no-store' });
-          if (!r.ok) { updateBtn.hidden = true; return; }
+          if (!r.ok) throw new Error(`Repo status failed with ${r.status}`);
           const data = await r.json();
+          if (!data || !data.ok) throw new Error('Repo status unavailable');
           const behind = Number(data && data.behind || 0);
-          if (data && data.ok && behind > 0) {
-            updateBtn.hidden = false;
-            const label = updateBtn.querySelector('.utility-action-label');
+          if (behind > 0) {
             if (label) label.textContent = `Update ${data.branch}@${data.remote}`;
             updateBtn.title = `${behind} commit${behind === 1 ? '' : 's'} behind origin/${data.branch} (${data.local} → ${data.remote})`;
           } else {
-            updateBtn.hidden = true;
+            if (label) label.textContent = `Current ${data.branch}@${data.local}`;
+            updateBtn.title = `Check and pull origin/${data.branch}`;
           }
         } catch (_) {
-          updateBtn.hidden = true;
+          if (label) label.textContent = 'Update unavailable';
+          updateBtn.title = 'Repository status unavailable';
         }
       }
       refreshRepoStatus();
@@ -604,9 +602,7 @@ document.addEventListener('DOMContentLoaded', init);
     const TEST_ON_KEY  = 'live-ok';
 
     function detectTestModeOn() {
-      // window.state is set up by app-core; use it if available.
-      const s = window.state;
-      return !!(s && s.testDataMode);
+      return state.testDataMode === true;
     }
 
     function reflectTestPill() {
