@@ -527,8 +527,8 @@ document.addEventListener('DOMContentLoaded', init);
           if (data && data.ok && behind > 0) {
             updateBtn.hidden = false;
             const label = updateBtn.querySelector('.utility-action-label');
-            if (label) label.textContent = `Update (${behind})`;
-            updateBtn.title = `${behind} commit${behind === 1 ? '' : 's'} behind origin/${data.branch || 'dev'} — pull + restart`;
+            if (label) label.textContent = `Update ${data.branch}@${data.remote}`;
+            updateBtn.title = `${behind} commit${behind === 1 ? '' : 's'} behind origin/${data.branch} (${data.local} → ${data.remote})`;
           } else {
             updateBtn.hidden = true;
           }
@@ -550,15 +550,15 @@ document.addEventListener('DOMContentLoaded', init);
     }
     syncThemeLabel();
 
-    // Show current git commit short hash + branch in the footer, if we can grab it
+    // Show the deployed branch and commit in the footer.
     if (versionFoot) {
-      fetch('/api/status', { cache: 'no-store' })
+      fetch('/api/repo-status', { cache: 'no-store' })
         .then((r) => r.ok ? r.json() : null)
         .then((data) => {
-          if (!data) return;
-          const version = data.version || 'dev';
+          if (!data || !data.ok) return;
+          const version = `${data.branch}@${data.local}`;
           versionFoot.textContent = `ACNH Live Editor · ${version}`;
-          if (brandVersion) brandVersion.textContent = `${version}`;
+          if (brandVersion) brandVersion.textContent = version;
         })
         .catch(() => {});
     }
@@ -654,8 +654,23 @@ document.addEventListener('DOMContentLoaded', init);
         const data = await res.json().catch(() => ({}));
         if (data.ok) {
           if (label) label.textContent = 'Restarting…';
-          // Server will exit; wait a moment then reload page.
-          setTimeout(() => { window.location.href = `${window.location.pathname}?t=${Date.now()}`; }, 3000);
+          const expectedCommit = data.commit;
+          window.setTimeout(async () => {
+            const deadline = Date.now() + 30000;
+            while (Date.now() < deadline) {
+              try {
+                const statusResponse = await fetch(`/api/repo-status?t=${Date.now()}`, { cache: 'no-store' });
+                const status = statusResponse.ok ? await statusResponse.json() : null;
+                if (status && status.ok && status.branch === data.branch && status.local === expectedCommit) {
+                  window.location.replace(`${window.location.pathname}?v=${expectedCommit}`);
+                  return;
+                }
+              } catch (_) {}
+              await new Promise((resolve) => window.setTimeout(resolve, 1000));
+            }
+            if (label) label.textContent = 'Restart failed';
+            btn.classList.remove('is-busy');
+          }, 2000);
         } else {
           if (label) label.textContent = 'Update failed';
           setTimeout(() => { if (label) label.textContent = original; btn.classList.remove('is-busy'); }, 2500);

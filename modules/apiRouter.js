@@ -678,6 +678,7 @@ function createApiRouter(options = {}) {
     const path = require('path')
     const { execFile } = require('child_process')
     const repoRoot = path.join(__dirname, '..')
+    const branch = 'dev'
 
     const steps = []
     function runStep(file, args) {
@@ -690,18 +691,27 @@ function createApiRouter(options = {}) {
     }
 
     ;(async () => {
-      const fetch = await runStep('git', ['fetch', 'origin', 'dev'])
-      steps.push({ step: 'git fetch', ...fetch })
+      const currentBranch = await runStep('git', ['branch', '--show-current'])
+      steps.push({ step: 'git branch', ...currentBranch })
+      if (!currentBranch.ok || currentBranch.out !== branch) {
+        return res.status(409).json({ ok: false, branch, error: `Checkout must be on ${branch}`, steps })
+      }
 
-      const pull = await runStep('git', ['pull', '--ff-only', 'origin', 'dev'])
+      const fetch = await runStep('git', ['fetch', 'origin', branch])
+      steps.push({ step: 'git fetch', ...fetch })
+      if (!fetch.ok) {
+        return res.status(500).json({ ok: false, branch, error: 'git fetch failed', steps })
+      }
+
+      const pull = await runStep('git', ['pull', '--ff-only', 'origin', branch])
       steps.push({ step: 'git pull', ...pull })
 
       const rev = await runStep('git', ['rev-parse', '--short', 'HEAD'])
       steps.push({ step: 'git rev-parse', ...rev })
 
-      res.json({ ok: pull.ok, commit: rev.out, steps })
+      res.json({ ok: pull.ok && rev.ok, branch, commit: rev.out, steps })
 
-      if (pull.ok) {
+      if (pull.ok && rev.ok) {
         setTimeout(() => { process.exit(0) }, 1500)
       }
     })().catch(err => res.status(500).json({ ok: false, error: err.message, steps }))
