@@ -328,62 +328,9 @@ function createApiRouter(options = {}) {
   })
 
   router.post('/api/backups/force-close-ryujinx', async (req, res) => {
-    function runCmd(file, args) {
-      return new Promise((resolve) => {
-        execFile(file, args, { timeout: 10000 }, (error, stdout, stderr) => {
-          resolve({
-            ok: !error,
-            code: error ? (typeof error.code === 'number' ? error.code : 1) : 0,
-            stdout: String(stdout || '').trim(),
-            stderr: String(stderr || '').trim()
-          })
-        })
-      })
-    }
-
-    const isWindows = process.platform === 'win32'
-    let closeResult
-    let verifyResult
-
-    if (isWindows) {
-      closeResult = await runCmd('taskkill', ['/IM', 'Ryujinx.exe', '/F'])
-      verifyResult = await runCmd('tasklist', ['/FI', 'IMAGENAME eq Ryujinx.exe'])
-    } else {
-      // Match process name exactly so we do not catch unrelated commands that
-      // contain "ryujinx" in args or environment variable names.
-      const closePrimary = await runCmd('pkill', ['-x', 'Ryujinx'])
-      const closeSecondary = closePrimary.ok ? null : await runCmd('pkill', ['-x', 'ryujinx'])
-      closeResult = closePrimary.ok ? closePrimary : (closeSecondary || closePrimary)
-
-      const verifyPrimary = await runCmd('pgrep', ['-x', 'Ryujinx'])
-      const verifySecondary = verifyPrimary.ok ? null : await runCmd('pgrep', ['-x', 'ryujinx'])
-      verifyResult = verifyPrimary.ok ? verifyPrimary : (verifySecondary || verifyPrimary)
-    }
-
-    let runningAfter = false
-    if (isWindows) {
-      runningAfter = /Ryujinx\.exe/i.test(verifyResult.stdout)
-    } else {
-      runningAfter = verifyResult.ok
-    }
-
-    if (runningAfter) {
-      res.status(500).json({
-        ok: false,
-        error: 'Unable to force-close Ryujinx. Please close it manually.',
-        closeCode: closeResult.code,
-        verifyCode: verifyResult.code
-      })
-      return
-    }
-
-    // pkill/taskkill return non-zero if no process existed; treat as already closed.
-    const hadProcess = closeResult.ok || !/no running instance|not found|not running|no process/i.test(`${closeResult.stdout} ${closeResult.stderr}`)
-
-    res.json({
-      ok: true,
-      closed: hadProcess,
-      message: hadProcess ? 'Ryujinx force-closed.' : 'Ryujinx was already closed.'
+    res.status(409).json({
+      ok: false,
+      error: 'Force close is disabled. Close Ryujinx manually on Steam Deck before backups.'
     })
   })
 

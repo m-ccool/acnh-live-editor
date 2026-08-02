@@ -1398,28 +1398,7 @@ function shouldShowBackupsForceClose(statusMessage) {
 async function handleForceCloseRyujinxForBackups() {
   if (!el.backupsForceCloseBtn) return;
 
-  el.backupsForceCloseBtn.disabled = true;
-  setBackupsStatus('Force closing Ryujinx…');
-
-  try {
-    const res = await apiFetch('/api/backups/force-close-ryujinx', {
-      method: 'POST'
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || data.ok === false) {
-      throw new Error(data.error || `HTTP ${res.status}`);
-    }
-
-    if (data.closed) {
-      setBackupsStatus('Ryujinx closed. Retry your backup action.');
-    } else {
-      setBackupsStatus('Ryujinx was already closed. Retry your backup action.');
-    }
-  } catch (err) {
-    setBackupsStatus(`Force close error: ${err.message}`);
-  } finally {
-    el.backupsForceCloseBtn.disabled = false;
-  }
+  setBackupsStatus('Close Ryujinx manually on Steam Deck, then retry backup.');
 }
 
 async function loadBackupsList() {
