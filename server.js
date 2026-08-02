@@ -46,6 +46,10 @@ app.use(express.static(publicDir, { index: false }))
 app.use(express.json())
 app.use(createApiRouter({ getPreferredLocalIp }))
 
+app.use('/api', (req, res) => {
+  res.status(404).json({ ok: false, error: 'API route not found' })
+})
+
 app.get('*', (req, res) => {
   res.setHeader('Content-Type', 'text/html; charset=utf-8')
   res.send(getIndexHtml())

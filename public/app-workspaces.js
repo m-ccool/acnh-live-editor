@@ -1,6 +1,5 @@
 'use strict';
 
-let itemModalAutoApplyTimeoutId = 0;
 const MODAL_CLOSE_TRANSITION_MS = 180;
 const INVENTORY_TOUCH_HOLD_MS = 320;
 const INVENTORY_TOUCH_HOLD_MOVE_PX = 12;
@@ -54,19 +53,6 @@ function renderBridgePollButton() {
 }
 
 async function writePlayerChanges(nextPlayer = state.player, actionText = 'Player values synced to game') {
-  if (state.testDataMode) {
-    const ok = await applyTestPlayerWrite(nextPlayer, actionText || 'Saved TEST player data');
-    if (ok) {
-      state.player = {
-        ...state.player,
-        ...nextPlayer
-      };
-      state.playerSaveSnapshot = { ...state.player };
-      persistLocalState();
-    }
-    return ok;
-  }
-
   if (!state.bridge.connected) {
     state.bridge.lastAction = 'Bridge disconnected: player values were not written';
     renderBridge();
@@ -431,27 +417,6 @@ async function handleHeldSlotTarget(index) {
   renderDerivedPanels();
   renderItemModal();
   return true;
-}
-
-function clearItemModalAutoApplyTimer() {
-  if (itemModalAutoApplyTimeoutId) {
-    window.clearTimeout(itemModalAutoApplyTimeoutId);
-    itemModalAutoApplyTimeoutId = 0;
-  }
-}
-
-function scheduleItemModalAutoApply(immediate = false) {
-  if (!el.itemModal || el.itemModal.classList.contains('hidden')) {
-    return;
-  }
-
-  clearItemModalAutoApplyTimer();
-
-  const delay = immediate ? 0 : 320;
-  itemModalAutoApplyTimeoutId = window.setTimeout(() => {
-    itemModalAutoApplyTimeoutId = 0;
-    applyItemEdits({ closeModalAfterWrite: false });
-  }, delay);
 }
 
 function clearOverwriteGuard() {
@@ -847,10 +812,11 @@ function renderItemModal() {
 
   el.modalPocketTitle.textContent = `Pocket ${slot.slot} · ${modalLabel}`;
   el.modalItemName.textContent = modalLabel;
-  el.modalInputCount.value = String(slot.count);
-  el.modalInputUses.value = String(slot.uses);
-  el.modalInputFlag0.value = String(slot.flag0);
-  el.modalInputFlag1.value = String(slot.flag1);
+  const activeInput = document.activeElement;
+  if (activeInput !== el.modalInputCount) el.modalInputCount.value = String(slot.count);
+  if (activeInput !== el.modalInputUses) el.modalInputUses.value = String(slot.uses);
+  if (activeInput !== el.modalInputFlag0) el.modalInputFlag0.value = String(slot.flag0);
+  if (activeInput !== el.modalInputFlag1) el.modalInputFlag1.value = String(slot.flag1);
   el.modalHex.textContent = slot.hex || deriveHexFromItem(item) || '00000000';
 
   if (item) {
@@ -897,11 +863,9 @@ function assignItemToSelectedSlot(item) {
   }
   state.modalSearchOpen = false;
   renderItemModal();
-  scheduleItemModalAutoApply(true);
 }
 
 async function clearSelectedSlot() {
-  clearItemModalAutoApplyTimer();
   const slot = getSelectedSlot();
   state.modalPendingItem = null;
 
@@ -933,21 +897,17 @@ async function clearSelectedSlot() {
 }
 
 function openItemModalForSelectedSlot() {
-  clearItemModalAutoApplyTimer();
   state.modalPendingItem = getSelectedSlot().item || null;
   state.modalSearchQuery = '';
   state.modalSearchFilter = 'all';
-  state.modalSearchOpen = true;
+  state.modalSearchOpen = false;
   state.catalog.modalResults = [];
   el.modalSearchInput.value = '';
   renderItemModal();
   openModal(el.itemModal);
-  queueModalSearch(true);
-  focusItemSearch();
 }
 
 async function applyItemEdits(options = {}) {
-  clearItemModalAutoApplyTimer();
   const slot = getSelectedSlot();
   const item = state.modalPendingItem
     ? (findItemByLookup(state.modalPendingItem.file_name || state.modalPendingItem.name, state.modalPendingItem.name) || state.modalPendingItem)
@@ -972,6 +932,7 @@ async function applyItemEdits(options = {}) {
   if (!wrote) {
     renderBridge();
     renderItemModal();
+    showToast('Save failed', 1800);
     return;
   }
 
@@ -983,6 +944,8 @@ async function applyItemEdits(options = {}) {
   clearOverwriteGuard();
   if (closeModalAfterWrite) {
     closeModal(el.itemModal);
+  } else {
+    showToast('Saved', 1200);
   }
   renderBridge();
   renderInventory();
@@ -1085,30 +1048,6 @@ function getSelectedSlot() {
   return slotsView[state.selectedSlotIndex] || emptySlot(Math.max(1, state.selectedSlotIndex + 1));
 }
 
-function getFilteredItems(query) {
-  const q = String(query || '').trim().toLowerCase();
-
-  return state.items.filter((item) => {
-    const matchesCategory =
-      state.activeFilter === 'all' ||
-      normalizeCategory(item.category) === normalizeCategory(state.activeFilter);
-
-    if (!matchesCategory) return false;
-    if (!q) return true;
-
-    const haystack = [
-      item.name,
-      item.category,
-      item.file_name,
-      ...(item.source_files || [])
-    ]
-      .join(' ')
-      .toLowerCase();
-
-    return haystack.includes(q);
-  });
-}
-
 function hydratePlayerForm() {
   el.playerInputName.value = state.player.name;
   el.playerInputTown.value = state.player.town;
@@ -1122,11 +1061,7 @@ function getModalFilteredItems(query) {
   const q = String(query || '').trim().toLowerCase();
 
   return getKnownCatalogItems().filter((item) => {
-    const matchesCategory =
-      state.modalSearchFilter === 'all' ||
-      normalizeCategory(item.category) === normalizeCategory(state.modalSearchFilter);
-
-    if (!matchesCategory) return false;
+    if (!matchesCategoryFilter(item, state.modalSearchFilter)) return false;
     if (!q) return true;
 
     const haystack = [
@@ -1271,8 +1206,6 @@ function persistLocalState() {
     activeFilter: state.activeFilter,
     logPanelHeightVh: state.logPanelHeightVh,
     quickCheats: state.quickCheats,
-    testDataMode: state.testDataMode === true,
-    testPayloadKey: state.testPayloadKey,
     theme: state.theme,
     music: {
       drawerOpen: state.music.drawerOpen,
@@ -1336,18 +1269,6 @@ function restoreLocalState() {
         doubleSpeed: hasDoubleSpeed,
         wallWalk: saved.quickCheats.wallWalk === true
       };
-    }
-
-    if (typeof saved.testDataMode === 'boolean') {
-      state.testDataMode = saved.testDataMode;
-      if (typeof saved.testPayloadKey === 'string' && saved.testPayloadKey.trim()) {
-        state.testPayloadKey = saved.testPayloadKey.trim();
-      } else if (state.testDataMode === true) {
-        state.testPayloadKey = 'live-ok';
-      }
-      if (typeof applyTestDataUiState === 'function') {
-        applyTestDataUiState();
-      }
     }
 
     if (saved.theme === THEME_SUNRISE || saved.theme === THEME_NIGHT) {
@@ -1796,18 +1717,6 @@ function openVillagerModal(v) {
       artUrl: villagerArtUrl(safeVillager),
       async onSave(edits) {
         console.log('[villager-save] edits staged:', edits);
-        if (state && state.bridge && state.testDataMode) {
-          const merged = {
-            ...safeVillager,
-            ...(edits && typeof edits === 'object' ? edits : {})
-          };
-          const ok = await applyTestVillagerWrite(safeVillager.slot || 0, merged, `Saved TEST villager ${safeVillager.name || 'slot'}`);
-          if (!ok) {
-            state.bridge.lastAction = 'TEST villager save failed';
-          }
-          renderBridge();
-          return;
-        }
         if (state && state.bridge) {
           state.bridge.lastAction = 'Villager edits staged — write pending bridge support';
           renderBridge();
@@ -1956,18 +1865,6 @@ async function loadVillagersFromBridge() {
     roster.innerHTML = Array.from({ length: MAX_VILLAGER_SLOTS }, () =>
       '<article class="villager-card villager-card-skeleton"><div class="villager-skel-avatar skeleton-block"></div><div class="villager-skel-body"><div class="villager-skel-name skeleton-block"></div><div class="villager-skel-line skeleton-block"></div><div class="villager-skel-line skeleton-block"></div></div></article>'
     ).join('');
-  }
-
-  if (state.testDataMode && typeof getEffectiveVillagersData === 'function') {
-    await new Promise((resolve) => setTimeout(resolve, isFirstLoad ? 5000 : 0));
-    const villagers = getEffectiveVillagersData();
-    renderVillagersPanel(villagers);
-    if (dot) {
-      dot.classList.remove('is-busy', 'is-error');
-      dot.classList.add('is-ok');
-      dot.title = 'Test villager payload active';
-    }
-    return;
   }
 
   const fetchPromise = apiFetch('/api/bridge/read-villagers');

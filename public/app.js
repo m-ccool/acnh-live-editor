@@ -32,9 +32,9 @@ function updateClock() {
 
   if (el.dateDisplay) {
     if (gameDate) {
-      el.dateDisplay.textContent = `In-game date ${gameDate}`;
+      el.dateDisplay.textContent = gameDate;
     } else {
-      el.dateDisplay.textContent = 'In-game date —';
+      el.dateDisplay.textContent = '—';
     }
   }
 
@@ -45,15 +45,6 @@ function updateClock() {
       el.timeDisplay.textContent = '—:—';
     }
   }
-}
-
-function finalizeConnectedState() {
-  if (!state.bridge.connected) return;
-  const gameDataReady = state.bridge.gameDataSource &&
-    state.bridge.gameDataSource !== 'none' &&
-    state.bridge.gameDataSource !== 'unavailable' &&
-    state.bridge.gameDataSource !== 'error';
-  if (!gameDataReady) state.bridge.connected = false;
 }
 
 async function refreshBridgeStatus(lastAction) {
@@ -555,11 +546,6 @@ function formatNumber(value) {
   return Number(value || 0).toLocaleString();
 }
 
-function normalizeNumber(value, fallback) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
-
 function normalizeLooseNumber(value, fallback) {
   const cleaned = String(value || '').replace(/,/g, '').trim();
   if (!cleaned) return fallback;
@@ -580,6 +566,61 @@ function sanitizeText(value, fallback) {
 
 function normalizeCategory(value) {
   return String(value || '').trim().toLowerCase();
+}
+
+// Raw Nookipedia categories bucketed under the 8 modal filter tabs — mirrors
+// modules/catalogApi.js#matchesSearchFilter so client-side filtering and the
+// remote /api/items/search endpoint agree on what belongs to each tab.
+const CATEGORY_FILTER_GROUPS = {
+  'Tool': ['tool'],
+  'Material': ['material', 'food', 'fence'],
+  'Sea creature': ['sea creature'],
+  'Bug': ['bug'],
+  'Fossil': ['fossil'],
+  'Flora': ['plant', 'food'],
+  'Furniture': ['furniture', 'housewares', 'miscellaneous', 'wall-mounted', 'ceiling decor', 'wallpaper', 'floors', 'rugs', 'art', 'gyroid', 'photo', 'photos', 'painting', 'sculpture'],
+  'Clothing': ['clothing', 'accessories', 'tops', 'bottoms', 'dress-up', 'headwear', 'socks', 'shoes', 'bags', 'umbrellas']
+};
+
+// Single-bucket assignment (no overlap) used purely for the category accent
+// dot — 'food' reads as Flora here so it doesn't collide with Material's hue.
+const CATEGORY_ACCENT_BUCKET_BY_RAW = {};
+Object.entries(CATEGORY_FILTER_GROUPS).forEach(([bucket, rawList]) => {
+  rawList.forEach((raw) => {
+    if (!(raw in CATEGORY_ACCENT_BUCKET_BY_RAW) || raw === 'food') {
+      CATEGORY_ACCENT_BUCKET_BY_RAW[raw] = bucket;
+    }
+  });
+});
+CATEGORY_ACCENT_BUCKET_BY_RAW.food = 'Flora';
+
+// Soft palette sourced only from the existing aurora/glow gradients (amber,
+// coral, periwinkle blue, lavender, aurora-teal), with darker/deeper variants
+// covering the remaining tabs — no new hues introduced.
+const CATEGORY_ACCENT_COLORS = {
+  'Tool': 'rgba(255, 193, 145, 0.9)',
+  'Material': 'rgba(255, 165, 134, 0.9)',
+  'Sea creature': 'rgba(130, 170, 255, 0.9)',
+  'Bug': 'rgba(134, 241, 202, 0.9)',
+  'Fossil': 'rgba(205, 170, 130, 0.9)',
+  'Flora': 'rgba(108, 200, 160, 0.9)',
+  'Furniture': 'rgba(174, 160, 240, 0.9)',
+  'Clothing': 'rgba(214, 150, 200, 0.9)',
+  misc: 'rgba(255, 255, 255, 0.32)'
+};
+
+function matchesCategoryFilter(item, filter) {
+  const normalizedFilter = String(filter || 'all').trim();
+  if (!normalizedFilter || normalizedFilter === 'all') return true;
+  const group = CATEGORY_FILTER_GROUPS[normalizedFilter];
+  const category = normalizeCategory(item && item.category);
+  if (!group) return category === normalizeCategory(normalizedFilter);
+  return group.includes(category);
+}
+
+function getCategoryAccentColor(rawCategory) {
+  const bucket = CATEGORY_ACCENT_BUCKET_BY_RAW[normalizeCategory(rawCategory)];
+  return CATEGORY_ACCENT_COLORS[bucket] || CATEGORY_ACCENT_COLORS.misc;
 }
 
 function syncBridgeStatus(status) {
@@ -865,22 +906,6 @@ function buildBridgeWritePayload(slot) {
 }
 
 async function writeSlotToBridge(slot, actionText) {
-  if (state.testDataMode) {
-    const payloadForTest = buildBridgeWritePayload(slot);
-    if (!payloadForTest) {
-      state.bridge.lastError = 'Test payload write blocked: invalid slot payload';
-      state.bridge.lastAction = 'Inventory TEST write blocked: invalid payload';
-      renderBridge();
-      return false;
-    }
-
-    const ok = await applyTestInventoryWrite(payloadForTest, actionText || `Saved TEST slot ${payloadForTest.slot}`);
-    if (ok) {
-      persistLocalState();
-    }
-    return ok;
-  }
-
   const payload = buildBridgeWritePayload(slot);
   if (!payload) {
     state.bridge.lastError = 'Bridge write blocked: selected item does not have a trusted live item ID yet';
@@ -1601,13 +1626,41 @@ function renderInvQuickSearchResults(items) {
 
   const frag = document.createDocumentFragment();
   items.forEach((item) => {
+    let assigned = false;
     const row = document.createElement('div');
     row.className = 'inv-qsr-row';
     row.setAttribute('role', 'option');
     const imgSrc = getPreferredItemPreviewUrl(item);
-    row.innerHTML = `<img class="inv-qsr-img" src="${escapeHtml(imgSrc)}" alt="" loading="lazy" /><span class="inv-qsr-name">${escapeHtml(item.name || '')}</span><span class="inv-qsr-cat">${escapeHtml(item.category || '')}</span>`;
-    row.addEventListener('mousedown', (e) => e.preventDefault()); // prevent input blur before click
-    row.addEventListener('click', () => quickAssignItem(item));
+    const accent = getCategoryAccentColor(item.category);
+    row.innerHTML = `<span class="qsr-cat-dot" style="--dot-color: ${escapeHtml(accent)};" aria-hidden="true"></span><img class="inv-qsr-img" src="${escapeHtml(imgSrc)}" alt="" loading="lazy" /><span class="inv-qsr-name">${escapeHtml(item.name || '')}</span><span class="inv-qsr-cat">${escapeHtml(item.category || '')}</span>`;
+    row.addEventListener('pointerdown', (event) => {
+      _invQsRowPointerActive = true;
+      clearTimeout(_invQsBlurTimerId);
+      if (event.pointerType === 'mouse') event.preventDefault();
+    });
+    const releasePointerGuard = () => {
+      _invQsRowPointerActive = false;
+      // If the tap didn't result in a click (e.g. a scroll/drag), the blur
+      // handler bailed out earlier — settle the closed state here instead.
+      window.setTimeout(() => {
+        if (document.activeElement !== input && !results.hidden) {
+          results.hidden = true;
+          input.setAttribute('aria-expanded', 'false');
+        }
+      }, 60);
+    };
+    row.addEventListener('pointerup', releasePointerGuard);
+    row.addEventListener('pointercancel', releasePointerGuard);
+    row.addEventListener('pointerup', (event) => {
+      if (event.pointerType !== 'touch' || assigned) return;
+      assigned = true;
+      quickAssignItem(item);
+    });
+    row.addEventListener('click', () => {
+      if (assigned) return;
+      assigned = true;
+      quickAssignItem(item);
+    });
     frag.appendChild(row);
   });
 
@@ -1693,12 +1746,6 @@ function isLocalStorageAvailable() {
   } catch (error) {
     return false;
   }
-}
-
-function focusItemSearch() {
-  if (!el.modalSearchInput) return;
-  el.modalSearchInput.focus();
-  el.modalSearchInput.select();
 }
 
 function toggleTheme() {

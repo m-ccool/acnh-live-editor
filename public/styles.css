@@ -110,7 +110,6 @@ button,
 .action-btn,
 .villager-card,
 .inventory-slot,
-.test-state-option,
 .modal-close,
 .deploy-button {
   touch-action: manipulation;
@@ -134,11 +133,8 @@ button,
 .deploy-button,
 .villager-card,
 .inventory-slot,
-.test-state-option,
 .modal-close,
-.vmod-tab-btn,
 .vmod-edit-tab-btn,
-.pm-item-row-btn,
 .backup-restore-btn,
 .backup-delete-btn {
   transform-origin: center;
@@ -150,11 +146,8 @@ button,
 .deploy-button:active,
 .villager-card:active,
 .inventory-slot:active,
-.test-state-option:active,
 .modal-close:active,
-.vmod-tab-btn:active,
 .vmod-edit-tab-btn:active,
-.pm-item-row-btn:active,
 .backup-restore-btn:active,
 .backup-delete-btn:active {
   transform: scale(var(--scale-press));
@@ -168,13 +161,11 @@ button,
    context which many surfaces already had. Big win on Steam Deck GPU. */
 .shell-card,
 .modal-card,
-.test-state-menu,
 .selected-item-sticky,
 .music-ribbon-drawer,
 .inv-quick-search-results,
 .villager-card,
 .villager-house-lock,
-.debug-reload-tab,
 .deploy-toast {
   contain: paint;
   isolation: isolate;
@@ -208,17 +199,6 @@ button,
 .skeleton-row {
   height: 14px;
   border-radius: 6px;
-  background: linear-gradient(
-    90deg,
-    rgba(255,255,255,0.04) 0%,
-    rgba(255,255,255,0.11) 40%,
-    rgba(255,255,255,0.04) 80%
-  );
-  background-size: 200% auto;
-  animation: shimmer 1.5s linear infinite;
-}
-.skeleton-tile {
-  border-radius: 12px;
   background: linear-gradient(
     90deg,
     rgba(255,255,255,0.04) 0%,
@@ -975,40 +955,6 @@ body[data-theme='night'] .star--bright {
   border-radius: 12px;
 }
 
-/* ── Global tab-enter shimmer transition ─────────────────
-   Applied to any .tab-panel receiving `.is-tab-entering` for ~600ms after
-   the user clicks a tab. Uses spring easing + subtle scale so panels
-   "pop in" softly, matching iOS transition feel. */
-@keyframes tab-enter-fade {
-  0%   { opacity: 0.35; transform: translateY(6px) scale(0.985); }
-  100% { opacity: 1;    transform: translateY(0)  scale(1);      }
-}
-@keyframes tab-enter-sweep {
-  0%   { transform: translateX(-100%); }
-  100% { transform: translateX(100%);  }
-}
-.tab-panel.is-tab-entering {
-  position: relative;
-  animation: tab-enter-fade var(--dur-slow) var(--ease-spring) both;
-}
-.tab-panel.is-tab-entering::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  overflow: hidden;
-  background: linear-gradient(
-    100deg,
-    rgba(255,255,255,0) 20%,
-    rgba(255,255,255,0.08) 50%,
-    rgba(255,255,255,0) 80%
-  );
-  background-size: 200% 100%;
-  animation: tab-enter-sweep var(--dur-base) var(--ease-standard) forwards;
-  z-index: 5;
-  border-radius: inherit;
-}
-
 /* Villager modal skeleton layout */
 .vmod-skeleton {
   display: flex;
@@ -1139,7 +1085,8 @@ body[data-theme='night'] .star--bright {
 .app-shell {
   position: relative;
   z-index: 1;
-  width: min(1110px, calc(100% - clamp(16px, 5vw, 132px) - 5vw));
+  width: calc(100% - 32px);
+  max-width: 1110px;
   margin: 0 auto;
   padding: calc(max(16px, 2.5vw) + 2.5vw) 0 calc(56px + 2.5vw);
   opacity: 1;
@@ -1148,11 +1095,28 @@ body[data-theme='night'] .star--bright {
   transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
 }
 
+/* Bootstrap-style static breakpoint widths. The shell only resizes when a
+   breakpoint boundary is crossed, not continuously with every pixel of
+   viewport width change — this keeps the 40-box inventory grid (and every
+   other descendant) from recomputing/redrawing on every resize tick. */
+@media (min-width: 560px) {
+  .app-shell { width: 540px; }
+}
+@media (min-width: 720px) {
+  .app-shell { width: 700px; }
+}
+@media (min-width: 860px) {
+  .app-shell { width: 840px; }
+}
+@media (min-width: 1200px) {
+  .app-shell { width: 1110px; }
+}
+
 /* Steam Deck-sized landscape screens (1280x800 native). Narrow the shell so
    the UI has generous side margins instead of stretching edge-to-edge. */
 @media (min-width: 1200px) and (max-width: 1366px) and (max-height: 900px) {
   .app-shell {
-    width: min(920px, calc(100% - 240px));
+    width: 920px;
   }
 }
 
@@ -1204,7 +1168,6 @@ body.modal-open .app-shell {
 .meta-value > *,
 .inventory-card > *,
 .tab-panel > *,
-.tab-stat-card > *,
 .tab-card > *,
 .footer-mark > *,
 .modal-card > *,
@@ -1355,15 +1318,6 @@ body.modal-open .app-shell {
   box-shadow: 0 0 6px rgba(255, 95, 115, 0.6);
 }
 
-/* Row 1 (legacy): title + action buttons inline — hidden but kept for wiring */
-.topbar-title-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  min-width: 0;
-}
-
 .topbar-actions-legacy {
   display: none !important;
 }
@@ -1381,20 +1335,6 @@ body.modal-open .app-shell {
   flex-wrap: nowrap;
   overflow: hidden;
   justify-content: flex-start;
-}
-
-.brand-datetime {
-  display: flex;
-  gap: 8px;
-  flex-wrap: nowrap;
-  white-space: nowrap;
-  opacity: 0.5;
-  margin-left: 0;
-  flex-shrink: 0;
-}
-
-.topbar-datetime-row {
-  align-self: flex-start;
 }
 
 /* ── Console-style date/time (no border, monospace) ─────────────────────── */
@@ -1454,39 +1394,6 @@ body.modal-open .app-shell {
 .status-pill.is-bad .status-pill-dot { background: var(--danger); }
 .status-pill.is-warn { border-color: rgba(255, 209, 102, 0.2); }
 .status-pill.is-warn .status-pill-dot { background: var(--warn); }
-
-body.is-test-data .status-pill::after {
-  content: 'TEST';
-  margin-left: 4px;
-  padding: 1px 5px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 209, 102, 0.45);
-  background: rgba(255, 209, 102, 0.16);
-  color: #ffd166;
-  font-size: 0.55rem;
-  line-height: 1.1;
-  letter-spacing: 0.08em;
-  font-weight: 700;
-}
-
-/* Legacy chips — keep for any remaining references */
-.meta-chip {
-  min-height: 32px;
-  padding: 0 12px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: rgba(255,255,255,0.03);
-  color: var(--text-muted);
-  display: inline-flex;
-  align-items: center;
-  font-size: 0.88rem;
-}
-
-.status-pair { font-weight: 700; }
-.status-pair.is-ok { color: var(--good); }
-.status-pair.is-bad { color: var(--danger); }
-.status-pair.is-warn { color: var(--warn); }
-.status-copy { color: var(--text-muted); font-size: 0.82rem; letter-spacing: 0.03em; text-transform: uppercase; }
 
 .status-chip {
   display: inline-flex;
@@ -1588,102 +1495,6 @@ body:not([data-theme='night']) .action-pill-btn:hover {
   to { transform: rotate(360deg); }
 }
 
-.topbar-test-menu-wrap {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-}
-
-.test-state-menu-button {
-  min-width: 90px;
-  min-height: 32px;
-  padding: 0 10px;
-  border-radius: 999px;
-  font-size: 0.64rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.test-state-menu-button[aria-expanded='true'] {
-  border-color: rgba(255, 209, 102, 0.45);
-  background: rgba(255, 209, 102, 0.16);
-  color: #ffd166;
-}
-
-.test-state-menu {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  min-width: 228px;
-  padding: 8px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.015)),
-    rgba(18, 21, 33, 0.95);
-  box-shadow: 0 18px 46px rgba(6, 7, 20, 0.34);
-  backdrop-filter: blur(12px) saturate(1.1);
-  -webkit-backdrop-filter: blur(12px) saturate(1.1);
-  opacity: 0;
-  transform: translateY(-6px) scale(0.98);
-  transform-origin: top right;
-  pointer-events: none;
-  transition:
-    opacity 0.22s var(--ease),
-    transform 0.22s var(--ease),
-    border-color 0.22s var(--ease);
-  z-index: 210;
-}
-
-.topbar-test-menu-wrap.is-open .test-state-menu {
-  opacity: 1;
-  transform: translateY(0) scale(1);
-  pointer-events: auto;
-}
-
-.test-state-option {
-  width: 100%;
-  min-height: 34px;
-  padding: 0 10px;
-  border-radius: 10px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--text);
-  font-size: 0.74rem;
-  text-align: left;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-  transition:
-    background 0.18s var(--ease),
-    border-color 0.18s var(--ease),
-    transform 0.18s var(--ease);
-}
-
-.test-state-option + .test-state-option {
-  margin-top: 6px;
-}
-
-.test-state-option:hover,
-.test-state-option:focus-visible {
-  border-color: rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.08);
-  transform: translateX(1px);
-}
-
-.test-state-option.is-active {
-  border-color: rgba(255, 209, 102, 0.45);
-  background: rgba(255, 209, 102, 0.16);
-  color: #ffd166;
-}
-
-body[data-theme='night'] .test-state-menu {
-  border-color: rgba(210, 202, 240, 0.2);
-  background:
-    linear-gradient(180deg, rgba(240,236,255,0.12), rgba(255,255,255,0.02)),
-    rgba(15, 15, 31, 0.96);
-}
 
 /* ── Bridge status dot ───────────────────────────────────────────────────── */
 .bridge-dot {
@@ -1737,162 +1548,6 @@ body[data-theme='night'] .deploy-toast {
     linear-gradient(180deg, rgba(240, 236, 255, 0.1), rgba(255,255,255,0.018)),
     rgba(17, 17, 32, 0.96);
   color: rgba(241, 238, 248, 0.96);
-}
-
-.debug-reload-tab {
-  display: none;
-  position: fixed;
-  top: 18vh;
-  left: 10px;
-  z-index: 12;
-  width: 58px;
-  height: 58px;
-  aspect-ratio: 1 / 1;
-  transform: translateY(-50%);
-  border: 1px solid var(--glass-edge);
-  border-radius: 16px;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.012)),
-    rgba(14, 18, 30, 0.08);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  box-shadow:
-    0 14px 26px rgba(8, 9, 20, 0.1),
-    inset 0 1px 0 rgba(255,255,255,0.08);
-  backdrop-filter: blur(28px) saturate(132%);
-  -webkit-backdrop-filter: blur(28px) saturate(132%);
-  cursor: pointer;
-  user-select: none;
-  transition:
-    transform 0.24s var(--ease),
-    border-color 0.24s var(--ease),
-    box-shadow 0.24s var(--ease),
-    background 0.24s var(--ease);
-}
-
-.debug-reload-tab:hover {
-  transform: translate(2px, calc(-50% - 1px));
-  border-color: var(--line-strong);
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.018)),
-    rgba(14, 18, 30, 0.11);
-  box-shadow:
-    0 16px 30px rgba(8, 9, 20, 0.13),
-    inset 0 1px 0 rgba(255,255,255,0.12);
-}
-
-.debug-reload-tab:focus-visible {
-  border-color: var(--line-strong);
-  box-shadow:
-    0 0 0 3px rgba(155, 197, 255, 0.18),
-    0 18px 38px rgba(8, 9, 20, 0.16),
-    inset 0 1px 0 rgba(255,255,255,0.12);
-}
-
-body:not([data-theme='night']) .debug-reload-tab {
-  border-color: rgba(255,220,180,0.22);
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.05)),
-    linear-gradient(180deg, rgba(255, 200, 140, 0.24), rgba(255, 160, 100, 0.1)),
-    rgba(255, 200, 140, 0.14);
-  box-shadow:
-    0 14px 30px rgba(200, 130, 60, 0.12),
-    inset 0 1px 0 rgba(255,255,255,0.18);
-  backdrop-filter: blur(18px) saturate(118%);
-  -webkit-backdrop-filter: blur(18px) saturate(118%);
-}
-
-body:not([data-theme='night']) .debug-reload-tab:hover {
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.2), rgba(255,255,255,0.07)),
-    linear-gradient(180deg, rgba(255, 210, 155, 0.3), rgba(255, 170, 110, 0.14)),
-    rgba(255, 200, 140, 0.18);
-  box-shadow:
-    0 16px 34px rgba(200, 130, 60, 0.14),
-    inset 0 1px 0 rgba(255,255,255,0.22);
-}
-
-body:not([data-theme='night']) .debug-reload-tab:focus-visible {
-  box-shadow:
-    0 0 0 3px var(--glow-sunset),
-    0 16px 34px rgba(200, 130, 60, 0.14),
-    inset 0 1px 0 rgba(255,255,255,0.22);
-}
-
-.debug-reload-core {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  height: 100%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: rgba(41, 52, 92, 0.86);
-}
-
-body:not([data-theme='night']) .debug-reload-core {
-  color: rgba(91, 78, 162, 0.94);
-}
-
-body[data-theme='night'] .debug-reload-core {
-  color: rgba(242, 245, 255, 0.96);
-}
-
-.debug-reload-icon {
-  position: relative;
-  z-index: 1;
-  width: 26px;
-  height: 26px;
-  display: inline-block;
-  pointer-events: none;
-  background: currentColor;
-  -webkit-mask-image: url('./assets/icons/fa7-solid--bugs.svg');
-  mask-image: url('./assets/icons/fa7-solid--bugs.svg');
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  filter: drop-shadow(0 2px 10px rgba(8, 9, 20, 0.18));
-}
-
-.debug-reload-orbit {
-  position: absolute;
-  inset: 4px;
-  z-index: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0.5;
-  pointer-events: none;
-  transition:
-    opacity 0.18s var(--ease),
-    transform 0.18s var(--ease);
-}
-
-.debug-reload-orbit-icon {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  filter: drop-shadow(0 0 10px rgba(155, 197, 255, 0.16));
-}
-
-body:not([data-theme='night']) .debug-reload-orbit-icon {
-  opacity: 0.8;
-  filter: drop-shadow(0 0 8px rgba(149, 123, 255, 0.12));
-}
-
-.debug-reload-tab:hover .debug-reload-orbit,
-.debug-reload-tab:focus-visible .debug-reload-orbit {
-  opacity: 0.84;
-}
-
-.debug-reload-tab.is-reloading .debug-reload-orbit {
-  opacity: 1;
-  transform: scale(1.04);
 }
 
 .music-ribbon {
@@ -2176,10 +1831,6 @@ body:not([data-theme='night']) .music-ribbon-tab:hover {
     rgba(255,255,255,0.08);
 }
 
-.music-control-label {
-  display: none;
-}
-
 .music-control-icon {
   width: 18px;
   height: 18px;
@@ -2320,53 +1971,8 @@ body:not([data-theme='night']) .music-ribbon-tab:hover {
   border-color: var(--glass-edge);
 }
 
-.toggle-button {
-  padding: 0;
-  border: 0;
-  background: rgba(255,255,255,0.5);
-  cursor: pointer;
-  transition: transform 0.18s var(--ease);
-}
-
-.toggle-button:hover {
-  transform: translateY(-1px);
-}
-
-.toggle-track {
-  position: relative;
-  display: block;
-  width: 34px;
-  height: 20px;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid var(--line);
-  transition: background 0.18s var(--ease), border-color 0.18s var(--ease);
-}
-
-.toggle-thumb {
-  position: absolute;
-  top: 1px;
-  left: 1px;
-  width: 16px;
-  height: 16px;
-  border-radius: 999px;
-  background: #ffffff;
-  transition: transform 0.18s var(--ease);
-}
-
-.toggle-button.is-on .toggle-track {
-  background: rgba(98, 214, 111, 0.22);
-  border-color: rgba(98, 214, 111, 0.5);
-}
-
-.toggle-button.is-on .toggle-thumb {
-  transform: translateX(14px);
-}
-
 .icon-button,
-.toolbar-icon-btn,
 .corner-icon-button,
-.search-side-icon,
 .trash-button {
   border: 1px solid var(--line);
   background: rgba(255,255,255,0.02);
@@ -2380,9 +1986,7 @@ body:not([data-theme='night']) .music-ribbon-tab:hover {
 }
 
 .icon-button:hover,
-.toolbar-icon-btn:hover,
 .corner-icon-button:hover,
-.search-side-icon:hover,
 .trash-button:hover,
 .action-btn:hover,
 .shortcut-btn:hover,
@@ -2446,7 +2050,8 @@ body[data-theme='night'] .log-panel {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 6px;
+  opacity: 0.25;
 }
 
 .log-panel-head-actions {
@@ -2456,38 +2061,88 @@ body[data-theme='night'] .log-panel {
   margin-left: auto;
 }
 
-.log-test-payload-version {
-  display: inline-flex;
-  align-items: center;
-  min-height: 24px;
-  padding: 0 9px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 209, 102, 0.38);
-  background: rgba(255, 209, 102, 0.14);
-  color: #ffd166;
-  font-size: 0.62rem;
-  letter-spacing: 0.08em;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.log-test-payload-version[hidden] {
-  display: none;
-}
-
-.log-panel-head-meta {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  margin-left: auto;
-}
-
 #ip-display {
   color: var(--text-muted);
 }
 
 .log-console-wrap {
   position: relative;
+}
+
+.cmd-log-notifications {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 10px;
+  max-height: 108px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 2px;
+}
+
+.cmd-log-notifications[hidden] {
+  display: none;
+}
+
+.cmd-log-notice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  padding: 4px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+}
+
+.cmd-log-notice-time {
+  font-size: 0.64rem;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  color: rgba(212, 208, 233, 0.82);
+  white-space: nowrap;
+}
+
+.cmd-log-notice-text {
+  font-size: 0.72rem;
+  color: rgba(241, 238, 248, 0.92);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cmd-log-notice.is-error {
+  border-color: rgba(255, 124, 124, 0.4);
+  background: rgba(188, 38, 38, 0.22);
+  box-shadow: 0 0 0 1px rgba(255, 84, 84, 0.12) inset;
+}
+
+.cmd-log-notice.is-error .cmd-log-notice-time,
+.cmd-log-notice.is-error .cmd-log-notice-text {
+  color: rgba(255, 210, 210, 0.98);
+}
+
+body:not([data-theme='night']) .cmd-log-notice {
+  border-color: rgba(0,0,0,0.09);
+  background: rgba(0,0,0,0.04);
+}
+
+body:not([data-theme='night']) .cmd-log-notice-time {
+  color: rgba(82, 72, 96, 0.86);
+}
+
+body:not([data-theme='night']) .cmd-log-notice-text {
+  color: rgba(44, 40, 55, 0.92);
+}
+
+body:not([data-theme='night']) .cmd-log-notice.is-error {
+  border-color: rgba(192, 42, 58, 0.38);
+  background: rgba(216, 78, 96, 0.16);
+}
+
+body:not([data-theme='night']) .cmd-log-notice.is-error .cmd-log-notice-time,
+body:not([data-theme='night']) .cmd-log-notice.is-error .cmd-log-notice-text {
+  color: rgba(122, 24, 36, 0.95);
 }
 
 .log-panel-resize-handle {
@@ -2532,37 +2187,6 @@ body[data-theme='night'] .log-panel {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-}
-
-.console-status-indicator {
-  width: 28px;
-  height: 28px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: rgba(255,255,255,0.02);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition:
-    border-color 0.18s var(--ease),
-    background 0.18s var(--ease),
-    box-shadow 0.18s var(--ease);
-}
-
-.console-status-indicator.is-online {
-  border-color: rgba(186, 247, 192, 0.36);
-  background: rgba(83, 182, 109, 0.12);
-  box-shadow: 0 0 0 1px rgba(186, 247, 192, 0.08);
-}
-
-.console-status-indicator.is-offline {
-  border-color: rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.03);
-}
-
-.console-status-icon {
-  width: 16px;
-  height: 16px;
 }
 
 .code-block {
@@ -2648,7 +2272,7 @@ body[data-theme='night'] .log-panel {
    Drawer body is fully covered by the visible tab strip when closed;
    only the pull-tab + icon peek onto the viewport. */
 .cheats-ribbon {
-  --cheats-ribbon-width: min(340px, calc(100vw - 40px));
+  --cheats-ribbon-width: min(466px, calc(100vw - 40px));
   --cheats-tab-size: 56px;
   position: fixed;
   top: 32vh;
@@ -2672,8 +2296,9 @@ body[data-theme='night'] .log-panel {
 .cheats-ribbon-drawer {
   position: relative;
   /* Drawer stops exactly where the tab starts — no body-strip peek. */
-  width: calc(100% - var(--cheats-tab-size));
-  margin-right: var(--cheats-tab-size);
+  width: calc(100% - 38px);
+  margin-right: 38px;
+  min-height: 176px;
   padding: 16px 18px 14px;
   border: 1px solid rgba(98,214,111,0.22);
   border-radius: 28px;
@@ -2786,22 +2411,6 @@ body:not([data-theme='night']) .cheats-ribbon-tab {
 
 
 
-/* player-toolbar kept for compat but no longer rendered */
-.player-toolbar {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin: 0;
-}
-
-.player-toolbar-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
 /* Sticky selected-item bar — position:fixed so overflow:hidden doesn't trap it */
 /* Visibility is controlled by the [hidden] attribute — not display:none here */
 .selected-item-sticky {
@@ -2842,19 +2451,6 @@ body:not([data-theme='night']) .cheats-ribbon-tab {
   max-width: 180px;
 }
 
-.toolbar-icon-btn {
-  width: 34px;
-  height: 34px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.toolbar-icon-btn.square {
-  border-radius: 10px;
-}
-
 .quick-cheat-btn {
   display: inline-flex;
   align-items: center;
@@ -2873,12 +2469,6 @@ body:not([data-theme='night']) .cheats-ribbon-tab {
     background var(--transition-fast),
     opacity var(--transition-fast),
     box-shadow var(--transition-fast);
-}
-
-.quick-cheat-icon {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
 }
 
 .quick-cheat-label {
@@ -2923,17 +2513,6 @@ body[data-theme='night'] .quick-cheat-btn.is-active {
     0 14px 30px rgba(88, 82, 142, 0.14);
 }
 
-.player-toolbar-inject-label {
-  font-size: 0.62rem;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  opacity: 0.55;
-  margin-bottom: 2px;
-  width: 100%;
-  text-align: right;
-}
-
 .player-card {
   display: grid;
   grid-template-columns: 1fr;
@@ -2958,10 +2537,6 @@ body[data-theme='night'] .quick-cheat-btn.is-active {
   gap: 12px;
   min-width: 0;
   width: 100%;
-}
-
-.selected-item-label {
-  display: none;
 }
 
 .artbox-name-overlay {
@@ -3056,11 +2631,6 @@ body[data-theme='night'] .selected-item-artbox {
     inset 0 0 0 1px rgba(142, 244, 183, 0.22),
     0 0 0 1px rgba(142, 244, 183, 0.18),
     0 14px 30px rgba(19, 44, 32, 0.16);
-}
-
-.search-glyph {
-  font-size: 1.2rem;
-  line-height: 1;
 }
 
 .player-meta {
@@ -3198,13 +2768,6 @@ body[data-theme='night'] .field-reload-icon {
   opacity: 0.55;
 }
 
-.player-actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 8px;
-  justify-content: flex-start;
-}
-
 .player-save-load-bar {
   display: flex;
   gap: 8px;
@@ -3217,26 +2780,6 @@ body[data-theme='night'] .field-reload-icon {
   min-height: 28px;
   font-size: 0.74rem;
   padding: 0 10px;
-}
-
-.player-actions-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 0;
-  border-top: 1px solid var(--line);
-  margin-top: 14px;
-  flex-wrap: wrap;
-}
-
-.presets-label {
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  margin-left: 6px;
 }
 
 /* Preset buttons — compact chips with category color tint */
@@ -3847,6 +3390,16 @@ body:not([data-theme='night']) .inv-quick-search-input {
   color: var(--text);
 }
 
+.inv-quick-search-results,
+.modal-results-list {
+  border-radius: 12px;
+  border: 1px solid var(--glass-edge-soft);
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015)), var(--surface);
+  backdrop-filter: blur(16px) saturate(1.35);
+  -webkit-backdrop-filter: blur(16px) saturate(1.35);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.45);
+}
+
 .inv-quick-search-results {
   position: absolute;
   left: 0;
@@ -3855,21 +3408,17 @@ body:not([data-theme='night']) .inv-quick-search-input {
   z-index: 200;
   max-height: 260px;
   overflow-y: auto;
-  border-radius: 12px;
-  border: 1px solid var(--glass-edge-soft);
-  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015)), var(--surface);
-  backdrop-filter: blur(16px) saturate(1.35);
-  -webkit-backdrop-filter: blur(16px) saturate(1.35);
-  box-shadow: 0 12px 32px rgba(0,0,0,0.45);
   overscroll-behavior: contain;
 }
 
-body[data-theme='night'] .inv-quick-search-results {
+body[data-theme='night'] .inv-quick-search-results,
+body[data-theme='night'] .modal-results-list {
   background: linear-gradient(180deg, rgba(14, 16, 28, 0.96), rgba(10, 12, 22, 0.94)), rgba(12, 14, 26, 0.88);
   border-color: rgba(222, 216, 250, 0.08);
 }
 
-body:not([data-theme='night']) .inv-quick-search-results {
+body:not([data-theme='night']) .inv-quick-search-results,
+body:not([data-theme='night']) .modal-results-list {
   background: linear-gradient(180deg, rgba(255, 248, 242, 0.95), rgba(255, 246, 238, 0.84)), rgba(255,255,255,0.92);
   border-color: rgba(255, 220, 191, 0.18);
 }
@@ -4354,21 +3903,15 @@ body[data-theme='night'] .tab-btn.is-active {
   gap: 18px;
 }
 
-.tab-stat-grid,
 .tab-dual-grid {
   display: grid;
   gap: 14px;
-}
-
-.tab-stat-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .tab-dual-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.tab-stat-card,
 .tab-card {
   position: relative;
   overflow: hidden;
@@ -4380,21 +3923,8 @@ body[data-theme='night'] .tab-btn.is-active {
     transform 0.82s cubic-bezier(.16,.84,.28,1);
 }
 
-.tab-stat-card {
-  min-height: 104px;
-  padding: 16px;
-  display: grid;
-  align-content: space-between;
-}
-
-.tab-stat-label,
 .tab-card h4 {
   color: var(--text-muted);
-}
-
-.tab-stat-card strong {
-  font-size: 1.55rem;
-  font-weight: 600;
 }
 
 .tab-card {
@@ -4408,15 +3938,13 @@ body[data-theme='night'] .tab-btn.is-active {
 }
 
 .tab-list,
-.tab-kv-list,
-.tab-bullet-list {
+.tab-kv-list {
   display: grid;
   gap: 10px;
 }
 
 .tab-list-row,
-.tab-kv-row,
-.tab-bullet-row {
+.tab-kv-row {
   display: flex;
   justify-content: space-between;
   gap: 16px;
@@ -4444,10 +3972,6 @@ body[data-theme='night'] .tab-btn.is-active {
 .tab-list-row strong,
 .tab-kv-row strong {
   text-align: right;
-}
-
-.tab-bullet-row {
-  justify-content: flex-start;
 }
 
 .status-dot {
@@ -4603,8 +4127,8 @@ body:not([data-theme='night']) .modal {
   border: 1px solid var(--glass-edge);
   border-radius: 24px;
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.016)),
-    rgba(12, 15, 22, 0.18);
+    linear-gradient(180deg, var(--glass-top), var(--glass-bottom)),
+    var(--panel);
   box-shadow:
     0 18px 58px rgba(0,0,0,0.18),
     inset 0 1px 0 rgba(255,255,255,0.1),
@@ -4625,8 +4149,8 @@ body:not([data-theme='night']) .modal {
 
 body:not([data-theme='night']) .modal-card {
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.09), rgba(255,255,255,0.022)),
-    rgba(255,255,255,0.045);
+    linear-gradient(180deg, var(--glass-top), var(--glass-bottom)),
+    var(--panel);
   box-shadow:
     0 18px 58px rgba(40, 18, 18, 0.12),
     inset 0 1px 0 rgba(255,255,255,0.11),
@@ -4635,8 +4159,8 @@ body:not([data-theme='night']) .modal-card {
 
 body[data-theme='night'] .modal-card {
   background:
-    linear-gradient(180deg, rgba(244,240,255,0.05), rgba(255,255,255,0.014)),
-    rgba(18, 18, 31, 0.16);
+    linear-gradient(180deg, var(--glass-top), var(--glass-bottom)),
+    var(--panel);
   box-shadow:
     0 18px 58px rgba(8, 8, 20, 0.16),
     inset 0 1px 0 rgba(255,255,255,0.1),
@@ -4644,8 +4168,7 @@ body[data-theme='night'] .modal-card {
 }
 
 body:not([data-theme='night']) .settings-debug-box,
-body:not([data-theme='night']) .mini-code-block,
-body:not([data-theme='night']) .modal-results-list {
+body:not([data-theme='night']) .mini-code-block {
   border-color: rgba(255, 211, 182, 0.14);
   background:
     linear-gradient(180deg, rgba(255,255,255,0.04), transparent 38%),
@@ -4654,7 +4177,6 @@ body:not([data-theme='night']) .modal-results-list {
 
 body:not([data-theme='night']) #settings-debug-output,
 body:not([data-theme='night']) .mini-code-block,
-body:not([data-theme='night']) .modal-result-row,
 body:not([data-theme='night']) .modal-filter-btn {
   color: rgba(255, 231, 212, 0.84);
   text-shadow: 0 0 10px rgba(255, 174, 120, 0.08);
@@ -5078,22 +4600,6 @@ body:not([data-theme='night']) .modal-filter-btn {
   padding-bottom: 4px;
 }
 
-/* Action button bar (Backup / Load / House / Flags / Edit) */
-.vmod-action-bar {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  padding: 4px 0 6px;
-  border-bottom: 1px solid rgba(255,255,255,0.07);
-}
-
-.vmod-action-btn {
-  min-height: 28px;
-  min-width: unset;
-  padding: 2px 10px;
-  font-size: 0.75rem;
-}
-
 /* Footer — iOS action bar, larger primary Save pill */
 .villager-modal-footer {
   border-top: 1px solid rgba(255,255,255,0.08);
@@ -5283,33 +4789,6 @@ body:not([data-theme='night']) .modal-filter-btn {
   flex-shrink: 0;
 }
 
-/* Villager modal top-level tab bar — full-width sibling directly above the
-   split shell. No border-bottom, minimal padding so tabs feel connected
-   to the content below rather than floating in their own strip. */
-.vmod-tab-bar {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 0;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  scrollbar-width: none;
-  padding: 6px var(--vmod-inset) 0;
-  border-bottom: none;
-  justify-content: flex-start;
-}
-.vmod-tab-bar::-webkit-scrollbar { display: none; }
-
-/* Inherits .tab-btn pill + active glow; distributes tabs evenly. */
-.vmod-tab-btn {
-  flex: 1 1 0;
-  min-width: 60px;
-  min-height: 34px;
-  padding: 0 12px;
-  font-size: 0.82rem;
-  white-space: nowrap;
-  letter-spacing: 0.01em;
-}
-
 /* Save Manager panel */
 .vmod-save-manager {
   display: flex;
@@ -5424,13 +4903,6 @@ body:not([data-theme='night']) .modal-filter-btn {
   align-items: center;
   justify-content: center;
   min-height: 80px;
-}
-
-.vmod-edit-stub {
-  font-size: 0.82rem;
-  color: rgba(255,255,255,0.3);
-  text-align: center;
-  margin: 0;
 }
 
 /* vedit-panel overrides the default centered flex of vmod-edit-panel */
@@ -5593,43 +5065,6 @@ body:not([data-theme='night']) .modal-filter-btn {
 .vedit-inv-field-input {
   flex: 1;
   min-width: 0;
-}
-
-/* ── Clothes panel ───────────────────────────────────────────────────── */
-.vedit-clothes-grid .vedit-clothes-slot-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  cursor: pointer;
-}
-
-.vedit-clothes-slot-label {
-  font-size: 0.62rem;
-  color: rgba(255,255,255,0.45);
-  text-align: center;
-  line-height: 1.1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-  pointer-events: none;
-}
-
-.vedit-clothes-grid .vedit-inv-slot {
-  width: 100%;
-}
-
-.vedit-clothes-img {
-  width: 60%;
-  height: 60%;
-}
-
-.vedit-clothes-slot-type {
-  font-size: 0.72rem;
-  color: rgba(255,255,255,0.5);
-  text-align: center;
-  font-style: italic;
 }
 
 /* ── Room panel ──────────────────────────────────────────────────────── */
@@ -6001,14 +5436,6 @@ body:not([data-theme='night']) .modal-filter-btn {
   .vmod-edit-tab-btn {
     padding: 10px 12px 8px;
     font-size: 0.78rem;
-  }
-
-  /* Action bar: wrap and fill width */
-  .vmod-action-btn {
-    flex: 1;
-    min-width: 58px;
-    min-height: 38px;
-    text-align: center;
   }
 
   /* Footer: wrap buttons on small screens */
@@ -6465,24 +5892,6 @@ body[data-theme='night'] .player-modal-section-btn.is-active {
   min-width: 120px;
 }
 
-/* Inject-pending: gray input + spinner overlay */
-.inject-pending {
-  position: relative;
-}
-.inject-pending input {
-  color: var(--text-muted) !important;
-  opacity: 0.72;
-}
-.inject-pending-spinner {
-  position: absolute;
-  right: 10px;
-  bottom: 10px;
-  width: 15px;
-  height: 15px;
-  opacity: 0.55;
-  pointer-events: none;
-}
-
 .player-modal-placeholder {
   min-height: clamp(240px, 48vh, 402px);
   padding: 18px;
@@ -6602,10 +6011,41 @@ body[data-theme='night'] .player-modal-bust-frame {
   justify-content: center;
 }
 
+.modal-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.modal-save-button {
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 14px;
+  border: 1px solid rgba(134, 241, 202, 0.32);
+  background: linear-gradient(180deg, rgba(134, 241, 202, 0.22), rgba(134, 241, 202, 0.08));
+  color: var(--text);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform 0.18s var(--ease),
+    border-color 0.18s var(--ease),
+    background 0.18s var(--ease);
+}
+
+.modal-save-button:hover {
+  border-color: rgba(134, 241, 202, 0.5);
+  background: linear-gradient(180deg, rgba(134, 241, 202, 0.3), rgba(134, 241, 202, 0.12));
+}
+
+.modal-save-button:active {
+  transform: scale(0.96);
+}
+
 .modal-close,
 .settings-debug-action,
 .settings-github-btn,
-.search-side-icon,
 .trash-button {
   transition:
     transform 0.18s var(--ease),
@@ -6617,7 +6057,6 @@ body[data-theme='night'] .player-modal-bust-frame {
 body:not([data-theme='night']) .modal-close,
 body:not([data-theme='night']) .settings-debug-action,
 body:not([data-theme='night']) .settings-github-btn,
-body:not([data-theme='night']) .search-side-icon,
 body:not([data-theme='night']) .trash-button {
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255, 220, 191, 0.12);
@@ -6627,7 +6066,6 @@ body:not([data-theme='night']) .trash-button {
 body[data-theme='night'] .modal-close,
 body[data-theme='night'] .settings-debug-action,
 body[data-theme='night'] .settings-github-btn,
-body[data-theme='night'] .search-side-icon,
 body[data-theme='night'] .trash-button {
   background: rgba(11, 19, 38, 0.7);
   border: 1px solid rgba(170, 198, 255, 0.1);
@@ -6724,8 +6162,7 @@ body:not([data-theme='night']) .settings-select option {
 }
 
 body[data-theme='night'] .settings-debug-box,
-body[data-theme='night'] .mini-code-block,
-body[data-theme='night'] .modal-results-list {
+body[data-theme='night'] .mini-code-block {
   border-color: rgba(198, 190, 234, 0.14);
   background:
     linear-gradient(180deg, rgba(255,255,255,0.02), transparent 38%),
@@ -6734,7 +6171,6 @@ body[data-theme='night'] .modal-results-list {
 
 body[data-theme='night'] #settings-debug-output,
 body[data-theme='night'] .mini-code-block,
-body[data-theme='night'] .modal-result-row,
 body[data-theme='night'] .modal-filter-btn {
   color: rgba(223, 219, 239, 0.86);
   text-shadow: 0 0 10px rgba(161, 145, 215, 0.1);
@@ -6900,9 +6336,12 @@ body[data-theme='night'] .meta-input[inputmode='numeric'] {
   border-left: 1px solid var(--glass-edge);
   background:
     linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015)),
-    rgba(12, 15, 22, 0.72);
-  backdrop-filter: blur(var(--backdrop-blur-strong)) saturate(var(--backdrop-sat));
-  -webkit-backdrop-filter: blur(var(--backdrop-blur-strong)) saturate(var(--backdrop-sat));
+    rgba(10, 12, 20, 0.94);
+  /* No saturate() here — the global --backdrop-sat boost turns faint
+     decorative glows behind the panel (e.g. the avatar ambient glow) into
+     a distracting saturated purple blob instead of a neutral blur. */
+  backdrop-filter: blur(var(--backdrop-blur-strong));
+  -webkit-backdrop-filter: blur(var(--backdrop-blur-strong));
   box-shadow: -18px 0 48px rgba(0,0,0,0.32);
   transform: translateX(100%);
   transition: transform var(--dur-modal) var(--ease-spring);
@@ -7150,6 +6589,17 @@ body:not([data-theme='night']) .utility-action {
   border-color: rgba(0,0,0,0.08);
   color: #2c2c2e;
 }
+body:not([data-theme='night']) .utility-action svg {
+  color: rgba(48, 41, 60, 0.86);
+}
+body:not([data-theme='night']) .utility-action-pill {
+  background: rgba(0,0,0,0.08);
+  color: rgba(36,33,45,0.72);
+  border-color: rgba(0,0,0,0.14);
+}
+body:not([data-theme='night']) .utility-theme-icon {
+  filter: none;
+}
 body:not([data-theme='night']) .utility-action:hover {
   background: rgba(0,0,0,0.06);
 }
@@ -7186,26 +6636,11 @@ body[data-theme='night'] .search-input:focus {
   padding: 0 18px 18px;
 }
 
-.item-modal-footer {
-  margin-top: 8px;
-  padding: 12px 0 0;
-  border-top: 0;
-}
-
-.item-modal-apply-btn {
-  min-width: 112px;
-  min-height: 40px;
-  padding: 0 22px;
-  border-radius: 16px;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-}
-
 .item-modal-layout {
   display: grid;
-  grid-template-columns: 224px minmax(0, 1fr);
-  gap: 22px;
-  padding: 22px;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  padding: clamp(12px, 2vw, 18px);
   align-items: start;
 }
 
@@ -7273,12 +6708,37 @@ body[data-theme='night'] .item-modal-artbox {
 
 .item-modal-payload-block {
   display: grid;
-  gap: 8px;
+  gap: 0;
 }
 
 .item-modal-payload-label {
   color: var(--text-muted);
   font-size: 0.88rem;
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  min-height: 34px;
+  border: 1px solid var(--glass-edge-soft);
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.012)),
+    var(--surface);
+}
+
+.item-modal-payload-label::-webkit-details-marker {
+  display: none;
+}
+
+.item-modal-payload-label::after {
+  content: '+';
+  font-size: 1rem;
+}
+
+.item-modal-payload-block[open] .item-modal-payload-label::after {
+  content: '−';
 }
 
 .modal-payload-console {
@@ -7290,6 +6750,18 @@ body[data-theme='night'] .item-modal-artbox {
   font-size: 13px;
   white-space: pre-wrap;
   tab-size: 2;
+  transition: max-height 0.2s var(--ease), opacity 0.16s var(--ease), padding 0.2s var(--ease);
+}
+
+.item-modal-payload-block:not([open]) .modal-payload-console {
+  display: block;
+  min-height: 0;
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  opacity: 0;
+  overflow: hidden;
+  border-color: transparent;
 }
 
 .item-modal-stats-grid {
@@ -7307,24 +6779,34 @@ body[data-theme='night'] .item-modal-artbox {
 
 .item-modal-search-row {
   display: grid;
-  grid-template-columns: 34px 1fr 34px;
+  grid-template-columns: minmax(0, 1fr) 34px;
   gap: 12px;
   align-items: center;
 }
 
-.item-modal-search-row .search-side-icon,
 .item-modal-search-row .trash-button {
   width: 34px;
   height: 34px;
-  border: 0;
+  border: 1px solid rgba(255, 122, 136, 0.28);
   border-radius: 12px;
-  background: rgba(255,255,255,0.5);
+  background: rgba(176, 48, 62, 0.2);
   box-shadow: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0;
-  color: var(--text-muted);
+  color: rgba(255, 214, 220, 0.95);
+}
+
+.item-modal-search-row .trash-button {
+  background: rgba(176, 48, 62, 0.2);
+  border-color: rgba(255, 122, 136, 0.28);
+}
+
+body:not([data-theme='night']) .item-modal-search-row .trash-button {
+  background: rgba(196, 52, 66, 0.14);
+  border-color: rgba(162, 34, 52, 0.22);
+  color: rgba(108, 20, 30, 0.94);
 }
 
 .item-modal-search-stack {
@@ -7332,32 +6814,19 @@ body[data-theme='night'] .item-modal-artbox {
   gap: 10px;
 }
 
-.item-modal-search-row .search-side-icon:hover,
 .item-modal-search-row .trash-button:hover,
-.item-modal-search-row .search-side-icon:focus-visible,
 .item-modal-search-row .trash-button:focus-visible {
-  background: rgba(255,255,255,0.5);
-  border-color: transparent;
-  box-shadow: none;
-  color: var(--text);
+  background: rgba(224, 76, 96, 0.22);
+  border-color: rgba(255, 148, 162, 0.5);
+  box-shadow: 0 0 0 2px rgba(255, 112, 134, 0.16);
+  color: #fff;
 }
 
-.item-modal-search-row .search-glyph,
 .item-modal-search-row .trash-button .icon-img {
   opacity: 0.9;
 }
 
-.item-modal-search-row .search-glyph {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.14rem;
-}
-
 .modal-results-list {
-  border: 1px solid rgba(186, 247, 192, 0.12);
-  border-radius: 14px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.012)), var(--console-bg);
   max-height: 172px;
   overflow-y: auto;
   overflow-x: hidden;
@@ -7385,47 +6854,11 @@ body[data-theme='night'] .item-modal-artbox {
 }
 
 .modal-result-row {
-  width: 100%;
-  min-height: 38px;
-  padding: 0 14px;
-  display: flex;
-  align-items: center;
   border: 0;
-  border-bottom: 1px solid rgba(186,247,192,0.08);
-  background: rgba(255,255,255,0.04);
-  color: var(--text);
+  background: transparent;
+  color: inherit;
+  font: inherit;
   text-align: left;
-  cursor: pointer;
-  transition:
-    background 0.18s var(--ease),
-    color 0.18s var(--ease),
-    opacity 0.18s var(--ease);
-}
-
-.modal-result-row:last-child {
-  border-bottom: 0;
-}
-
-.modal-result-row:hover {
-  background: rgba(255,255,255,0.07);
-}
-
-body[data-theme='night'] .modal-result-row:hover {
-  background: rgba(163, 148, 221, 0.12);
-}
-
-body:not([data-theme='night']) .modal-result-row:hover {
-  background: rgba(255, 202, 169, 0.16);
-}
-
-body[data-theme='night'] .modal-results-list {
-  border-color: rgba(236, 233, 255, 0.09);
-  background: linear-gradient(180deg, rgba(14, 16, 28, 0.96), rgba(10, 12, 22, 0.94)), rgba(12, 14, 26, 0.88);
-}
-
-body:not([data-theme='night']) .modal-results-list {
-  border-color: rgba(255, 220, 191, 0.18);
-  background: linear-gradient(180deg, rgba(255, 248, 242, 0.95), rgba(255, 246, 238, 0.86)), rgba(255,255,255,0.92);
 }
 
 .modal-result-row.is-selected {
@@ -7434,9 +6867,20 @@ body:not([data-theme='night']) .modal-results-list {
   text-underline-offset: 2px;
 }
 
-.modal-result-row.is-empty {
-  cursor: default;
-  color: rgba(186, 247, 192, 0.48);
+.qsr-cat-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--dot-color, rgba(255,255,255,0.32));
+  box-shadow: 0 0 6px var(--dot-color, transparent);
+}
+
+.modal-result-row.is-selected .qsr-cat-dot {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--dot-color, rgba(255,255,255,0.32)) 46%, transparent),
+    0 0 10px var(--dot-color, transparent);
+  animation: modal-dot-pulse 1.4s ease-in-out infinite;
 }
 
 .modal-search-filters {
@@ -7447,15 +6891,16 @@ body:not([data-theme='night']) .modal-results-list {
 }
 
 .modal-filter-btn {
-  min-height: 32px;
-  padding: 0 14px;
+  --filter-accent: rgba(255,255,255,0.22);
+  min-height: 20px;
+  padding: 0 7px;
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 999px;
   background:
     linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.016)),
-    rgba(34, 27, 24, 0.4);
+    color-mix(in srgb, var(--filter-accent) 22%, rgba(34, 27, 24, 0.4));
   color: rgba(255,255,255,0.82);
-  font-size: 0.94rem;
+  font-size: 0.64rem;
   cursor: pointer;
   transition:
     transform 0.18s var(--ease),
@@ -7464,6 +6909,15 @@ body:not([data-theme='night']) .modal-results-list {
     color 0.18s var(--ease),
     box-shadow 0.18s var(--ease);
 }
+
+.modal-filter-btn[data-modal-filter='Tool'] { --filter-accent: rgba(255, 193, 145, 0.5); }
+.modal-filter-btn[data-modal-filter='Material'] { --filter-accent: rgba(255, 165, 134, 0.48); }
+.modal-filter-btn[data-modal-filter='Sea creature'] { --filter-accent: rgba(130, 170, 255, 0.52); }
+.modal-filter-btn[data-modal-filter='Bug'] { --filter-accent: rgba(134, 241, 202, 0.5); }
+.modal-filter-btn[data-modal-filter='Fossil'] { --filter-accent: rgba(205, 170, 130, 0.52); }
+.modal-filter-btn[data-modal-filter='Flora'] { --filter-accent: rgba(108, 200, 160, 0.5); }
+.modal-filter-btn[data-modal-filter='Furniture'] { --filter-accent: rgba(174, 160, 240, 0.52); }
+.modal-filter-btn[data-modal-filter='Clothing'] { --filter-accent: rgba(214, 150, 200, 0.5); }
 
 body[data-theme='night'] .modal-filter-btn {
   border-color: rgba(198, 190, 234, 0.14);
@@ -7488,12 +6942,15 @@ body[data-theme='night'] .modal-filter-btn:hover {
 }
 
 .modal-filter-btn.is-active {
-  border-color: rgba(255, 219, 186, 0.26);
+  border-color: color-mix(in srgb, var(--filter-accent) 70%, rgba(255,255,255,0.22));
   background:
-    linear-gradient(180deg, rgba(255, 226, 196, 0.16), rgba(255, 226, 196, 0.04)),
-    rgba(74, 46, 37, 0.56);
+    linear-gradient(180deg, color-mix(in srgb, var(--filter-accent) 34%, rgba(255,255,255,0.09)), rgba(255,255,255,0.04)),
+    color-mix(in srgb, var(--filter-accent) 44%, rgba(42, 32, 30, 0.72));
   color: rgba(255, 247, 239, 0.98);
-  box-shadow: 0 10px 24px var(--glow-sunset);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--filter-accent) 40%, transparent),
+    0 10px 24px color-mix(in srgb, var(--filter-accent) 42%, transparent);
+  animation: modal-filter-pulse 1.7s ease-in-out infinite;
 }
 
 body[data-theme='night'] .modal-filter-btn.is-active {
@@ -7503,6 +6960,16 @@ body[data-theme='night'] .modal-filter-btn.is-active {
     rgba(26, 24, 44, 0.94);
   color: rgba(239, 236, 248, 0.98);
   box-shadow: 0 10px 24px var(--glow-blue);
+}
+
+@keyframes modal-filter-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px color-mix(in srgb, var(--filter-accent) 40%, transparent), 0 8px 18px color-mix(in srgb, var(--filter-accent) 32%, transparent); }
+  50% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--filter-accent) 58%, transparent), 0 12px 26px color-mix(in srgb, var(--filter-accent) 44%, transparent); }
+}
+
+@keyframes modal-dot-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.16); opacity: 1; }
 }
 
 body[data-theme='night'] .action-btn-solid {
@@ -7536,7 +7003,6 @@ body:not([data-theme='night']) .action-btn-solid {
 @media (max-width: 860px) {
   .inventory-area,
   .item-modal-layout,
-  .tab-stat-grid,
   .tab-dual-grid {
     grid-template-columns: 1fr;
   }
@@ -7559,11 +7025,6 @@ body:not([data-theme='night']) .action-btn-solid {
     min-width: 0;
   }
 
-  .player-toolbar,
-  .player-toolbar-actions {
-    justify-content: flex-start;
-  }
-
   .shortcut-column {
     margin-left: 0;
     padding-top: 10px;
@@ -7577,17 +7038,9 @@ body:not([data-theme='night']) .action-btn-solid {
   .music-ribbon {
     --music-ribbon-width: min(430px, calc(100vw - 28px));
   }
-
-  .debug-reload-tab {
-    top: 18vh;
-  }
 }
 
 @media (max-width: 720px) {
-  .debug-reload-tab {
-    top: 16vh;
-  }
-
   .footer-mark,
   .footer-brand {
     justify-content: center;
@@ -7603,8 +7056,7 @@ body:not([data-theme='night']) .action-btn-solid {
 
   /* topbar stays column on mobile — title row handles the inline layout */
 
-  .log-panel-head,
-  .player-actions {
+  .log-panel-head {
     flex-direction: column;
     align-items: flex-start;
   }
@@ -7657,17 +7109,8 @@ body:not([data-theme='night']) .action-btn-solid {
     max-height: calc(100dvh - 16px);
   }
 
-  .player-actions {
-    width: 100%;
-  }
-
-  .selected-item-label,
   .player-meta {
     width: 100%;
-  }
-
-  .selected-item-actions {
-    justify-content: center;
   }
 
   /* Mobile touch targets — 44px minimum height */
@@ -7727,17 +7170,105 @@ body:not([data-theme='night']) .action-btn-solid {
 }
 
 @media (max-width: 720px) {
-  #item-modal .modal-card {
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+  input,
+  textarea,
+  select {
+    font-size: 16px;
   }
 
-  body[data-theme='night'] #item-modal .modal-card {
-    background: rgb(18, 18, 31);
+  #item-modal .modal-card {
+    background:
+      linear-gradient(180deg, rgba(244,240,255,0.07), rgba(255,255,255,0.018)),
+      rgba(18, 18, 31, 0.46);
+    backdrop-filter: blur(12px) saturate(1.1);
+    -webkit-backdrop-filter: blur(12px) saturate(1.1);
   }
 
   body:not([data-theme='night']) #item-modal .modal-card {
-    background: rgb(255, 248, 242);
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.035)),
+      rgba(255, 248, 242, 0.48);
+  }
+
+  #item-modal .modal-head {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    flex: 0 0 auto;
+    padding: 10px 12px;
+    background: rgba(18, 18, 31, 0.84);
+    backdrop-filter: blur(12px) saturate(1.1);
+    -webkit-backdrop-filter: blur(12px) saturate(1.1);
+  }
+
+  body:not([data-theme='night']) #item-modal .modal-head {
+    background: rgba(255, 248, 242, 0.86);
+  }
+
+  #item-modal .modal-close {
+    width: 40px;
+    height: 40px;
+    border-radius: 13px;
+  }
+
+  #item-modal .item-modal-layout {
+    gap: 12px;
+    padding: 10px 12px 14px;
+  }
+
+  #item-modal .item-modal-main {
+    gap: 9px;
+  }
+
+  #item-modal .item-modal-name {
+    margin-bottom: 6px;
+  }
+
+  #item-modal .item-modal-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    margin-bottom: 4px;
+  }
+
+  #item-modal .field-wrap input,
+  #item-modal .search-input {
+    min-height: 38px;
+    padding: 7px 10px;
+  }
+
+  #item-modal .field-wrap {
+    gap: 4px;
+  }
+
+  #item-modal .item-modal-search-row {
+    gap: 8px;
+  }
+
+  #item-modal .item-modal-search-stack {
+    gap: 7px;
+  }
+
+  #item-modal .modal-search-filters {
+    gap: 6px;
+  }
+
+  #item-modal .modal-payload-console {
+    min-height: 0;
+    max-height: 170px;
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+}
+
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 720px) {
+    #item-modal .modal-card,
+    #item-modal .modal-head,
+    .inv-quick-search-results,
+    #item-modal .modal-results-list {
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
   }
 }
 
@@ -7804,7 +7335,6 @@ body:not([data-theme='night']) .action-btn-solid {
   .aurora-ribbon::after,
   .cloud,
   .shooting-star,
-  .debug-reload-orbit,
   .loading-ring,
   .modal-fade,
   .skeleton-line::after,
@@ -7817,12 +7347,8 @@ body:not([data-theme='night']) .action-btn-solid {
   .aurora-layer,
   .moon-layer,
   .shell-card,
-  .toggle-button,
   .icon-button,
-  .debug-reload-tab,
-  .toolbar-icon-btn,
   .corner-icon-button,
-  .search-side-icon,
   .trash-button,
   .action-btn,
   .shortcut-btn,
@@ -8087,7 +7613,6 @@ body:not([data-theme='night']) .action-btn-solid {
   padding: 0.1em 0.45em;
   font-weight: 700;
   letter-spacing: 0.04em;
-}
 }
 
 

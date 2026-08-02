@@ -1,5 +1,7 @@
 const express = require('express')
+const { execFile, execFileSync } = require('child_process')
 const fs = require('fs')
+const os = require('os')
 const path = require('path')
 
 const bridgeService = require('./bridgeService')
@@ -24,17 +26,19 @@ const {
   getMusicLibrary
 } = require('./musicLibrary')
 
-const TEST_PAYLOAD_FILES = Object.freeze({
-  'live-ok': 'live-ok.json',
-  'bridge-disconnected': 'bridge-disconnected.json',
-  'acnh-error': 'acnh-error.json'
-})
 
-function resolveTestPayloadPath(key) {
-  const fileName = TEST_PAYLOAD_FILES[key]
-  if (!fileName) return null
-  return path.join(__dirname, '..', 'public', 'test-payloads', fileName)
+function resolveAppVersion() {
+  try {
+    const repoRoot = path.join(__dirname, '..')
+    const branch = execFileSync('git', ['branch', '--show-current'], { cwd: repoRoot, encoding: 'utf8' }).trim() || 'detached'
+    const commit = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: repoRoot, encoding: 'utf8' }).trim()
+    return `${branch}@${commit}`
+  } catch (_) {
+    return process.env.APP_VERSION || 'dev@unknown'
+  }
 }
+
+const APP_VERSION = resolveAppVersion()
 
 // Item-names-en.txt index: loaded once, keyed by hex itemId string (e.g. "0x059A" → "Sleeping bag")
 let _itemNamesIndex = null
@@ -138,11 +142,55 @@ function createApiRouter(options = {}) {
     })
   })
 
+  router.post('/api/dev/cleanup', async (req, res) => {
+    const repoRoot = path.join(__dirname, '..')
+    const generatedPaths = [
+      path.join(os.homedir(), '.acnh-live-server.log'),
+      path.join(os.homedir(), '.acnh-live-bridge.log'),
+      path.join(os.tmpdir(), 'bridge.log'),
+      path.join(os.tmpdir(), 'acnh-live-editor-shot.png')
+    ]
+
+    try {
+      const removed = []
+      await new Promise((resolve, reject) => {
+        execFile(
+          'git',
+          ['clean', '-fdX', '--', 'test-results', '.codex-temp', '.codex-*.log'],
+          { cwd: repoRoot, timeout: 20000 },
+          (error, stdout) => {
+            if (error) {
+              reject(error)
+              return
+            }
+            String(stdout || '').split(/\r?\n/).filter(Boolean).forEach((line) => removed.push(line))
+            resolve()
+          }
+        )
+      })
+
+      for (const targetPath of generatedPaths) {
+        try {
+          await fs.promises.access(targetPath)
+          await fs.promises.rm(targetPath, { recursive: true, force: true })
+          removed.push(targetPath)
+        } catch (error) {
+          if (error && error.code !== 'ENOENT') throw error
+        }
+      }
+
+      res.json({ ok: true, removedCount: removed.length })
+    } catch (error) {
+      res.status(500).json({ ok: false, error: error.message })
+    }
+  })
+
   router.get('/api/status', (req, res) => {
     const bridgeStatus = bridgeService.getStatus()
     const listenerIp = getPreferredLocalIp(req)
     res.json({
       ...bridgeStatus,
+      appVersion: APP_VERSION,
       ip: listenerIp || bridgeStatus.ip,
       listenerIp,
       clientIp: bridgeStatus.ip || null,
@@ -361,55 +409,6 @@ function createApiRouter(options = {}) {
     } catch (error) {
       console.error(error)
       res.status(503).json({ error: 'Music library unavailable' })
-    }
-  })
-
-  router.get('/api/test-payloads/:key', (req, res) => {
-    const key = String(req.params.key || '').trim()
-    const payloadPath = resolveTestPayloadPath(key)
-    if (!payloadPath) {
-      res.status(404).json({ ok: false, error: 'Unknown test payload key' })
-      return
-    }
-
-    try {
-      const payload = JSON.parse(fs.readFileSync(payloadPath, 'utf8'))
-      res.json({ ok: true, key, payload })
-    } catch (error) {
-      res.status(500).json({ ok: false, error: `Failed to read test payload: ${error.message}` })
-    }
-  })
-
-  router.post('/api/test-payloads/:key', express.json(), (req, res) => {
-    const key = String(req.params.key || '').trim()
-    const payloadPath = resolveTestPayloadPath(key)
-    if (!payloadPath) {
-      res.status(404).json({ ok: false, error: 'Unknown test payload key' })
-      return
-    }
-
-    const incomingPayload = req.body && req.body.payload
-    if (!incomingPayload || typeof incomingPayload !== 'object') {
-      res.status(400).json({ ok: false, error: 'payload object is required' })
-      return
-    }
-
-    try {
-      const existingPayload = JSON.parse(fs.readFileSync(payloadPath, 'utf8'))
-      const nextPayload = {
-        ...existingPayload,
-        ...incomingPayload,
-        meta: {
-          ...(existingPayload.meta || {}),
-          ...(incomingPayload.meta || {}),
-          updatedAt: new Date().toISOString()
-        }
-      }
-
-      fs.writeFileSync(payloadPath, `${JSON.stringify(nextPayload, null, 2)}\n`, 'utf8')
-      res.json({ ok: true, key, payload: nextPayload })
-    } catch (error) {
-      res.status(500).json({ ok: false, error: `Failed to save test payload: ${error.message}` })
     }
   })
 

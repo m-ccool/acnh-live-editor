@@ -6,60 +6,11 @@ const REPO_URL = 'https://github.com/m-ccool/acnh-live-editor';
 const SERVICE_WORKER_VERSION = '107';
 const PLAY_ICON_PATH = './assets/icons/line-md--pause-to-play-filled-transition.svg';
 const PAUSE_ICON_PATH = './assets/icons/line-md--pause.svg';
-const CONSOLE_CONNECTED_ICON_PATH = './assets/icons/codicon--debug-connect.svg';
-const CONSOLE_DISCONNECTED_ICON_PATH = './assets/icons/codicon--debug-disconnect.svg';
 const DEFAULT_MUSIC_ARTWORK_PATH = './assets/icons/Aircheck_NH_Inv_Icon.png';
 const THEME_SUNRISE = 'sunrise';
 const THEME_NIGHT = 'night';
 const DEFAULT_MUSIC_RIBBON_TOP_VH = 56;
 const DEFAULT_LOG_PANEL_HEIGHT_VH = 13;
-const DEFAULT_TEST_PAYLOAD_KEY = 'off';
-const TEST_PAYLOAD_OPTION_DEFS = Object.freeze({
-  off: {
-    label: 'OFF',
-    path: null
-  },
-  'live-ok': {
-    label: 'LIVE OK',
-    path: './test-payloads/live-ok.json'
-  },
-  'bridge-disconnected': {
-    label: 'DISCONNECTED',
-    path: './test-payloads/bridge-disconnected.json'
-  },
-  'acnh-error': {
-    label: 'ACNH ERROR',
-    path: './test-payloads/acnh-error.json'
-  }
-});
-const DEFAULT_TEST_PAYLOAD = Object.freeze({
-  meta: {
-    name: 'Fallback local test payload',
-    version: 1,
-    source: 'fallback'
-  },
-  catalog: {
-    connectionState: 'syncing',
-    label: 'Simulated',
-    message: 'TEST payload active: catalog status is synthetic.',
-    searchableCount: 999
-  },
-  bridge: {
-    connected: true,
-    ip: '10.99.0.42',
-    listenerIp: '10.99.0.1',
-    host: '0.0.0.0',
-    port: 32840,
-    listening: true,
-    mode: 'test-payload',
-    message: 'TEST payload active: bridge status is synthetic.',
-    lastAction: 'Injected synthetic bridge status',
-    gameDataSource: 'test-payload',
-    ryujinxRunning: true,
-    ryujinxMatchCount: 1,
-    inventorySource: 'test-payload'
-  }
-});
 const DEFAULT_MUSIC_LIBRARY = Object.freeze({
   defaultNightTrackId: 'ambient-4am-rainy',
   defaultSunriseTrackId: 'sunrise-animal-crossing-theme',
@@ -267,10 +218,9 @@ const state = {
     inventory: false,
     search: false
   },
-  testDataMode: false,
-  testPayload: null,
-  testPayloadLoaded: false,
-  testPayloadKey: DEFAULT_TEST_PAYLOAD_KEY
+  cmdLogNotifications: [],
+  cmdLogLastAction: DEFAULT_BRIDGE_STATE.lastAction,
+  cmdLogLastError: ''
 };
 
 const el = {};
@@ -368,21 +318,6 @@ function showToast(message, duration) {
   el._toastTimeout = setTimeout(() => { if (el.deployToast) el.deployToast.classList.remove('is-visible'); }, duration || 3000);
 }
 
-// Global tab-enter shimmer: brief loading overlay on every tab switch so the
-// user sees a consistent transition regardless of the panel's data-load path.
-function playTabEnterShimmer(tabName) {
-  const panel = document.getElementById(`tab-panel-${tabName}`);
-  if (!panel) return;
-  panel.classList.remove('is-tab-entering');
-  // Force reflow so the class removal + re-add restarts the animation cleanly.
-  void panel.offsetWidth;
-  panel.classList.add('is-tab-entering');
-  clearTimeout(panel._tabShimmerTimeout);
-  panel._tabShimmerTimeout = setTimeout(() => {
-    panel.classList.remove('is-tab-entering');
-  }, 420);
-}
-
 document.addEventListener('DOMContentLoaded', init);
 
 // ── On-screen keyboard (Steam Deck / iOS) handling ────────────────
@@ -445,6 +380,13 @@ document.addEventListener('DOMContentLoaded', init);
     if (backdrop.parentNode !== document.body) document.body.appendChild(backdrop);
 
     function openPanel() {
+      panel.hidden = false;
+      backdrop.hidden = false;
+      // Force layout so the browser registers the translateX(100%) start
+      // state before the is-visible class flips the transform — otherwise
+      // the hidden -> visible + transform change can get coalesced into one
+      // frame and the slide-in transition never plays.
+      void panel.offsetWidth;
       panel.classList.add('is-visible');
       backdrop.classList.add('is-visible');
       trigger.setAttribute('aria-expanded', 'true');
@@ -455,6 +397,23 @@ document.addEventListener('DOMContentLoaded', init);
     function closePanel() {
       panel.classList.remove('is-visible');
       backdrop.classList.remove('is-visible');
+      const finishClose = () => {
+        panel.hidden = true;
+        backdrop.hidden = true;
+      };
+      let settled = false;
+      const onTransitionEnd = (event) => {
+        if (event.target !== panel || event.propertyName !== 'transform') return;
+        settled = true;
+        panel.removeEventListener('transitionend', onTransitionEnd);
+        finishClose();
+      };
+      panel.addEventListener('transitionend', onTransitionEnd);
+      window.setTimeout(() => {
+        if (settled) return;
+        panel.removeEventListener('transitionend', onTransitionEnd);
+        finishClose();
+      }, 400);
       trigger.setAttribute('aria-expanded', 'false');
       panel.setAttribute('aria-modal', 'false');
     }
@@ -481,9 +440,9 @@ document.addEventListener('DOMContentLoaded', init);
         const source = document.getElementById(row.id);
         let stateClass = '';
         if (source) {
-          if (source.classList.contains('is-good')) stateClass = 'is-ok';
+          if (source.classList.contains('is-ok') || source.classList.contains('is-good')) stateClass = 'is-ok';
           else if (source.classList.contains('is-warn')) stateClass = '';
-          else if (source.classList.contains('is-error')) stateClass = 'is-error';
+          else if (source.classList.contains('is-bad') || source.classList.contains('is-error')) stateClass = 'is-error';
         }
         if (stateClass === 'is-error') overallState = 'is-error';
         else if (stateClass === '' && overallState === 'is-ok') overallState = '';
@@ -518,15 +477,15 @@ document.addEventListener('DOMContentLoaded', init);
     }
     syncThemeLabel();
 
-    // Show current git commit short hash + branch in the footer, if we can grab it
+    // Show the running branch and commit in the header and panel footer.
     if (versionFoot) {
       fetch('/api/status', { cache: 'no-store' })
         .then((r) => r.ok ? r.json() : null)
         .then((data) => {
-          if (!data) return;
-          const version = data.version || 'dev';
+          if (!data || !data.appVersion) return;
+          const version = data.appVersion;
           versionFoot.textContent = `ACNH Live Editor · ${version}`;
-          if (brandVersion) brandVersion.textContent = `${version}`;
+          if (brandVersion) brandVersion.textContent = version;
         })
         .catch(() => {});
     }
@@ -544,9 +503,6 @@ document.addEventListener('DOMContentLoaded', init);
         case 'update':
           await runUpdateAction(btn);
           break;
-        case 'test':
-          toggleTestMode(btn);
-          break;
         case 'loadsave':
           document.getElementById('open-backups-btn')?.click();
           closePanel();
@@ -558,6 +514,9 @@ document.addEventListener('DOMContentLoaded', init);
           document.getElementById('settings-button')?.click();
           closePanel();
           break;
+        case 'cleanup':
+          await runCleanupAction(btn);
+          break;
         case 'theme':
           document.getElementById('theme-toggle')?.click();
           syncThemeLabel();
@@ -565,38 +524,25 @@ document.addEventListener('DOMContentLoaded', init);
       }
     });
 
-    // ── Test-mode inline pill toggle ─────────────────────────────
-    // Selects the "off" or "live-ok" test-state option in the hidden legacy
-    // menu, then reflects state on the panel button (pill + aria-pressed).
-    const TEST_OFF_KEY = 'off';
-    const TEST_ON_KEY  = 'live-ok';
-
-    function detectTestModeOn() {
-      // window.state is set up by app-core; use it if available.
-      const s = window.state;
-      return !!(s && s.testDataMode);
+    async function runCleanupAction(button) {
+      const label = button.querySelector('.utility-action-label');
+      const originalLabel = label ? label.textContent : 'Clean Dumps';
+      button.disabled = true;
+      if (label) label.textContent = 'Cleaning...';
+      try {
+        const response = await apiFetch('/api/dev/cleanup', { method: 'POST', cache: 'no-store' });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || result.ok === false) {
+          throw new Error(result.error || `Cleanup failed with status ${response.status}`);
+        }
+        showToast(result.removedCount ? `Removed ${result.removedCount} generated path${result.removedCount === 1 ? '' : 's'}` : 'No generated files found');
+      } catch (error) {
+        showToast(`Cleanup failed: ${error.message}`);
+      } finally {
+        button.disabled = false;
+        if (label) label.textContent = originalLabel;
+      }
     }
-
-    function reflectTestPill() {
-      const btn = panel.querySelector('[data-utility-action="test"]');
-      if (!btn) return;
-      const on = detectTestModeOn();
-      const pill = btn.querySelector('#utility-test-pill');
-      btn.classList.toggle('is-active', on);
-      btn.setAttribute('aria-pressed', String(on));
-      if (pill) pill.textContent = on ? 'ON' : 'OFF';
-    }
-
-    function toggleTestMode() {
-      const on = detectTestModeOn();
-      const nextKey = on ? TEST_OFF_KEY : TEST_ON_KEY;
-      const opt = document.querySelector(`.test-state-option[data-test-payload-key="${nextKey}"]`);
-      if (opt) opt.click();
-      // Delay reflect so state has propagated.
-      setTimeout(reflectTestPill, 30);
-    }
-    reflectTestPill();
-    setInterval(reflectTestPill, 3000);
 
     // ── Download-Assets green-dot indicator ──────────────────────
     async function reflectDownloadDot() {
@@ -703,9 +649,6 @@ async function init() {
 
   await loadData();
   seedInventory();
-  if (state.testDataMode && state.testPayloadKey !== DEFAULT_TEST_PAYLOAD_KEY) {
-    await hydrateTestPayload(state.testPayloadKey);
-  }
   renderAll();
   updateDataSnapshot();
   primeSelectedMusicSource();
@@ -774,24 +717,18 @@ function cacheDom() {
   el.ryujinxStatusChip = document.getElementById('ryujinx-status-chip');
   el.acnhDataStatusChip = document.getElementById('acnh-data-status-chip');
   el.bridgeStatus = document.getElementById('bridge-status');
+  el.cmdLogNotifications = document.getElementById('cmd-log-notifications');
   el.logPanelResizeHandle = document.getElementById('log-panel-resize-handle');
   el.ipDisplay = document.getElementById('ip-display');
-  el.logConnectionIndicator = document.getElementById('log-connection-indicator');
-  el.logConnectionIcon = document.getElementById('log-connection-icon');
   el.themeToggle = document.getElementById('theme-toggle');
   el.themeToggleIconDay = document.getElementById('theme-toggle-icon-day');
   el.themeToggleIconNight = document.getElementById('theme-toggle-icon-night');
   el.reloadButton = document.getElementById('reload-button');
   el.bridgeToggle = document.getElementById('bridge-toggle');
-  el.logRefreshButton = document.getElementById('log-refresh-button');
+  el.logCopyButton = document.getElementById('log-copy-button');
   el.villagerRoster = document.getElementById('villager-roster');
   el.villagerCountBadge = document.getElementById('villager-count-badge');
   el.refreshVillagersBtn = document.getElementById('refresh-villagers-btn');
-  el.testStateMenuWrap = document.querySelector('.topbar-test-menu-wrap');
-  el.testStateMenuButton = document.getElementById('test-state-menu-button');
-  el.testStateMenu = document.getElementById('test-state-menu');
-  el.testStateOptions = Array.from(document.querySelectorAll('[data-test-payload-key]'));
-  el.logTestPayloadVersion = document.getElementById('log-test-payload-version');
   el.musicRibbon = document.getElementById('music-ribbon');
   el.musicRibbonDrawer = document.getElementById('music-ribbon-drawer');
   el.musicRibbonToggle = document.getElementById('music-ribbon-toggle');
@@ -1582,18 +1519,20 @@ function bindEvents() {
 
   [el.modalInputCount, el.modalInputUses, el.modalInputFlag0, el.modalInputFlag1].forEach((input) => {
     input.addEventListener('input', renderItemModalPayload);
-    input.addEventListener('input', () => scheduleItemModalAutoApply());
-    input.addEventListener('change', () => scheduleItemModalAutoApply(true));
-    input.addEventListener('blur', () => scheduleItemModalAutoApply(true));
     input.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
         event.preventDefault();
-        scheduleItemModalAutoApply(true);
+        input.blur();
       }
     });
   });
 
-  el.modalSearchFocusButton.addEventListener('click', focusItemSearch);
+  if (el.itemModalApply) {
+    el.itemModalApply.addEventListener('click', () => {
+      applyItemEdits({ closeModalAfterWrite: false });
+    });
+  }
+
   el.clearItemButton.addEventListener('click', clearSelectedSlot);
 
   if (el.inventoryCard) {
@@ -1612,7 +1551,6 @@ function bindEvents() {
       if (nextTab === state.activeTab) return;
       state.activeTab = nextTab;
       renderTabs();
-      playTabEnterShimmer(nextTab);
       persistLocalState();
     });
   });
@@ -1623,23 +1561,27 @@ function bindEvents() {
     });
   }
 
-  el.logRefreshButton.addEventListener('click', () => {
-    refreshBridgeStatus('Status log refreshed');
-  });
-
-  if (el.testStateMenuButton) {
-    el.testStateMenuButton.addEventListener('click', () => {
-      toggleTestStateMenu();
-    });
-  }
-
-  if (Array.isArray(el.testStateOptions)) {
-    el.testStateOptions.forEach((optionButton) => {
-      optionButton.addEventListener('click', async () => {
-        const payloadKey = String(optionButton.getAttribute('data-test-payload-key') || '').trim();
-        await selectTestStatePayload(payloadKey || DEFAULT_TEST_PAYLOAD_KEY, true);
-        closeTestStateMenu();
-      });
+  if (el.logCopyButton) {
+    el.logCopyButton.addEventListener('click', async () => {
+      const text = getCmdLogCopyText();
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.setAttribute('readonly', '');
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+        }
+        el.logCopyButton.classList.add('is-copied');
+        window.setTimeout(() => el.logCopyButton.classList.remove('is-copied'), 900);
+        showToast('Copied!', 1400);
+      } catch (_) {}
     });
   }
 
@@ -1670,7 +1612,6 @@ function bindEvents() {
 
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
-      closeTestStateMenu();
       closeModal(el.settingsModal);
       closeModal(el.playerModal);
       closeModal(el.itemModal);
@@ -1684,10 +1625,6 @@ function bindEvents() {
 
   document.addEventListener('pointerdown', (event) => {
     registerMusicInteraction();
-
-    if (isTestStateMenuOpen() && el.testStateMenuWrap && !el.testStateMenuWrap.contains(event.target)) {
-      closeTestStateMenu();
-    }
 
     if (!el.itemModal || el.itemModal.classList.contains('hidden')) return;
     if (!el.modalSearchStack) return;
@@ -1807,6 +1744,9 @@ function handleVillagerCardClick(event) {
 // ── Inventory quick-search (inline assign, no modal) ──────────────────────
 let _invQsDebounceId = null;
 let _invQsBlurTimerId = null;
+// Set while a touch/pointer is down on a result row so blur-driven hide
+// doesn't race the row's click and swallow the tap (mobile assign bug).
+let _invQsRowPointerActive = false;
 
 function initInvQuickSearch() {
   const input = el.invQuickSearch;
@@ -1828,6 +1768,7 @@ function initInvQuickSearch() {
 
   input.addEventListener('blur', () => {
     _invQsBlurTimerId = setTimeout(() => {
+      if (_invQsRowPointerActive) return;
       results.hidden = true;
       input.setAttribute('aria-expanded', 'false');
     }, 180);
@@ -1918,19 +1859,6 @@ function renderLogPanelSize() {
   if (!el.bridgeStatus) return;
   state.logPanelHeightVh = normalizeLogPanelHeightVh(state.logPanelHeightVh);
   el.bridgeStatus.style.setProperty('--log-console-height', `${state.logPanelHeightVh.toFixed(2)}vh`);
-}
-
-async function reloadAppShell() {
-  try {
-    if ('serviceWorker' in navigator) {
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(
-        registrations.map((registration) => registration.update().catch(() => {}))
-      );
-    }
-  } catch (error) {}
-
-  window.location.reload();
 }
 
 async function loadData() {
@@ -2105,10 +2033,17 @@ function applyUpdateFade(element) {
   element.classList.add('is-updating');
 }
 
+function getCmdLogCopyText() {
+  const notifications = (state.cmdLogNotifications || [])
+    .map((entry) => `[${entry.timestamp || '--:--:--'}] ${entry.level === 'error' ? 'ERROR' : 'INFO'}: ${entry.text || ''}`)
+    .join('\n');
+  const jsonBlock = el.bridgeStatus ? (el.bridgeStatus.textContent || '') : '';
+  return notifications ? `${notifications}\n\n${jsonBlock}` : jsonBlock;
+}
+
 function renderAll() {
   renderLogPanelSize();
   renderThemeToggle();
-  applyTestDataUiState();
   renderBridge();
   renderMusic();
   renderPlayer();
@@ -2129,342 +2064,95 @@ function renderDerivedPanels() {
   renderSettingsDebug();
 }
 
-function getDefaultTestPayload() {
-  return JSON.parse(JSON.stringify(DEFAULT_TEST_PAYLOAD));
-}
-
-function getTestPayloadOption(payloadKey) {
-  const key = String(payloadKey || DEFAULT_TEST_PAYLOAD_KEY).trim();
-  return TEST_PAYLOAD_OPTION_DEFS[key] || TEST_PAYLOAD_OPTION_DEFS[DEFAULT_TEST_PAYLOAD_KEY];
-}
-
-function isTestStateMenuOpen() {
-  return Boolean(el.testStateMenuWrap && el.testStateMenuWrap.classList.contains('is-open'));
-}
-
-function openTestStateMenu() {
-  if (!el.testStateMenuWrap || !el.testStateMenu || !el.testStateMenuButton) return;
-  el.testStateMenuWrap.classList.add('is-open');
-  el.testStateMenu.setAttribute('aria-hidden', 'false');
-  el.testStateMenuButton.setAttribute('aria-expanded', 'true');
-}
-
-function closeTestStateMenu() {
-  if (!el.testStateMenuWrap || !el.testStateMenu || !el.testStateMenuButton) return;
-  el.testStateMenuWrap.classList.remove('is-open');
-  el.testStateMenu.setAttribute('aria-hidden', 'true');
-  el.testStateMenuButton.setAttribute('aria-expanded', 'false');
-}
-
-function toggleTestStateMenu() {
-  if (isTestStateMenuOpen()) {
-    closeTestStateMenu();
-    return;
-  }
-  openTestStateMenu();
-}
-
-function mergeTestPayloadPayload(payload) {
-  const fallback = getDefaultTestPayload();
-  if (!payload || typeof payload !== 'object') {
-    return fallback;
-  }
-
-  const incomingMeta = payload.meta && typeof payload.meta === 'object' ? payload.meta : null;
-  const incomingCatalog = payload.catalog && typeof payload.catalog === 'object' ? payload.catalog : null;
-  const incomingBridge = payload.bridge && typeof payload.bridge === 'object' ? payload.bridge : null;
-
-  return {
-    meta: {
-      ...fallback.meta,
-      ...(incomingMeta || {})
-    },
-    catalog: {
-      ...fallback.catalog,
-      ...(incomingCatalog || {})
-    },
-    bridge: {
-      ...fallback.bridge,
-      ...(incomingBridge || {})
-    }
-  };
-}
-
-async function hydrateTestPayload(payloadKey) {
-  const option = getTestPayloadOption(payloadKey);
-  if (!option.path) {
-    state.testPayload = null;
-    state.testPayloadLoaded = false;
-    return false;
-  }
-
-  try {
-    const response = await fetch(option.path, { cache: 'no-store' });
-    if (!response.ok) {
-      throw new Error(`Unable to load test payload (${response.status})`);
-    }
-
-    const parsed = await response.json();
-    state.testPayload = mergeTestPayloadPayload(parsed);
-    state.testPayloadLoaded = true;
-    return true;
-  } catch (error) {
-    console.warn(error);
-    state.testPayload = getDefaultTestPayload();
-    state.testPayloadLoaded = false;
-    return false;
-  }
-}
-
-function renderTestPayloadVersionStamp() {
-  if (!el.logTestPayloadVersion) return;
-
-  if (!state.testDataMode || !state.testPayload || !state.testPayload.meta) {
-    el.logTestPayloadVersion.hidden = true;
-    el.logTestPayloadVersion.textContent = 'TEST payload';
-    return;
-  }
-
-  const payloadVersion = state.testPayload.meta.version || '?';
-  const payloadName = String(state.testPayload.meta.name || state.testPayloadKey || 'payload').trim();
-  el.logTestPayloadVersion.hidden = false;
-  el.logTestPayloadVersion.textContent = `TEST ${payloadName} v${payloadVersion}`;
-}
-
-function renderTestStateMenuSelection() {
-  if (!Array.isArray(el.testStateOptions)) return;
-
-  el.testStateOptions.forEach((optionButton) => {
-    const payloadKey = String(optionButton.getAttribute('data-test-payload-key') || '').trim();
-    const isActive = state.testDataMode
-      ? payloadKey === state.testPayloadKey
-      : payloadKey === DEFAULT_TEST_PAYLOAD_KEY;
-    optionButton.classList.toggle('is-active', isActive);
-  });
-}
-
-function applyTestDataUiState() {
-  if (document && document.body) {
-    document.body.classList.toggle('is-test-data', state.testDataMode === true);
-  }
-  if (el.testStateMenuButton) {
-    const option = getTestPayloadOption(state.testPayloadKey);
-    const label = state.testDataMode ? option.label : 'OFF';
-    el.testStateMenuButton.textContent = `TEST ${label}`;
-    el.testStateMenuButton.setAttribute('aria-expanded', isTestStateMenuOpen() ? 'true' : 'false');
-  }
-  renderTestStateMenuSelection();
-  renderTestPayloadVersionStamp();
-}
-
-function getActiveTestPayload() {
-  if (!state.testDataMode) return null;
-  if (state.testPayload && typeof state.testPayload === 'object') {
-    return state.testPayload;
-  }
-  return getDefaultTestPayload();
-}
-
 function getEffectivePlayerData() {
-  const payload = getActiveTestPayload();
-  if (!payload || !payload.player || typeof payload.player !== 'object') {
-    return state.player;
-  }
-
-  return {
-    ...state.player,
-    ...payload.player
-  };
+  return state.player;
 }
 
 function getEffectiveInventorySlots() {
-  const payload = getActiveTestPayload();
-  if (!payload || !Array.isArray(payload.inventory) || payload.inventory.length === 0) {
-    return state.inventory;
-  }
-
-  if (typeof normalizeBridgeInventorySlots === 'function' && typeof buildInventoryFromBridgeSlots === 'function') {
-    const normalized = normalizeBridgeInventorySlots(payload.inventory);
-    return buildInventoryFromBridgeSlots(normalized);
-  }
-
   return state.inventory;
 }
 
 function getEffectiveVillagersData() {
-  const payload = getActiveTestPayload();
-  if (!payload || !Array.isArray(payload.villagers) || payload.villagers.length === 0) {
-    return state.villagers;
-  }
-
-  return payload.villagers;
+  return state.villagers;
 }
 
-async function persistActiveTestPayload(actionText) {
-  if (!state.testDataMode || state.testPayloadKey === DEFAULT_TEST_PAYLOAD_KEY || !state.testPayload) {
-    return false;
+function isFailureNotification(text) {
+  return /fail|error|unable|offline|disconnected|blocked|timeout/i.test(String(text || ''));
+}
+
+function pushCmdLogNotification(message, level) {
+  const text = String(message || '').trim();
+  if (!text) return;
+
+  const notificationLevel = level || (isFailureNotification(text) ? 'error' : 'info');
+  const dedupeKey = `${notificationLevel}:${text}`;
+  const head = state.cmdLogNotifications[0];
+  if (head && head.dedupeKey === dedupeKey) return;
+
+  const timestamp = new Date().toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+
+  state.cmdLogNotifications.unshift({
+    dedupeKey,
+    level: notificationLevel,
+    text,
+    timestamp
+  });
+
+  if (state.cmdLogNotifications.length > 10) {
+    state.cmdLogNotifications.length = 10;
+  }
+}
+
+function syncCmdLogNotifications(bridgeView) {
+  const nextAction = String((bridgeView && bridgeView.lastAction) || '').trim();
+  const nextError = String((bridgeView && bridgeView.lastError) || '').trim();
+
+  if (nextAction && nextAction !== state.cmdLogLastAction) {
+    state.cmdLogLastAction = nextAction;
+    pushCmdLogNotification(nextAction);
   }
 
-  try {
-    const response = await apiFetch(`/api/test-payloads/${encodeURIComponent(state.testPayloadKey)}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ payload: state.testPayload })
-    });
-
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok || body.ok === false || !body.payload || typeof body.payload !== 'object') {
-      throw new Error(body.error || `Failed to persist test payload (${response.status})`);
+  if (nextError) {
+    if (nextError !== state.cmdLogLastError) {
+      state.cmdLogLastError = nextError;
+      pushCmdLogNotification(nextError, 'error');
     }
-
-    state.testPayload = mergeTestPayloadPayload(body.payload);
-    state.testPayloadLoaded = true;
-    state.bridge.lastAction = actionText || 'Saved test payload file';
-    return true;
-  } catch (error) {
-    state.bridge.lastError = error.message;
-    state.bridge.lastAction = `Test payload save failed: ${error.message}`;
-    return false;
-  }
-}
-
-async function applyTestPlayerWrite(nextPlayer, actionText) {
-  const payload = getActiveTestPayload() || getDefaultTestPayload();
-  state.testPayload = {
-    ...payload,
-    player: {
-      ...(payload.player || {}),
-      ...nextPlayer
-    }
-  };
-
-  const saved = await persistActiveTestPayload(actionText || 'Saved TEST player data');
-  renderPlayer();
-  renderBridge();
-  renderDerivedPanels();
-  return saved;
-}
-
-async function applyTestInventoryWrite(slotPayload, actionText) {
-  const payload = getActiveTestPayload() || getDefaultTestPayload();
-  const list = Array.isArray(payload.inventory) ? payload.inventory.slice() : [];
-  const slotNumber = Number(slotPayload && slotPayload.slot);
-  if (!Number.isInteger(slotNumber) || slotNumber < 1) {
-    return false;
-  }
-
-  const nextEntry = {
-    slot: slotNumber,
-    itemId: slotPayload && slotPayload.itemId ? String(slotPayload.itemId) : null,
-    count: Number(slotPayload && slotPayload.count || 0),
-    uses: Number(slotPayload && slotPayload.uses || 0),
-    flag0: Number(slotPayload && slotPayload.flag0 || 0),
-    flag1: Number(slotPayload && slotPayload.flag1 || 0)
-  };
-
-  const existingIndex = list.findIndex((entry) => Number(entry && entry.slot) === slotNumber);
-  if (!nextEntry.itemId) {
-    if (existingIndex >= 0) {
-      list.splice(existingIndex, 1);
-    }
-  } else if (existingIndex >= 0) {
-    list[existingIndex] = nextEntry;
   } else {
-    list.push(nextEntry);
+    state.cmdLogLastError = '';
   }
-
-  state.testPayload = {
-    ...payload,
-    inventory: list.sort((a, b) => Number(a.slot || 0) - Number(b.slot || 0))
-  };
-
-  const saved = await persistActiveTestPayload(actionText || `Saved TEST inventory slot ${slotNumber}`);
-  renderInventory();
-  renderSelectedPreview();
-  renderClipboardState();
-  renderBridge();
-  renderDerivedPanels();
-  return saved;
 }
 
-async function applyTestVillagerWrite(slotNumber, edits, actionText) {
-  const payload = getActiveTestPayload() || getDefaultTestPayload();
-  const villagers = Array.isArray(payload.villagers) ? payload.villagers.slice() : [];
-  const slot = Number(slotNumber);
-  if (!Number.isInteger(slot) || slot < 1) {
-    return false;
+function renderCmdLogNotifications() {
+  if (!el.cmdLogNotifications) return;
+
+  const notifications = Array.isArray(state.cmdLogNotifications) ? state.cmdLogNotifications : [];
+  if (!notifications.length) {
+    el.cmdLogNotifications.hidden = true;
+    el.cmdLogNotifications.innerHTML = '';
+    return;
   }
 
-  const idx = villagers.findIndex((entry) => Number(entry && entry.slot) === slot);
-  const base = idx >= 0 ? (villagers[idx] || {}) : { slot, empty: false };
-  const next = {
-    ...base,
-    ...edits,
-    slot,
-    empty: false
-  };
+  const html = notifications
+    .map((entry) => {
+      const levelClass = entry.level === 'error' ? 'is-error' : 'is-info';
+      return `<div class="cmd-log-notice ${levelClass}"><span class="cmd-log-notice-time">${escapeHtml(entry.timestamp || '--:--:--')}</span><span class="cmd-log-notice-text">${escapeHtml(entry.text || '')}</span></div>`;
+    })
+    .join('');
 
-  if (idx >= 0) {
-    villagers[idx] = next;
-  } else {
-    villagers.push(next);
-  }
-
-  state.testPayload = {
-    ...payload,
-    villagers: villagers.sort((a, b) => Number(a.slot || 0) - Number(b.slot || 0))
-  };
-
-  const saved = await persistActiveTestPayload(actionText || `Saved TEST villager slot ${slot}`);
-  if (saved) {
-    state.villagers = state.testPayload.villagers;
-  }
-  if (typeof renderVillagersPanel === 'function') {
-    renderVillagersPanel(getEffectiveVillagersData());
-  }
-  renderBridge();
-  return saved;
-}
-
-async function selectTestStatePayload(payloadKey, persist) {
-  const nextKey = TEST_PAYLOAD_OPTION_DEFS[payloadKey] ? payloadKey : DEFAULT_TEST_PAYLOAD_KEY;
-  const shouldEnable = nextKey !== DEFAULT_TEST_PAYLOAD_KEY;
-
-  state.testPayloadKey = nextKey;
-  state.testDataMode = shouldEnable;
-
-  if (shouldEnable) {
-    await hydrateTestPayload(nextKey);
-  } else {
-    state.testPayload = null;
-    state.testPayloadLoaded = false;
-  }
-
-  applyTestDataUiState();
-  renderBridge();
-
-  if (persist && typeof persistLocalState === 'function') {
-    persistLocalState();
-  }
+  el.cmdLogNotifications.hidden = false;
+  el.cmdLogNotifications.innerHTML = html;
 }
 
 function renderBridge() {
-  const testPayload = state.testPayload || getDefaultTestPayload();
-  const selectedOption = getTestPayloadOption(state.testPayloadKey);
-  const catalogView = state.testDataMode
-    ? {
-        ...state.catalog,
-        ...(testPayload.catalog || {})
-      }
-    : state.catalog;
-  const bridgeView = state.testDataMode
-    ? {
-        ...state.bridge,
-        ...(testPayload.bridge || {})
-      }
-    : state.bridge;
+  const catalogView = state.catalog;
+  const bridgeView = state.bridge;
+
+  syncCmdLogNotifications(bridgeView);
+  renderCmdLogNotifications();
 
   const catalogReady = catalogView.searchableCount > 0 || state.items.length > 0;
   const catalogGlyph = getCatalogIndicatorGlyph();
@@ -2484,7 +2172,7 @@ function renderBridge() {
     const rawLabel = catalogView.label || 'Offline';
     const shownLabel = rawLabel === 'Live' ? '' : rawLabel;
     el.catalogStatusLabel.textContent = shownLabel;
-    el.catalogStatusLabel.title = state.testDataMode ? `TEST MODE: ${catalogView.message || ''}` : (catalogView.message || '');
+    el.catalogStatusLabel.title = catalogView.message || '';
   }
 
   if (el.bridgeStatusInline) {
@@ -2511,10 +2199,6 @@ function renderBridge() {
       chipText = 'Ryujinx: Stopped';
       chipTitle = 'Bridge connected, but no Ryujinx process match was found';
       chipClass = 'is-bad';
-    }
-
-    if (state.testDataMode) {
-      chipTitle = `TEST MODE: ${chipTitle}`;
     }
 
     el.ryujinxStatusChip.title = chipTitle;
@@ -2556,10 +2240,6 @@ function renderBridge() {
       chipClass = 'is-ok';
     }
 
-    if (state.testDataMode) {
-      chipTitle = `TEST MODE: ${chipTitle}`;
-    }
-
     el.acnhDataStatusChip.title = chipTitle;
     const acnhDataLabel = el.acnhDataStatusChip.querySelector('.status-pill-label');
     if (acnhDataLabel) {
@@ -2594,22 +2274,6 @@ function renderBridge() {
       : `Listening: ${bridgeView.listenerIp || bridgeView.host}:${bridgeView.port}`;
   }
 
-  if (el.logConnectionIndicator) {
-    el.logConnectionIndicator.classList.toggle('is-online', bridgeView.connected);
-    el.logConnectionIndicator.classList.toggle('is-offline', !bridgeView.connected);
-    const connectionLabel = bridgeView.connected ? 'Bridge connected' : 'Bridge disconnected';
-    el.logConnectionIndicator.setAttribute('aria-label', state.testDataMode ? `TEST ${connectionLabel}` : connectionLabel);
-    el.logConnectionIndicator.title = state.testDataMode
-      ? `TEST MODE: ${bridgeView.message || connectionLabel}`
-      : (bridgeView.message || connectionLabel);
-  }
-
-  if (el.logConnectionIcon) {
-    el.logConnectionIcon.src = bridgeView.connected
-      ? CONSOLE_CONNECTED_ICON_PATH
-      : CONSOLE_DISCONNECTED_ICON_PATH;
-  }
-
   const selectedSlot = getSelectedSlot();
   const bridgeCapabilities = Array.isArray(bridgeView.capabilities)
     ? bridgeView.capabilities.map((entry) => String(entry || '').trim().toLowerCase()).filter(Boolean)
@@ -2619,10 +2283,6 @@ function renderBridge() {
 
   if (bridgeView.connected && !supportsReadGameData) {
     bridgeWarnings.push('Deck bridge client missing read_game_data capability. Live ACNH data is unavailable. Restart bridge with updated script.');
-  }
-
-  if (state.testDataMode) {
-    bridgeWarnings.push(`TEST mode enabled from ${selectedOption.path || 'inline fallback payload'}.`);
   }
 
   const block = {
@@ -2661,12 +2321,7 @@ function renderBridge() {
     lastCommand: bridgeView.lastCommand,
     lastResponse: bridgeView.lastResponse,
     remoteStatus: bridgeView.remoteStatus,
-    lastAction: bridgeView.lastAction,
-    testDataMode: state.testDataMode,
-    testPayloadKey: state.testDataMode ? state.testPayloadKey : DEFAULT_TEST_PAYLOAD_KEY,
-    testPayloadSource: state.testDataMode ? selectedOption.path : null,
-    testPayloadLoaded: state.testPayloadLoaded,
-    testPayloadMeta: state.testDataMode ? testPayload.meta : null
+    lastAction: bridgeView.lastAction
   };
 
   el.bridgeStatus.textContent = JSON.stringify(block, null, 2);

@@ -160,24 +160,6 @@
 
   // ── helpers ───────────────────────────────────────────────────────────────
 
-  async function backupVillager(v) {
-    try {
-      const res = await apiFetch('/api/villager/backup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ villager: v }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (data.ok) {
-        console.log('[villager] backup saved:', data.filename);
-      } else {
-        console.warn('[villager] backup failed:', data.error);
-      }
-    } catch (e) {
-      console.error('[villager] backup error:', e);
-    }
-  }
-
   function formatBackupDate(ts) {
     if (!ts) return '—';
     try {
