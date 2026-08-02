@@ -75,19 +75,22 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 $remoteEnvironment = $remoteEnvironmentJson | ConvertFrom-Json
-if (-not $remoteEnvironment.DISPLAY -or -not $remoteEnvironment.XAUTHORITY) {
-  throw 'Unable to resolve DISPLAY/XAUTHORITY from the live Ryujinx process'
+if (-not $remoteEnvironment.DISPLAY) {
+  throw 'Unable to resolve DISPLAY from the live Ryujinx process'
 }
 
-$remoteCaptureCommand = @(
+$remoteCaptureParts = @(
   "export DISPLAY='$($remoteEnvironment.DISPLAY)'",
   "export XDG_RUNTIME_DIR='$($remoteEnvironment.XDG_RUNTIME_DIR)'",
   "export DBUS_SESSION_BUS_ADDRESS='$($remoteEnvironment.DBUS_SESSION_BUS_ADDRESS)'",
-  "export XAUTHORITY='$($remoteEnvironment.XAUTHORITY)'",
   "rm -f '$RemoteOutputPath'",
   "spectacle -b -n -o '$RemoteOutputPath'",
   "test -f '$RemoteOutputPath'"
-) -join '; '
+)
+if ($remoteEnvironment.XAUTHORITY) {
+  $remoteCaptureParts = $remoteCaptureParts[0..2] + "export XAUTHORITY='$($remoteEnvironment.XAUTHORITY)'" + $remoteCaptureParts[3..5]
+}
+$remoteCaptureCommand = $remoteCaptureParts -join '; '
 
 & ssh @sshArgs $target $remoteCaptureCommand
 if ($LASTEXITCODE -ne 0) {
