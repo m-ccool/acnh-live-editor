@@ -8,7 +8,10 @@ const BRIDGE_STATUS_REFRESH_MS = Math.max(1000, Number(process.env.BRIDGE_STATUS
 const SUPPORTED_COMMANDS = Object.freeze(['read_status', 'read_inventory', 'write_inventory_slot', 'read_game_data', 'write_game_data', 'list_backups', 'create_backup', 'restore_backup', 'delete_backup'])
 
 const pendingRequests = new Map()
+const inFlightReads = new Map()
+const bridgeOperationQueue = []
 let requestCounter = 0
+let bridgeOperationRunning = false
 
 const state = {
   started: false,
@@ -322,19 +325,20 @@ function readStatus() {
 }
 
 function readInventory() {
-  return sendCommand('read_inventory')
+  return coalesceRead('read_inventory', () => enqueueBridgeOperation(
+    () => sendCommand('read_inventory', {}, { timeoutMs: 20000 })
+  ))
 }
 
 function writeInventorySlot(payload) {
-  return sendCommand('write_inventory_slot', payload, {
-    timeoutMs: 20000
-  })
+  return sendCommand('write_inventory_slot', payload, { timeoutMs: 20000 })
 }
 
 function writePlayerData(playerData) {
-  return sendCommand('write_game_data', { player: playerData }, {
-    timeoutMs: 8000
-  })
+  return enqueueBridgeOperation(
+    () => sendCommand('write_game_data', { player: playerData }, { timeoutMs: 20000 }),
+    true
+  )
 }
 
 function applyCheat(cheatId, enabled) {
@@ -348,7 +352,9 @@ function readGameData() {
     return buildGameDataUnavailableResponse()
   }
 
-  return sendCommand('read_game_data')
+  return coalesceRead('read_game_data', () => enqueueBridgeOperation(
+    () => sendCommand('read_game_data', {}, { timeoutMs: 30000 })
+  ))
     .then((response) => {
       state.supportsReadGameData = true
       return response
@@ -498,7 +504,56 @@ function updateBackupLabel(id, label) {
 }
 
 function readVillagers() {
-  return sendCommand('read_villagers', {}, { timeoutMs: 20000 })
+  return coalesceRead('read_villagers', () => enqueueBridgeOperation(
+    () => sendCommand('read_villagers', {}, { timeoutMs: 30000 })
+  ))
+}
+
+function enqueueBridgeOperation(operation, prioritize = false) {
+  return new Promise((resolve, reject) => {
+    const entry = { operation, resolve, reject }
+    if (prioritize) {
+      bridgeOperationQueue.unshift(entry)
+    } else {
+      bridgeOperationQueue.push(entry)
+    }
+    runNextBridgeOperation()
+  })
+}
+
+async function runNextBridgeOperation() {
+  if (bridgeOperationRunning || bridgeOperationQueue.length === 0) {
+    return
+  }
+
+  bridgeOperationRunning = true
+  const entry = bridgeOperationQueue.shift()
+  try {
+    entry.resolve(await entry.operation())
+  } catch (error) {
+    entry.reject(error)
+  } finally {
+    bridgeOperationRunning = false
+    runNextBridgeOperation()
+  }
+}
+
+function coalesceRead(command, operation) {
+  const existing = inFlightReads.get(command)
+  if (existing) {
+    return existing
+  }
+
+  const request = Promise.resolve()
+    .then(operation)
+    .finally(() => {
+      if (inFlightReads.get(command) === request) {
+        inFlightReads.delete(command)
+      }
+    })
+
+  inFlightReads.set(command, request)
+  return request
 }
 
 function inferReadGameDataSupport(capabilities) {

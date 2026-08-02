@@ -234,6 +234,8 @@ def normalize_player(value):
         "bank": clamp_int(value.get("bank"), 0, 999999999),
         "miles": clamp_int(value.get("miles"), 0, 999999999),
         "avatar": normalize_text(value.get("avatar")) or "/assets/items/Bob_NH.png",
+        "gameDate": normalize_text(value.get("gameDate")),
+        "gameTime": normalize_text(value.get("gameTime")),
     }
 
 

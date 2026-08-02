@@ -237,8 +237,6 @@ const state = {
   inventory: [],
   copiedSlotPayload: null,
   copiedSlotSourceIndex: null,
-  copiedSlotMode: null,
-  copiedSlotBadgeIndex: null,
   overwriteGuard: null,
   pendingInventorySlot: null,
   selectedSlotIndex: 0,
@@ -483,10 +481,9 @@ document.addEventListener('DOMContentLoaded', init);
         const source = document.getElementById(row.id);
         let stateClass = '';
         if (source) {
-          // Source pills use is-ok / is-warn / is-bad (also legacy is-good / is-error).
-          if (source.classList.contains('is-ok') || source.classList.contains('is-good')) stateClass = 'is-ok';
-          else if (source.classList.contains('is-bad') || source.classList.contains('is-error')) stateClass = 'is-error';
+          if (source.classList.contains('is-good')) stateClass = 'is-ok';
           else if (source.classList.contains('is-warn')) stateClass = '';
+          else if (source.classList.contains('is-error')) stateClass = 'is-error';
         }
         if (stateClass === 'is-error') overallState = 'is-error';
         else if (stateClass === '' && overallState === 'is-ok') overallState = '';
@@ -511,33 +508,6 @@ document.addEventListener('DOMContentLoaded', init);
     syncStatusMirror();
     setInterval(syncStatusMirror, 3000);
 
-    // Server caches git fetch results for 15 min, so polling here is cheap.
-    const updateBtn = panel.querySelector('[data-utility-action="update"]');
-    if (updateBtn) {
-      async function refreshRepoStatus() {
-        const label = updateBtn.querySelector('.utility-action-label');
-        try {
-          const r = await fetch('/api/repo-status', { cache: 'no-store' });
-          if (!r.ok) throw new Error(`Repo status failed with ${r.status}`);
-          const data = await r.json();
-          if (!data || !data.ok) throw new Error('Repo status unavailable');
-          const behind = Number(data && data.behind || 0);
-          if (behind > 0) {
-            if (label) label.textContent = `Update ${data.branch}@${data.remote}`;
-            updateBtn.title = `${behind} commit${behind === 1 ? '' : 's'} behind origin/${data.branch} (${data.local} → ${data.remote})`;
-          } else {
-            if (label) label.textContent = `Current ${data.branch}@${data.local}`;
-            updateBtn.title = `Check and pull origin/${data.branch}`;
-          }
-        } catch (_) {
-          if (label) label.textContent = 'Update unavailable';
-          updateBtn.title = 'Repository status unavailable';
-        }
-      }
-      refreshRepoStatus();
-      setInterval(refreshRepoStatus, 15 * 60 * 1000);
-    }
-
     function syncThemeLabel() {
       const isNight = document.body.dataset.theme === 'night';
       if (themeLabel) themeLabel.textContent = isNight ? 'Night Mode' : 'Day Mode';
@@ -548,15 +518,15 @@ document.addEventListener('DOMContentLoaded', init);
     }
     syncThemeLabel();
 
-    // Show the deployed branch and commit in the footer.
+    // Show current git commit short hash + branch in the footer, if we can grab it
     if (versionFoot) {
-      fetch('/api/repo-status', { cache: 'no-store' })
+      fetch('/api/status', { cache: 'no-store' })
         .then((r) => r.ok ? r.json() : null)
         .then((data) => {
-          if (!data || !data.ok) return;
-          const version = `${data.branch}@${data.local}`;
+          if (!data) return;
+          const version = data.version || 'dev';
           versionFoot.textContent = `ACNH Live Editor · ${version}`;
-          if (brandVersion) brandVersion.textContent = version;
+          if (brandVersion) brandVersion.textContent = `${version}`;
         })
         .catch(() => {});
     }
@@ -602,7 +572,9 @@ document.addEventListener('DOMContentLoaded', init);
     const TEST_ON_KEY  = 'live-ok';
 
     function detectTestModeOn() {
-      return state.testDataMode === true;
+      // window.state is set up by app-core; use it if available.
+      const s = window.state;
+      return !!(s && s.testDataMode);
     }
 
     function reflectTestPill() {
@@ -650,23 +622,8 @@ document.addEventListener('DOMContentLoaded', init);
         const data = await res.json().catch(() => ({}));
         if (data.ok) {
           if (label) label.textContent = 'Restarting…';
-          const expectedCommit = data.commit;
-          window.setTimeout(async () => {
-            const deadline = Date.now() + 30000;
-            while (Date.now() < deadline) {
-              try {
-                const statusResponse = await fetch(`/api/repo-status?t=${Date.now()}`, { cache: 'no-store' });
-                const status = statusResponse.ok ? await statusResponse.json() : null;
-                if (status && status.ok && status.branch === data.branch && status.local === expectedCommit) {
-                  window.location.replace(`${window.location.pathname}?v=${expectedCommit}`);
-                  return;
-                }
-              } catch (_) {}
-              await new Promise((resolve) => window.setTimeout(resolve, 1000));
-            }
-            if (label) label.textContent = 'Restart failed';
-            btn.classList.remove('is-busy');
-          }, 2000);
+          // Server will exit; wait a moment then reload page.
+          setTimeout(() => { window.location.href = `${window.location.pathname}?t=${Date.now()}`; }, 3000);
         } else {
           if (label) label.textContent = 'Update failed';
           setTimeout(() => { if (label) label.textContent = original; btn.classList.remove('is-busy'); }, 2500);
@@ -736,17 +693,19 @@ document.addEventListener('DOMContentLoaded', init);
 async function init() {
   cacheDom();
   bindEvents();
+  restoreLocalState();
+  applyTheme(false);
+  renderMusicRibbonPosition();
   renderUiLoadingState();
   renderPresetBar();
   updateClock();
+  finishBoot();
 
   await loadData();
   seedInventory();
-  restoreLocalState();
   if (state.testDataMode && state.testPayloadKey !== DEFAULT_TEST_PAYLOAD_KEY) {
     await hydrateTestPayload(state.testPayloadKey);
   }
-  applyTheme(false);
   renderAll();
   updateDataSnapshot();
   primeSelectedMusicSource();
@@ -799,7 +758,6 @@ async function init() {
     setUiLoading('player', false);
     setUiLoading('inventory', false);
   }
-  finishBoot();
 }
 
 function cacheDom() {
@@ -1606,29 +1564,31 @@ function bindEvents() {
       queueModalSearch(true);
     });
 
-    // Note: intentionally do NOT collapse the results list on focusout.
-    // On touch devices, dismissing the on-screen keyboard blurs the search
-    // input, which previously auto-closed the list mid-scroll. The list now
-    // stays open until an item is assigned, the modal closes, or ESC is
-    // pressed on the search input.
-    el.modalSearchInput.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        state.modalSearchOpen = false;
-        renderItemModalResults();
-        el.modalSearchInput.blur();
+    el.modalSearchStack.addEventListener('focusout', (event) => {
+      const nextTarget = event.relatedTarget;
+      if (nextTarget && el.modalSearchStack.contains(nextTarget)) {
+        return;
       }
+
+      window.setTimeout(() => {
+        const active = document.activeElement;
+        if (!active || !el.modalSearchStack.contains(active)) {
+          state.modalSearchOpen = false;
+          renderItemModalResults();
+        }
+      }, 0);
     });
   }
 
   [el.modalInputCount, el.modalInputUses, el.modalInputFlag0, el.modalInputFlag1].forEach((input) => {
     input.addEventListener('input', renderItemModalPayload);
-    input.addEventListener('change', queueItemModalCommit);
-    input.addEventListener('blur', queueItemModalCommit);
+    input.addEventListener('input', () => scheduleItemModalAutoApply());
+    input.addEventListener('change', () => scheduleItemModalAutoApply(true));
+    input.addEventListener('blur', () => scheduleItemModalAutoApply(true));
     input.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
         event.preventDefault();
-        queueItemModalCommit();
+        scheduleItemModalAutoApply(true);
       }
     });
   });
@@ -1695,20 +1655,10 @@ function bindEvents() {
     });
   });
 
-  // Backdrop close — only close when BOTH pointerdown and click originated
-  // directly on the backdrop. Prevents accidental closes when the on-screen
-  // keyboard dismisses (which can synthesize a click on the underlying node)
-  // or when a drag/tap that started inside the card ends on the backdrop.
   [el.settingsModal, el.playerModal, el.itemModal, el.backupsModal, el.presetManagerModal].forEach((modal) => {
     if (!modal) return;
-    let backdropPointerDown = false;
-    modal.addEventListener('pointerdown', (event) => {
-      backdropPointerDown = event.target === modal;
-    });
     modal.addEventListener('click', (event) => {
-      const wasBackdrop = backdropPointerDown;
-      backdropPointerDown = false;
-      if (wasBackdrop && event.target === modal) closeModal(modal);
+      if (event.target === modal) closeModal(modal);
     });
   });
 
@@ -1758,7 +1708,7 @@ function bindEvents() {
   document.addEventListener('keydown', registerMusicInteraction);
 
   window.setInterval(updateClock, 30000);
-  state.bridgePollIntervalId = window.setInterval(pollBridgeStatus, 4000);
+  state.bridgePollIntervalId = window.setInterval(pollBridgeStatus, 15000);
   window.setInterval(refreshCatalogStatus, 15000);
   window.addEventListener('resize', renderMusicRibbonPosition, { passive: true });
   window.addEventListener('resize', renderLogPanelSize, { passive: true });
@@ -1824,20 +1774,6 @@ function hasOpenModal() {
   return [el.settingsModal, el.playerModal, el.itemModal, el.backupsModal, el.villagerModal, el.presetManagerModal].some((modal) => {
     return modal && !modal.classList.contains('hidden');
   });
-}
-
-// Interaction gate — returns true when a background refresh would clobber
-// active user input (open modal, focused input/textarea/select).
-// Consumed by pollBridgeStatus.
-function isUserInteracting() {
-  if (hasOpenModal()) return true;
-  const active = document.activeElement;
-  if (active && active !== document.body) {
-    const tag = active.tagName;
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
-    if (active.isContentEditable) return true;
-  }
-  return false;
 }
 
 function bindVillagerCardEvents() {

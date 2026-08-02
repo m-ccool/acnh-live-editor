@@ -1899,7 +1899,7 @@ body:not([data-theme='night']) .debug-reload-orbit-icon {
   --music-ribbon-width: min(466px, calc(100vw - 40px));
   --music-tab-size: 56px;
   position: fixed;
-  top: 68vh;
+  top: 56vh;
   left: calc(-1 * (var(--music-ribbon-width) - var(--music-tab-size)));
   z-index: 12;
   width: var(--music-ribbon-width);
@@ -6885,7 +6885,7 @@ body[data-theme='night'] .meta-input[inputmode='numeric'] {
   opacity: 1;
   pointer-events: auto;
 }
-.utility-panel-backdrop[hidden] { display: block !important; }
+.utility-panel-backdrop[hidden] { display: none !important; }
 
 .utility-panel {
   position: fixed;
@@ -6909,7 +6909,7 @@ body[data-theme='night'] .meta-input[inputmode='numeric'] {
   contain: paint;
   isolation: isolate;
 }
-.utility-panel[hidden] { display: flex !important; }
+.utility-panel[hidden] { display: none !important; }
 .utility-panel.is-visible {
   transform: translateX(0);
 }
@@ -7698,6 +7698,46 @@ body:not([data-theme='night']) .action-btn-solid {
 
   .player-modal-shell {
     padding: 12px 12px 8px;
+  }
+}
+
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 720px) {
+    body.modal-open .aurora-ribbon,
+    body.modal-open .cloud,
+    body.modal-open .shooting-star {
+      animation-play-state: paused;
+    }
+
+    #item-modal .modal-card {
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      transform: translateY(16px);
+    }
+
+    #item-modal.is-visible .modal-card {
+      transform: translateY(0);
+    }
+
+    #item-modal.is-closing .modal-card {
+      transform: translateY(8px);
+    }
+
+  }
+}
+
+@media (max-width: 720px) {
+  #item-modal .modal-card {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  body[data-theme='night'] #item-modal .modal-card {
+    background: rgb(18, 18, 31);
+  }
+
+  body:not([data-theme='night']) #item-modal .modal-card {
+    background: rgb(255, 248, 242);
   }
 }
 

@@ -1,6 +1,7 @@
 'use strict';
 
 let bridgeInventorySyncInFlight = false;
+let bridgeStatusPollInFlight = false;
 
 function clearLiveGameDataDisplay() {
   state.player = {
@@ -31,7 +32,7 @@ function updateClock() {
 
   if (el.dateDisplay) {
     if (gameDate) {
-      el.dateDisplay.textContent = gameDate;
+      el.dateDisplay.textContent = `In-game date ${gameDate}`;
     } else {
       el.dateDisplay.textContent = 'In-game date —';
     }
@@ -68,9 +69,7 @@ async function refreshBridgeStatus(lastAction) {
       throw new Error('API returned empty response');
     }
     syncBridgeStatus(data);
-    syncedFromBridge = await refreshBridgeInventory({ reason: lastAction, force: true });
-    await refreshBridgeGameData();
-    await refreshBridgeVillagers();
+    syncedFromBridge = await refreshBridgeGameData();
   } catch (error) {
     console.error('Bridge sync error:', error.message);
   }
@@ -93,13 +92,15 @@ async function pollBridgeStatus() {
   if (typeof isUserInteracting === 'function' && isUserInteracting()) {
     return;
   }
+  if (bridgeStatusPollInFlight) {
+    return;
+  }
+  bridgeStatusPollInFlight = true;
   try {
     const statusResponse = await apiFetch('/api/status', { cache: 'no-store' });
     if (statusResponse.ok) {
       syncBridgeStatus(await statusResponse.json());
-      await refreshBridgeInventory({ reason: 'Background inventory sync' });
       await refreshBridgeGameData();
-      await refreshBridgeVillagers();
 
       const playerChanged = hasPlayerDataChanged();
       const inventoryChanged = hasInventoryChanged();
@@ -122,6 +123,8 @@ async function pollBridgeStatus() {
     }
   } catch (error) {
     console.error(error);
+  } finally {
+    bridgeStatusPollInFlight = false;
   }
 }
 
@@ -186,8 +189,11 @@ async function refreshBridgeGameData() {
         wallet: normalizeWholeNumber(payload.player.wallet, state.player.wallet),
         bank: normalizeWholeNumber(payload.player.bank, state.player.bank),
         miles: normalizeWholeNumber(payload.player.miles, state.player.miles),
-        avatar: sanitizeText(payload.player.avatar, state.player.avatar)
+        avatar: sanitizeText(payload.player.avatar, state.player.avatar),
+        gameDate: sanitizeText(payload.player.gameDate, ''),
+        gameTime: sanitizeText(payload.player.gameTime, '')
       };
+      updateClock();
       state.playerSaveSnapshot = { ...state.player };
       renderPlayer();
       if (typeof renderSaveLoadButtons === 'function') renderSaveLoadButtons();
@@ -204,6 +210,8 @@ async function refreshBridgeGameData() {
       const bridgeSlots = normalizeBridgeInventorySlots(payload.slots);
       await hydrateBridgeCatalogItems(bridgeSlots);
       state.inventory = buildInventoryFromBridgeSlots(bridgeSlots);
+      state.bridge.inventorySource = payloadSource;
+      state.bridge.lastInventorySyncAt = new Date().toISOString();
 
       if (!state.hasUserSelectedSlot) {
         state.selectedSlotIndex = findFirstEmptySlotIndex(state.inventory);
@@ -756,7 +764,10 @@ function buildInventoryFromBridgeSlots(bridgeSlots) {
       }
     }
 
-    const slot = buildSlot(entry.slot, item, entry.count, entry.uses, entry.flag0, entry.flag1);
+    const count = entry.itemId
+      ? decodeLiveInventoryCount(entry.count, entry.itemId, item && item.name)
+      : 0;
+    const slot = buildSlot(entry.slot, item, count, entry.uses, entry.flag0, entry.flag1);
     if (entry.itemId) {
       slot.itemId = entry.itemId;
     }
@@ -766,6 +777,36 @@ function buildInventoryFromBridgeSlots(bridgeSlots) {
   });
 
   return nextSlots;
+}
+
+function decodeLiveInventoryCount(value, itemId, itemName) {
+  const rawCount = normalizeWholeNumber(value, 0);
+  const stackLimit = findCatalogStackLimit(itemId, itemName);
+  if (stackLimit && rawCount >= stackLimit) {
+    return 1;
+  }
+  return rawCount + 1;
+}
+
+function findCatalogStackLimit(itemId, itemName) {
+  const lookups = [itemId, itemName]
+    .flatMap((value) => [value, stripVariationSuffix(value)])
+    .map((value) => normalizeItemLookup(value))
+    .filter(Boolean);
+
+  for (const list of [state.items, state.catalog.lookupItems]) {
+    for (const item of Array.isArray(list) ? list : []) {
+      if (!Number.isInteger(item && item.stack) || item.stack < 1) continue;
+      const itemLookups = [item.name, item.file_name]
+        .flatMap((value) => [value, stripVariationSuffix(value)])
+        .map((value) => normalizeItemLookup(value));
+      if (lookups.some((lookup) => itemLookups.includes(lookup))) {
+        return item.stack;
+      }
+    }
+  }
+
+  return null;
 }
 
 function createBridgePlaceholderItem(itemId) {
@@ -854,12 +895,16 @@ async function writeSlotToBridge(slot, actionText) {
   renderInventory();
 
   try {
+    const livePayload = {
+      ...payload,
+      count: payload.itemId ? Math.max(0, payload.count - 1) : 0
+    };
     const response = await apiFetch('/api/bridge/write-inventory-slot', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(livePayload)
     });
 
     const body = await response.json().catch(() => ({}));

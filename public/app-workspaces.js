@@ -1,9 +1,6 @@
 'use strict';
 
-let itemModalCommitTimeoutId = 0;
-let itemModalCommitInFlight = false;
-let itemModalCommitQueued = false;
-let lastItemModalCommitSignature = '';
+let itemModalAutoApplyTimeoutId = 0;
 const MODAL_CLOSE_TRANSITION_MS = 180;
 const INVENTORY_TOUCH_HOLD_MS = 320;
 const INVENTORY_TOUCH_HOLD_MOVE_PX = 12;
@@ -33,7 +30,7 @@ function resumeBridgePoll() {
   if (!state.bridge.pollPaused) return;
   
   state.bridge.pollPaused = false;
-  state.bridgePollIntervalId = window.setInterval(pollBridgeStatus, 4000);
+  state.bridgePollIntervalId = window.setInterval(pollBridgeStatus, 15000);
   
   renderBridgePollButton();
   persistLocalState();
@@ -370,8 +367,6 @@ function armHeldSlot(index, options = {}) {
 
   state.copiedSlotPayload = buildClipboardPayload(slot);
   state.copiedSlotSourceIndex = index;
-  state.copiedSlotMode = 'move';
-  state.copiedSlotBadgeIndex = index;
   clearOverwriteGuard();
   state.bridge.lastAction = options.actionText || `Holding slot ${slot.slot}: ${slot.item.name}`;
   renderBridge();
@@ -438,27 +433,25 @@ async function handleHeldSlotTarget(index) {
   return true;
 }
 
-function clearItemModalCommitTimer() {
-  if (itemModalCommitTimeoutId) {
-    window.clearTimeout(itemModalCommitTimeoutId);
-    itemModalCommitTimeoutId = 0;
+function clearItemModalAutoApplyTimer() {
+  if (itemModalAutoApplyTimeoutId) {
+    window.clearTimeout(itemModalAutoApplyTimeoutId);
+    itemModalAutoApplyTimeoutId = 0;
   }
 }
 
-function queueItemModalCommit() {
+function scheduleItemModalAutoApply(immediate = false) {
   if (!el.itemModal || el.itemModal.classList.contains('hidden')) {
     return;
   }
-  if (itemModalCommitInFlight) {
-    itemModalCommitQueued = true;
-    return;
-  }
 
-  clearItemModalCommitTimer();
-  itemModalCommitTimeoutId = window.setTimeout(() => {
-    itemModalCommitTimeoutId = 0;
+  clearItemModalAutoApplyTimer();
+
+  const delay = immediate ? 0 : 320;
+  itemModalAutoApplyTimeoutId = window.setTimeout(() => {
+    itemModalAutoApplyTimeoutId = 0;
     applyItemEdits({ closeModalAfterWrite: false });
-  }, 0);
+  }, delay);
 }
 
 function clearOverwriteGuard() {
@@ -589,8 +582,6 @@ function renderInventory() {
     slots: slotsView,
     selectedSlotIndex: state.selectedSlotIndex,
     clipboardSourceSlotIndex: state.copiedSlotSourceIndex,
-    clipboardMode: state.copiedSlotMode,
-    clipboardBadgeIndex: state.copiedSlotBadgeIndex,
     overwriteGuard: state.overwriteGuard,
     pendingSlot: state.pendingInventorySlot,
     activeFilter: state.activeFilter,
@@ -856,13 +847,10 @@ function renderItemModal() {
 
   el.modalPocketTitle.textContent = `Pocket ${slot.slot} · ${modalLabel}`;
   el.modalItemName.textContent = modalLabel;
-  // Do not overwrite an input the user is currently editing — otherwise a
-  // background refresh or sibling re-render will revert their draft value.
-  const activeEl = document.activeElement;
-  if (activeEl !== el.modalInputCount) el.modalInputCount.value = String(slot.count);
-  if (activeEl !== el.modalInputUses)  el.modalInputUses.value  = String(slot.uses);
-  if (activeEl !== el.modalInputFlag0) el.modalInputFlag0.value = String(slot.flag0);
-  if (activeEl !== el.modalInputFlag1) el.modalInputFlag1.value = String(slot.flag1);
+  el.modalInputCount.value = String(slot.count);
+  el.modalInputUses.value = String(slot.uses);
+  el.modalInputFlag0.value = String(slot.flag0);
+  el.modalInputFlag1.value = String(slot.flag1);
   el.modalHex.textContent = slot.hex || deriveHexFromItem(item) || '00000000';
 
   if (item) {
@@ -909,11 +897,11 @@ function assignItemToSelectedSlot(item) {
   }
   state.modalSearchOpen = false;
   renderItemModal();
-  queueItemModalCommit();
+  scheduleItemModalAutoApply(true);
 }
 
 async function clearSelectedSlot() {
-  clearItemModalCommitTimer();
+  clearItemModalAutoApplyTimer();
   const slot = getSelectedSlot();
   state.modalPendingItem = null;
 
@@ -945,7 +933,7 @@ async function clearSelectedSlot() {
 }
 
 function openItemModalForSelectedSlot() {
-  clearItemModalCommitTimer();
+  clearItemModalAutoApplyTimer();
   state.modalPendingItem = getSelectedSlot().item || null;
   state.modalSearchQuery = '';
   state.modalSearchFilter = 'all';
@@ -953,20 +941,19 @@ function openItemModalForSelectedSlot() {
   state.catalog.modalResults = [];
   el.modalSearchInput.value = '';
   renderItemModal();
-  lastItemModalCommitSignature = JSON.stringify(buildItemModalWritePayload());
   openModal(el.itemModal);
   queueModalSearch(true);
   focusItemSearch();
 }
 
-function buildItemModalWritePayload() {
+async function applyItemEdits(options = {}) {
+  clearItemModalAutoApplyTimer();
   const slot = getSelectedSlot();
-  const baseItem = state.modalPendingItem || slot.item;
-  const item = baseItem
-    ? (findItemByLookup(baseItem.file_name || baseItem.name, baseItem.name) || baseItem)
+  const item = state.modalPendingItem
+    ? (findItemByLookup(state.modalPendingItem.file_name || state.modalPendingItem.name, state.modalPendingItem.name) || state.modalPendingItem)
     : null;
-
-  return {
+  const closeModalAfterWrite = options.closeModalAfterWrite !== false;
+  const payload = {
     slot: slot.slot,
     itemId: item ? (item.file_name || item.name) : null,
     internalId: item && typeof item.internal_id === 'number' ? item.internal_id : null,
@@ -976,43 +963,17 @@ function buildItemModalWritePayload() {
     flag0: normalizeWholeNumber(el.modalInputFlag0.value, slot.flag0),
     flag1: normalizeWholeNumber(el.modalInputFlag1.value, slot.flag1)
   };
-}
-
-async function applyItemEdits(options = {}) {
-  clearItemModalCommitTimer();
-  const slot = getSelectedSlot();
-  const baseItem = state.modalPendingItem || slot.item;
-  const item = baseItem
-    ? (findItemByLookup(baseItem.file_name || baseItem.name, baseItem.name) || baseItem)
-    : null;
-  const closeModalAfterWrite = options.closeModalAfterWrite !== false;
-  const payload = buildItemModalWritePayload();
-  const commitSignature = JSON.stringify(payload);
-  if (commitSignature === lastItemModalCommitSignature) {
-    return;
-  }
 
   const actionText = item
     ? `Updated slot ${slot.slot} to "${item.name}"`
     : `Cleared slot ${slot.slot}`;
   state.bridge.lastAction = actionText;
-  itemModalCommitInFlight = true;
-  let wrote;
-  try {
-    wrote = await writeSlotToBridge(payload, actionText);
-  } finally {
-    itemModalCommitInFlight = false;
-    if (itemModalCommitQueued) {
-      itemModalCommitQueued = false;
-      queueItemModalCommit();
-    }
-  }
+  const wrote = await writeSlotToBridge(payload, actionText);
   if (!wrote) {
     renderBridge();
     renderItemModal();
     return;
   }
-  lastItemModalCommitSignature = commitSignature;
 
   if (item) {
     rememberCatalogItems([item]);
@@ -1074,8 +1035,6 @@ function copySelectedSlotPayload() {
   const payload = buildClipboardPayload(slot);
   state.copiedSlotPayload = payload;
   state.copiedSlotSourceIndex = null;
-  state.copiedSlotMode = 'copy';
-  state.copiedSlotBadgeIndex = Number.isInteger(state.selectedSlotIndex) ? state.selectedSlotIndex : null;
 
   const text = JSON.stringify(payload, null, 2);
 
@@ -1093,8 +1052,6 @@ function copySelectedSlotPayload() {
 function clearCopiedSlotPayload() {
   state.copiedSlotPayload = null;
   state.copiedSlotSourceIndex = null;
-  state.copiedSlotMode = null;
-  state.copiedSlotBadgeIndex = null;
   clearOverwriteGuard();
 
   if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -1452,6 +1409,8 @@ function restoreLocalState() {
 
 function openModal(modal) {
   if (!modal) return;
+  const modalCard = modal.querySelector('.modal-card');
+  if (modalCard) modalCard.scrollTop = 0;
   modal.classList.remove('hidden');
   modal.classList.remove('is-closing');
   void modal.offsetWidth;
@@ -1474,11 +1433,6 @@ function closeModal(modal) {
     state.modalPendingItem = null;
   }
 
-  // Batch 2: any modal close clears an armed copy/move clipboard.
-  if (state.copiedSlotPayload) {
-    clearCopiedSlotPayload();
-  }
-
   window.setTimeout(() => {
     if (!modal.classList.contains('is-closing')) {
       return;
@@ -1487,9 +1441,6 @@ function closeModal(modal) {
     modal.classList.remove('is-closing');
     modal.classList.add('hidden');
     syncModalState();
-    if (modal === el.itemModal && !state.bridge.pollPaused) {
-      pollBridgeStatus();
-    }
   }, MODAL_CLOSE_TRANSITION_MS);
 
   syncModalState();

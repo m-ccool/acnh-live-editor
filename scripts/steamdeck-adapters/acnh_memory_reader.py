@@ -27,8 +27,9 @@ import os
 import struct
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 # ---------------------------------------------------------------------------
 # Default ACNH 2.0.7 absolute Switch virtual addresses (single-player island).
@@ -53,6 +54,26 @@ _DEFAULT_OFFSETS = {
 
 _ITEM_NONE = 0xFFFE
 _ITEM_SIZE = 8
+
+
+def _read_ryujinx_clock():
+    config_path = Path(os.environ.get(
+        "RYUJINX_CONFIG_PATH",
+        Path.home() / ".config" / "Ryujinx" / "Config.json",
+    ))
+
+    try:
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        if config.get("match_system_time") is True:
+            game_now = datetime.now().astimezone()
+        else:
+            time_zone = ZoneInfo(str(config["system_time_zone"]))
+            offset_seconds = int(config.get("system_time_offset", 0))
+            game_now = datetime.now(timezone.utc).astimezone(time_zone) + timedelta(seconds=offset_seconds)
+    except (FileNotFoundError, KeyError, TypeError, ValueError, json.JSONDecodeError, ZoneInfoNotFoundError):
+        return "", ""
+
+    return game_now.strftime("%Y-%m-%d"), game_now.strftime("%H:%M")
 _DEFAULT_INVENTORY_OFFSETS = {
     "2.0.7": {
         "slot1": 0xAFB1E6E0,
@@ -61,14 +82,6 @@ _DEFAULT_INVENTORY_OFFSETS = {
 }
 
 _ITEM_INDEX = None
-_POCKET_SLOT_COUNT = 20
-_POCKET_PAGE_SIZE = _ITEM_SIZE * _POCKET_SLOT_COUNT
-_POCKET_MIRROR_SEARCH_RADIUS = 0x1000000
-_POCKET_MIRROR_MIN_MATCHING_SLOTS = 12
-# Ryujinx loads save slot 0/ and save slot 1/ into memory consecutively.
-# The slot-1 copy sits exactly 0x6A540 bytes above the slot-0 inventory VA.
-# Both copies must be written so the in-game UI reflects the change live.
-_SAVE_SLOT1_INVENTORY_DELTA = 0x6A540
 
 BOTBASE_FALLBACK_PORTS = [6000, 6001]
 
@@ -148,10 +161,6 @@ def _find_ryujinx_pid() -> int:
         if any(tok.endswith("/ryujinx") or tok.endswith("/ryujinx.headless") for tok in tokens):
             return True
         if any(tok in {"ryujinx", "ryujinx.headless"} for tok in tokens):
-            return True
-
-        # Keep explicit known path fallback for existing Steam Deck setup.
-        if "/applications/publish/ryujinx" in cmdline_lc:
             return True
 
         # Avoid false positives from shell/client scripts that mention 'ryujinx'.
@@ -358,6 +367,14 @@ def _offsets_with_struct_delta(offsets: dict, delta: int) -> dict:
 
 def _calibrate_player_snapshot(pid: int, dram_base: int, offsets: dict, name_bytes: int, town_bytes: int):
     baseline = _read_player_snapshot(pid, dram_base, offsets, name_bytes, town_bytes)
+
+    if (
+        _is_clean_player_text(baseline["name"])
+        and _is_clean_player_text(baseline["town"])
+        and int(baseline.get("encryptedHits", 0)) == 3
+    ):
+        return baseline
+
     best = baseline
     best_score = _score_player_snapshot(baseline)
 
@@ -395,14 +412,6 @@ def _calibrate_player_snapshot(pid: int, dram_base: int, offsets: dict, name_byt
                     best_score = score
     except Exception:
         pass
-
-    # Only trust the fast path when the numeric fields are also write-safe.
-    if (
-        _is_clean_player_text(baseline["name"])
-        and _is_clean_player_text(baseline["town"])
-        and int(baseline.get("encryptedHits", 0)) == 3
-    ):
-        return baseline
 
     return best
 
@@ -757,74 +766,6 @@ def _slot_switch_va(slot: int, offsets: dict) -> int:
     return offsets["slot21"] + ((slot - 21) * _ITEM_SIZE)
 
 
-def _pocket_page_switch_va(slot: int, offsets: dict) -> int:
-    if slot < 1 or slot > 40:
-        raise ValueError(f"slot out of range: {slot}")
-    return offsets["slot1"] if slot <= 20 else offsets["slot21"]
-
-
-def _iter_duplicate_page_matches(pid: int, dram_base: int, page_start_va: int, page_data: bytes):
-    if not page_data:
-        return
-
-    search_start = max(0, page_start_va - _POCKET_MIRROR_SEARCH_RADIUS)
-    search_end = page_start_va + _POCKET_MIRROR_SEARCH_RADIUS
-    seen = set()
-
-    for match_va in _iter_pattern_matches(pid, dram_base, search_start, search_end, page_data):
-        if match_va == page_start_va or match_va in seen:
-            continue
-        seen.add(match_va)
-        yield match_va
-
-
-def _count_matching_slots(page_a: bytes, page_b: bytes, skip_slot_offset: int | None = None) -> int:
-    if not page_a or not page_b:
-        return 0
-
-    matching_slots = 0
-    for slot_index in range(_POCKET_SLOT_COUNT):
-        offset = slot_index * _ITEM_SIZE
-        if skip_slot_offset is not None and offset == skip_slot_offset:
-            continue
-        if page_a[offset:offset + _ITEM_SIZE] == page_b[offset:offset + _ITEM_SIZE]:
-            matching_slots += 1
-    return matching_slots
-
-
-def _iter_similar_page_matches(pid: int, dram_base: int, page_start_va: int, page_data: bytes, slot_offset: int):
-    if not page_data:
-        return
-
-    slot_before = page_data[slot_offset:slot_offset + _ITEM_SIZE]
-    if len(slot_before) != _ITEM_SIZE:
-        return
-
-    search_start = max(0, page_start_va - _POCKET_MIRROR_SEARCH_RADIUS)
-    search_end = page_start_va + _POCKET_MIRROR_SEARCH_RADIUS
-    seen_page_starts = {page_start_va}
-
-    for match_va in _iter_pattern_matches(pid, dram_base, search_start, search_end, slot_before):
-        candidate_page_start = match_va - slot_offset
-        if candidate_page_start < search_start or candidate_page_start in seen_page_starts:
-            continue
-        seen_page_starts.add(candidate_page_start)
-
-        try:
-            candidate_page = _read_switch_va(pid, dram_base, candidate_page_start, _POCKET_PAGE_SIZE)
-        except RuntimeError:
-            continue
-
-        if candidate_page[slot_offset:slot_offset + _ITEM_SIZE] != slot_before:
-            continue
-
-        matching_slots = _count_matching_slots(candidate_page, page_data, slot_offset)
-        if matching_slots < _POCKET_MIRROR_MIN_MATCHING_SLOTS:
-            continue
-
-        yield candidate_page_start
-
-
 def _empty_slot(slot: int) -> dict:
     return {
         "slot": slot,
@@ -982,52 +923,11 @@ def _write_slot_procmem(pid: int, dram_base: int, slot_payload: dict):
     offsets = _get_inventory_offsets()
     raw = _encode_slot(slot_payload)
     slot_va = _slot_switch_va(slot_payload["slot"], offsets)
-    page_start_va = _pocket_page_switch_va(slot_payload["slot"], offsets)
-    slot_offset = slot_va - page_start_va
-    page_before = _read_switch_va(pid, dram_base, page_start_va, _POCKET_PAGE_SIZE)
 
     _write_switch_va(pid, dram_base, slot_va, raw)
 
-    # Also write to the save slot-1 mirror (live in-game UI buffer).
-    slot1_mirror_va = slot_va + _SAVE_SLOT1_INVENTORY_DELTA
-    patched_slot1_mirror = 0
-    try:
-        _write_switch_va(pid, dram_base, slot1_mirror_va, raw)
-        patched_slot1_mirror = 1
-    except RuntimeError:
-        pass
-
-    patched_duplicate_pages = 0
-    patched_page_starts = {page_start_va, page_start_va + _SAVE_SLOT1_INVENTORY_DELTA}
-    for duplicate_page_va in _iter_duplicate_page_matches(pid, dram_base, page_start_va, page_before):
-        if duplicate_page_va in patched_page_starts:
-            continue
-        try:
-            _write_switch_va(pid, dram_base, duplicate_page_va + slot_offset, raw)
-            patched_page_starts.add(duplicate_page_va)
-            patched_duplicate_pages += 1
-        except RuntimeError:
-            continue
-
-    patched_similar_pages = 0
-    for similar_page_va in _iter_similar_page_matches(pid, dram_base, page_start_va, page_before, slot_offset):
-        if similar_page_va in patched_page_starts:
-            continue
-        try:
-            _write_switch_va(pid, dram_base, similar_page_va + slot_offset, raw)
-            patched_page_starts.add(similar_page_va)
-            patched_similar_pages += 1
-        except RuntimeError:
-            continue
-
     refreshed = _read_switch_va(pid, dram_base, slot_va, _ITEM_SIZE)
-    decoded = _decode_slot(refreshed, slot_payload["slot"])
-    decoded["patchedSlot1Mirror"] = patched_slot1_mirror
-    if patched_duplicate_pages:
-        decoded["patchedDuplicatePages"] = patched_duplicate_pages
-    if patched_similar_pages:
-        decoded["patchedSimilarPages"] = patched_similar_pages
-    return decoded
+    return _decode_slot(refreshed, slot_payload["slot"])
 
 
 def read_game_data_procmem():
@@ -1050,6 +950,7 @@ def read_game_data_procmem():
     wallet = snapshot["wallet"]
     bank = snapshot["bank"]
     miles = snapshot["miles"]
+    game_date, game_time = _read_ryujinx_clock()
 
     payload = {
         "player": {
@@ -1059,6 +960,8 @@ def read_game_data_procmem():
             "bank":   bank,
             "miles":  miles,
             "avatar": os.environ.get("ACNH_PLAYER_AVATAR", ""),
+            "gameDate": game_date,
+            "gameTime": game_time,
         },
         "slots": _read_all_slots_procmem(pid, dram_base),
         "source": "live-memory",

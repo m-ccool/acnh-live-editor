@@ -11,12 +11,11 @@ Commands:
   update_label   --id <backup_id> --label "New label"
 
 Save directories backed up:
-  ~/.config/Ryujinx/bis/user/save/0000000000000002  (both slots)
-  ~/.config/Ryujinx/bis/user/save/0000000000000003  (both slots)
+    ~/.config/Ryujinx/bis/user/save/0000000000000003  (both slots)
 
 Backups are stored in ~/acnh-live-editor/data/save-backups/<id>/
 Each backup contains:
-  slot2_0/  slot2_1/  slot3_0/  slot3_1/  manifest.json
+    slot3_0/  slot3_1/  manifest.json
 """
 import argparse
 import datetime
@@ -27,26 +26,57 @@ import sys
 import uuid
 
 SAVE_ROOT = os.path.expanduser("~/.config/Ryujinx/bis/user/save")
-SAVE_DIR_2 = os.path.join(SAVE_ROOT, "0000000000000002")
-SAVE_DIR_3 = os.path.join(SAVE_ROOT, "0000000000000003")
+ACTIVE_SAVE_ID = "0000000000000003"
+ACTIVE_SAVE_DIR = os.path.join(SAVE_ROOT, ACTIVE_SAVE_ID)
 BACKUP_ROOT = os.path.expanduser("~/acnh-live-editor/data/save-backups")
 
 SLOT_MAP = {
-    "slot2_0": (SAVE_DIR_2, "0"),
-    "slot2_1": (SAVE_DIR_2, "1"),
-    "slot3_0": (SAVE_DIR_3, "0"),
-    "slot3_1": (SAVE_DIR_3, "1"),
+    "slot3_0": (ACTIVE_SAVE_DIR, "0"),
+    "slot3_1": (ACTIVE_SAVE_DIR, "1"),
 }
+
+REQUIRED_SLOT_FILES = ("main.dat", "mainHeader.dat")
 
 
 def _slot_path(save_dir, slot):
     """Return path to a slot subdirectory, handling nested 0/ layout."""
     base = os.path.join(save_dir, slot)
-    # save dir 3 has an extra 0/ subdirectory
     nested = os.path.join(base, "0")
     if os.path.isdir(nested):
         return nested
     return base
+
+
+def _require_game_closed():
+    proc_root = "/proc"
+    if not os.path.isdir(proc_root):
+        return
+
+    for entry in os.scandir(proc_root):
+        if not entry.name.isdigit():
+            continue
+        try:
+            with open(os.path.join(entry.path, "comm"), "r", encoding="utf-8") as f:
+                if f.read().strip().lower() == "ryujinx":
+                    raise RuntimeError("Ryujinx must be closed before managing save backups")
+        except (FileNotFoundError, PermissionError, ProcessLookupError):
+            continue
+
+
+def _validate_slot(path, label):
+    if not os.path.isdir(path):
+        raise RuntimeError(f"{label} is missing")
+    missing = [name for name in REQUIRED_SLOT_FILES if not os.path.isfile(os.path.join(path, name))]
+    if missing:
+        raise RuntimeError(f"{label} is incomplete: missing {', '.join(missing)}")
+
+
+def _directory_size(path):
+    return sum(
+        os.path.getsize(os.path.join(root, filename))
+        for root, _, filenames in os.walk(path)
+        for filename in filenames
+    )
 
 
 def _backup_dir(backup_id):
@@ -65,14 +95,6 @@ def _read_manifest(backup_id):
         return json.load(f)
 
 
-def _main_dat_mtime(backup_id):
-    """Return ISO timestamp of the main.dat inside the backup (slot2_0 copy)."""
-    dat = os.path.join(_backup_dir(backup_id), "slot2_0", "main.dat")
-    if os.path.isfile(dat):
-        return datetime.datetime.utcfromtimestamp(os.path.getmtime(dat)).isoformat() + "Z"
-    return None
-
-
 def cmd_list_backups():
     os.makedirs(BACKUP_ROOT, exist_ok=True)
     backups = []
@@ -88,45 +110,56 @@ def cmd_list_backups():
             "createdAt": manifest.get("createdAt", ""),
             "saveDateHint": manifest.get("saveDateHint", ""),
             "sizeBytes": manifest.get("sizeBytes", 0),
+            "saveId": manifest.get("saveId", ""),
         })
     print(json.dumps({"ok": True, "backups": backups}))
 
 
 def cmd_create_backup(label=""):
+    _require_game_closed()
     os.makedirs(BACKUP_ROOT, exist_ok=True)
-    backup_id = datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ") + "_" + uuid.uuid4().hex[:6]
+    now = datetime.datetime.now(datetime.timezone.utc)
+    backup_id = now.strftime("%Y%m%dT%H%M%SZ") + "_" + uuid.uuid4().hex[:6]
     backup_dir = _backup_dir(backup_id)
-    os.makedirs(backup_dir, exist_ok=True)
+    staging_dir = backup_dir + ".staging"
+    os.makedirs(staging_dir)
 
     total_bytes = 0
-    save_date_hint = None
+    save_timestamps = []
 
-    for slot_key, (save_dir, slot) in SLOT_MAP.items():
-        src = _slot_path(save_dir, slot)
-        dst = os.path.join(backup_dir, slot_key)
-        if os.path.isdir(src):
+    try:
+        for slot_key, (save_dir, slot) in SLOT_MAP.items():
+            src = _slot_path(save_dir, slot)
+            _validate_slot(src, f"Active save {slot}")
+            dst = os.path.join(staging_dir, slot_key)
             shutil.copytree(src, dst)
+            _validate_slot(dst, f"Backup {slot_key}")
+            total_bytes += _directory_size(dst)
             main_dat = os.path.join(dst, "main.dat")
-            if os.path.isfile(main_dat):
-                total_bytes += os.path.getsize(main_dat)
-                if save_date_hint is None:
-                    mtime = os.path.getmtime(main_dat)
-                    save_date_hint = datetime.datetime.utcfromtimestamp(mtime).isoformat() + "Z"
+            save_timestamps.append(os.path.getmtime(main_dat))
 
-    manifest = {
-        "id": backup_id,
-        "label": label or "",
-        "createdAt": datetime.datetime.utcnow().isoformat() + "Z",
-        "saveDateHint": save_date_hint or "",
-        "sizeBytes": total_bytes,
-    }
-    with open(_manifest_path(backup_id), "w", encoding="utf-8") as f:
-        json.dump(manifest, f, indent=2)
+        manifest = {
+            "id": backup_id,
+            "label": label or "",
+            "createdAt": now.isoformat().replace("+00:00", "Z"),
+            "saveDateHint": datetime.datetime.fromtimestamp(
+                max(save_timestamps), datetime.timezone.utc
+            ).isoformat().replace("+00:00", "Z"),
+            "sizeBytes": total_bytes,
+            "saveId": ACTIVE_SAVE_ID,
+        }
+        with open(os.path.join(staging_dir, "manifest.json"), "w", encoding="utf-8") as f:
+            json.dump(manifest, f, indent=2)
+        os.replace(staging_dir, backup_dir)
+    except Exception:
+        shutil.rmtree(staging_dir, ignore_errors=True)
+        raise
 
     print(json.dumps({"ok": True, "backup": manifest}))
 
 
 def cmd_restore_backup(backup_id):
+    _require_game_closed()
     backup_dir = _backup_dir(backup_id)
     if not os.path.isdir(backup_dir):
         print(json.dumps({"ok": False, "error": f"Backup not found: {backup_id}"}))
@@ -137,34 +170,34 @@ def cmd_restore_backup(backup_id):
         print(json.dumps({"ok": False, "error": f"Backup manifest missing: {backup_id}"}))
         sys.exit(1)
 
-    restored = []
+    restore_sources = []
     for slot_key, (save_dir, slot) in SLOT_MAP.items():
         src = os.path.join(backup_dir, slot_key)
-        if not os.path.isdir(src):
-            continue
+        _validate_slot(src, f"Backup {slot_key}")
+        restore_sources.append((slot_key, save_dir, slot, src))
 
-        dst_base = os.path.join(save_dir, slot)
-        # For save dir 3 which has nested 0/ layout
-        nested = os.path.join(dst_base, "0")
-        dst = nested if os.path.isdir(nested) or (
-            save_dir == SAVE_DIR_3 and os.path.isdir(dst_base)
-        ) else dst_base
-
-        # Ensure destination exists
-        os.makedirs(dst, exist_ok=True)
-
-        # Copy all files from backup slot into destination
-        for item in os.scandir(src):
-            src_item = item.path
-            dst_item = os.path.join(dst, item.name)
-            if item.is_dir():
-                if os.path.isdir(dst_item):
-                    shutil.rmtree(dst_item)
-                shutil.copytree(src_item, dst_item)
-            else:
-                shutil.copy2(src_item, dst_item)
-
-        restored.append(slot_key)
+    restored = []
+    rollback_paths = []
+    try:
+        for slot_key, save_dir, slot, src in restore_sources:
+            dst = _slot_path(save_dir, slot)
+            staging = dst + ".restore-" + uuid.uuid4().hex
+            rollback = dst + ".rollback-" + uuid.uuid4().hex
+            shutil.copytree(src, staging)
+            _validate_slot(staging, f"Staged {slot_key}")
+            os.replace(dst, rollback)
+            rollback_paths.append((dst, rollback))
+            os.replace(staging, dst)
+            restored.append(slot_key)
+    except Exception:
+        for dst, rollback in reversed(rollback_paths):
+            if os.path.isdir(dst):
+                shutil.rmtree(dst)
+            os.replace(rollback, dst)
+        raise
+    else:
+        for _, rollback in rollback_paths:
+            shutil.rmtree(rollback)
 
     print(json.dumps({"ok": True, "restoredSlots": restored, "backup": manifest}))
 
@@ -234,4 +267,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as error:
+        print(json.dumps({"ok": False, "error": str(error)}))
+        sys.exit(1)

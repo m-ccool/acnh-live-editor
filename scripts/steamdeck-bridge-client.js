@@ -37,6 +37,8 @@ let reconnectAttempt = 0
 let isShuttingDown = false
 let panelState = 'CONNECTING'
 let panelDetail = `Connecting to ${host}:${port}`
+let bridgeTaskRunning = false
+const bridgeTaskQueue = []
 
 if (process.argv.includes('--help') || process.argv.includes('-h')) {
   printHelp()
@@ -275,7 +277,7 @@ function handleMessage(message) {
   }
 
   if (command === 'read_inventory') {
-    handleReadInventory(requestId, command)
+    enqueueBridgeTask(() => handleReadInventory(requestId, command))
     return
   }
 
@@ -285,12 +287,15 @@ function handleMessage(message) {
   }
 
   if (command === 'read_game_data') {
-    handleReadGameData(requestId, command)
+    enqueueBridgeTask(() => handleReadGameData(requestId, command))
     return
   }
 
   if (command === 'write_game_data') {
-    handleWriteGameData(requestId, command, message && message.payload)
+    enqueueBridgeTask(
+      () => handleWriteGameData(requestId, command, message && message.payload),
+      true
+    )
     return
   }
 
@@ -300,11 +305,35 @@ function handleMessage(message) {
   }
 
   if (command === 'read_villagers') {
-    handleReadVillagers(requestId, command)
+    enqueueBridgeTask(() => handleReadVillagers(requestId, command))
     return
   }
 
   sendError(requestId, command, `${command} is not implemented`)
+}
+
+function enqueueBridgeTask(task, prioritize = false) {
+  if (prioritize) {
+    bridgeTaskQueue.unshift(task)
+  } else {
+    bridgeTaskQueue.push(task)
+  }
+  runNextBridgeTask()
+}
+
+async function runNextBridgeTask() {
+  if (bridgeTaskRunning || bridgeTaskQueue.length === 0) {
+    return
+  }
+
+  bridgeTaskRunning = true
+  const task = bridgeTaskQueue.shift()
+  try {
+    await task()
+  } finally {
+    bridgeTaskRunning = false
+    runNextBridgeTask()
+  }
 }
 
 async function handleReadStatus(requestId, command) {
@@ -551,24 +580,33 @@ function runJsonCommand(commandLine, payload, label, timeoutMs = commandTimeoutM
       maxBuffer: 1024 * 1024
     }, (error, stdout, stderr) => {
       const stderrText = String(stderr || '').trim()
+      const stdoutText = String(stdout || '').trim()
 
       if (stderrText) {
         log(`${label} stderr: ${stderrText}`)
       }
 
       if (error) {
+        try {
+          const result = JSON.parse(stdoutText)
+          if (result && result.error) {
+            reject(new Error(String(result.error)))
+            return
+          }
+        } catch (_) {
+          // Fall through to the process error when stdout is not JSON.
+        }
         reject(new Error(`${label} failed: ${stderrText || error.message}`))
         return
       }
 
-      const text = String(stdout || '').trim()
-      if (!text) {
+      if (!stdoutText) {
         reject(new Error(`${label} returned empty output`))
         return
       }
 
       try {
-        resolve(JSON.parse(text))
+        resolve(JSON.parse(stdoutText))
       } catch (parseError) {
         reject(new Error(`${label} must output valid JSON`))
       }
