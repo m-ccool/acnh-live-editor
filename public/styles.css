@@ -5542,6 +5542,27 @@ body:not([data-theme='night']) .modal-filter-btn {
   flex: 1;
 }
 
+.backups-force-close-btn {
+  min-height: 34px;
+  padding: 0 12px;
+  border-color: rgba(255, 118, 132, 0.4);
+  background: rgba(170, 44, 56, 0.2);
+  color: rgba(255, 223, 226, 0.98);
+  white-space: nowrap;
+}
+
+.backups-force-close-btn:hover,
+.backups-force-close-btn:focus-visible {
+  border-color: rgba(255, 156, 168, 0.56);
+  background: rgba(206, 62, 80, 0.28);
+}
+
+body:not([data-theme='night']) .backups-force-close-btn {
+  border-color: rgba(170, 40, 56, 0.35);
+  background: rgba(206, 74, 88, 0.14);
+  color: rgba(118, 18, 32, 0.95);
+}
+
 .backups-col-head {
   display: grid;
   grid-template-columns: 1fr 130px 130px 70px 120px;

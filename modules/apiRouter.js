@@ -327,6 +327,56 @@ function createApiRouter(options = {}) {
     }
   })
 
+  router.post('/api/backups/force-close-ryujinx', async (req, res) => {
+    function runCmd(file, args) {
+      return new Promise((resolve) => {
+        execFile(file, args, { timeout: 10000 }, (error, stdout, stderr) => {
+          resolve({
+            ok: !error,
+            code: error ? (typeof error.code === 'number' ? error.code : 1) : 0,
+            stdout: String(stdout || '').trim(),
+            stderr: String(stderr || '').trim()
+          })
+        })
+      })
+    }
+
+    const isWindows = process.platform === 'win32'
+    const closeResult = isWindows
+      ? await runCmd('taskkill', ['/IM', 'Ryujinx.exe', '/F'])
+      : await runCmd('pkill', ['-f', '[Rr]yujinx'])
+
+    const verifyResult = isWindows
+      ? await runCmd('tasklist', ['/FI', 'IMAGENAME eq Ryujinx.exe'])
+      : await runCmd('pgrep', ['-f', '[Rr]yujinx'])
+
+    let runningAfter = false
+    if (isWindows) {
+      runningAfter = /Ryujinx\.exe/i.test(verifyResult.stdout)
+    } else {
+      runningAfter = verifyResult.ok
+    }
+
+    if (runningAfter) {
+      res.status(500).json({
+        ok: false,
+        error: 'Unable to force-close Ryujinx. Please close it manually.',
+        closeCode: closeResult.code,
+        verifyCode: verifyResult.code
+      })
+      return
+    }
+
+    // pkill/taskkill return non-zero if no process existed; treat as already closed.
+    const hadProcess = closeResult.ok || !/no running instance|not found|not running|no process/i.test(`${closeResult.stdout} ${closeResult.stderr}`)
+
+    res.json({
+      ok: true,
+      closed: hadProcess,
+      message: hadProcess ? 'Ryujinx force-closed.' : 'Ryujinx was already closed.'
+    })
+  })
+
   router.post('/api/backups/:id/restore', async (req, res) => {
     const id = String(req.params.id || '').trim()
     if (!id || !/^[\w\-]+$/.test(id)) {

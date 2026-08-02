@@ -891,6 +891,7 @@ function cacheDom() {
   el.backupsList = document.getElementById('backups-list');
   el.backupsCreateBtn = document.getElementById('backups-create-btn');
   el.backupsStatusMsg = document.getElementById('backups-status-msg');
+  el.backupsForceCloseBtn = document.getElementById('backups-force-close-btn');
   el.openBackupsBtn = document.getElementById('open-backups-btn');
 
   el.playerModal = document.getElementById('player-modal');

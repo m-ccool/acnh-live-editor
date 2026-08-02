@@ -1384,6 +1384,42 @@ function bindBackupEvents() {
   if (el.backupsCreateBtn) {
     el.backupsCreateBtn.addEventListener('click', handleCreateBackup);
   }
+
+  if (el.backupsForceCloseBtn) {
+    el.backupsForceCloseBtn.addEventListener('click', handleForceCloseRyujinxForBackups);
+  }
+}
+
+function shouldShowBackupsForceClose(statusMessage) {
+  const msg = String(statusMessage || '').toLowerCase();
+  return msg.includes('ryujinx must be closed before managing save backups');
+}
+
+async function handleForceCloseRyujinxForBackups() {
+  if (!el.backupsForceCloseBtn) return;
+
+  el.backupsForceCloseBtn.disabled = true;
+  setBackupsStatus('Force closing Ryujinx…');
+
+  try {
+    const res = await apiFetch('/api/backups/force-close-ryujinx', {
+      method: 'POST'
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false) {
+      throw new Error(data.error || `HTTP ${res.status}`);
+    }
+
+    if (data.closed) {
+      setBackupsStatus('Ryujinx closed. Retry your backup action.');
+    } else {
+      setBackupsStatus('Ryujinx was already closed. Retry your backup action.');
+    }
+  } catch (err) {
+    setBackupsStatus(`Force close error: ${err.message}`);
+  } finally {
+    el.backupsForceCloseBtn.disabled = false;
+  }
 }
 
 async function loadBackupsList() {
@@ -1580,6 +1616,9 @@ async function handleDeleteBackup(id) {
 
 function setBackupsStatus(msg) {
   if (el.backupsStatusMsg) el.backupsStatusMsg.textContent = msg;
+  if (el.backupsForceCloseBtn) {
+    el.backupsForceCloseBtn.hidden = !shouldShowBackupsForceClose(msg);
+  }
 }
 
 function formatBackupDate(iso) {
