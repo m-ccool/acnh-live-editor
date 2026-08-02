@@ -342,13 +342,23 @@ function createApiRouter(options = {}) {
     }
 
     const isWindows = process.platform === 'win32'
-    const closeResult = isWindows
-      ? await runCmd('taskkill', ['/IM', 'Ryujinx.exe', '/F'])
-      : await runCmd('pkill', ['-f', '[Rr]yujinx'])
+    let closeResult
+    let verifyResult
 
-    const verifyResult = isWindows
-      ? await runCmd('tasklist', ['/FI', 'IMAGENAME eq Ryujinx.exe'])
-      : await runCmd('pgrep', ['-f', '[Rr]yujinx'])
+    if (isWindows) {
+      closeResult = await runCmd('taskkill', ['/IM', 'Ryujinx.exe', '/F'])
+      verifyResult = await runCmd('tasklist', ['/FI', 'IMAGENAME eq Ryujinx.exe'])
+    } else {
+      // Match process name exactly so we do not catch unrelated commands that
+      // contain "ryujinx" in args or environment variable names.
+      const closePrimary = await runCmd('pkill', ['-x', 'Ryujinx'])
+      const closeSecondary = closePrimary.ok ? null : await runCmd('pkill', ['-x', 'ryujinx'])
+      closeResult = closePrimary.ok ? closePrimary : (closeSecondary || closePrimary)
+
+      const verifyPrimary = await runCmd('pgrep', ['-x', 'Ryujinx'])
+      const verifySecondary = verifyPrimary.ok ? null : await runCmd('pgrep', ['-x', 'ryujinx'])
+      verifyResult = verifyPrimary.ok ? verifyPrimary : (verifySecondary || verifyPrimary)
+    }
 
     let runningAfter = false
     if (isWindows) {
