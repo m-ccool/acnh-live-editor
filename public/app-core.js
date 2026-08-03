@@ -11,6 +11,7 @@ const THEME_SUNRISE = 'sunrise';
 const THEME_NIGHT = 'night';
 const DEFAULT_MUSIC_RIBBON_TOP_VH = 56;
 const DEFAULT_LOG_PANEL_HEIGHT_VH = 13;
+const DEFAULT_LOG_PANEL_COLLAPSED_VH = 4.8;
 const DEFAULT_MUSIC_LIBRARY = Object.freeze({
   defaultNightTrackId: 'ambient-4am-rainy',
   defaultSunriseTrackId: 'sunrise-animal-crossing-theme',
@@ -202,6 +203,8 @@ const state = {
   playerModalSection: 'player',
   playerFlagsTab: 'recipes',
   logPanelHeightVh: DEFAULT_LOG_PANEL_HEIGHT_VH,
+  logPanelExpanded: false,
+  logPanelFocusedDefault: false,
   quickCheats: { ...DEFAULT_QUICK_CHEATS },
   music: {
     ...DEFAULT_MUSIC_STATE,
@@ -1573,11 +1576,11 @@ function bindEvents() {
     });
   }
 
-  if (el.cmdLogNotifications) {
-    el.cmdLogNotifications.addEventListener('click', (event) => {
-      const row = event.target && event.target.closest ? event.target.closest('.cmd-log-notice.is-hex') : null;
-      if (!row) return;
-      focusSelectedHexInCmd();
+  if (el.bridgeStatus) {
+    el.bridgeStatus.addEventListener('click', () => {
+      state.logPanelExpanded = true;
+      renderLogPanelSize();
+      focusCmdOutput();
     });
   }
 
@@ -1848,20 +1851,20 @@ function handleLogPanelResizeEnd(event) {
 
 function normalizeLogPanelHeightVh(value) {
   if (!Number.isFinite(value)) return DEFAULT_LOG_PANEL_HEIGHT_VH;
-  return Math.min(Math.max(value, 13), 42);
+  return Math.min(Math.max(value, DEFAULT_LOG_PANEL_COLLAPSED_VH), 42);
 }
 
 function renderLogPanelSize() {
   if (!el.bridgeStatus) return;
   state.logPanelHeightVh = normalizeLogPanelHeightVh(state.logPanelHeightVh);
-  el.bridgeStatus.style.setProperty('--log-console-height', `${state.logPanelHeightVh.toFixed(2)}vh`);
+  const nextVh = state.logPanelExpanded
+    ? state.logPanelHeightVh
+    : DEFAULT_LOG_PANEL_COLLAPSED_VH;
+  el.bridgeStatus.style.setProperty('--log-console-height', `${nextVh.toFixed(2)}vh`);
 }
 
-function focusSelectedHexInCmd() {
+function focusCmdOutput() {
   if (!el.bridgeStatus) return;
-  state.logPanelHeightVh = normalizeLogPanelHeightVh(Math.max(state.logPanelHeightVh, 34));
-  renderLogPanelSize();
-  el.bridgeStatus.scrollTop = 0;
   if (!el.bridgeStatus.hasAttribute('tabindex')) {
     el.bridgeStatus.setAttribute('tabindex', '-1');
   }
@@ -2137,13 +2140,9 @@ function renderCmdLogNotifications() {
   if (!el.cmdLogNotifications) return;
 
   const notifications = Array.isArray(state.cmdLogNotifications) ? state.cmdLogNotifications : [];
-  const selectedSlot = typeof getSelectedSlot === 'function' ? getSelectedSlot() : null;
-  const selectedHex = selectedSlot && selectedSlot.hex ? String(selectedSlot.hex).trim() : '00000000';
-  const selectedHexNotice = `<button type="button" class="cmd-log-notice is-hex" title="Focus command log"><span class="cmd-log-notice-time">HEX</span><span class="cmd-log-notice-text">${escapeHtml(selectedHex)}</span></button>`;
-
   if (!notifications.length) {
-    el.cmdLogNotifications.hidden = false;
-    el.cmdLogNotifications.innerHTML = selectedHexNotice;
+    el.cmdLogNotifications.hidden = true;
+    el.cmdLogNotifications.innerHTML = '';
     return;
   }
 
@@ -2155,7 +2154,7 @@ function renderCmdLogNotifications() {
     .join('');
 
   el.cmdLogNotifications.hidden = false;
-  el.cmdLogNotifications.innerHTML = `${selectedHexNotice}${html}`;
+  el.cmdLogNotifications.innerHTML = html;
 }
 
 function renderBridge() {
@@ -2286,6 +2285,7 @@ function renderBridge() {
   }
 
   const selectedSlot = getSelectedSlot();
+  const selectedPayload = buildSelectedSlotPayload(selectedSlot);
   const bridgeCapabilities = Array.isArray(bridgeView.capabilities)
     ? bridgeView.capabilities.map((entry) => String(entry || '').trim().toLowerCase()).filter(Boolean)
     : [];
@@ -2297,6 +2297,15 @@ function renderBridge() {
   }
 
   const block = {
+    selectedSlot: selectedPayload.selectedSlot,
+    selectedItem: selectedPayload.selectedItem,
+    itemId: selectedPayload.itemId,
+    internalId: selectedPayload.internalId,
+    hex: selectedPayload.hex,
+    count: selectedPayload.count,
+    uses: selectedPayload.uses,
+    flag0: selectedPayload.flag0,
+    flag1: selectedPayload.flag1,
     connected: bridgeView.connected,
     ip: bridgeView.ip,
     listenerIp: bridgeView.listenerIp,
@@ -2326,7 +2335,6 @@ function renderBridge() {
     catalogLabel: catalogView.label,
     itemCount: catalogView.searchableCount || state.items.length,
     quickCheats: getEnabledQuickCheatSummary(),
-    ...buildSelectedSlotPayload(selectedSlot),
     message: bridgeView.message,
     lastError: bridgeView.lastError,
     lastCommand: bridgeView.lastCommand,
@@ -2336,6 +2344,14 @@ function renderBridge() {
   };
 
   el.bridgeStatus.textContent = JSON.stringify(block, null, 2);
+
+  if (!state.logPanelExpanded) {
+    el.bridgeStatus.scrollTop = 0;
+    if (!state.logPanelFocusedDefault) {
+      focusCmdOutput();
+      state.logPanelFocusedDefault = true;
+    }
+  }
 }
 
 function renderVillagers() {

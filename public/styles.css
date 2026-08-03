@@ -2082,9 +2082,6 @@ body[data-theme='night'] .log-panel {
 }
 
 .cmd-log-notice {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 100%;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
@@ -2094,19 +2091,6 @@ body[data-theme='night'] .log-panel {
   border-radius: 10px;
   border: 1px solid rgba(255,255,255,0.08);
   background: rgba(255,255,255,0.04);
-  text-align: left;
-}
-
-.cmd-log-notice.is-hex {
-  border-color: rgba(136, 190, 255, 0.45);
-  background: rgba(72, 118, 214, 0.2);
-  cursor: pointer;
-}
-
-.cmd-log-notice.is-hex .cmd-log-notice-time,
-.cmd-log-notice.is-hex .cmd-log-notice-text {
-  color: rgba(228, 239, 255, 0.98);
-  font-weight: 600;
 }
 
 .cmd-log-notice-time {
@@ -2157,16 +2141,6 @@ body:not([data-theme='night']) .cmd-log-notice.is-error {
 body:not([data-theme='night']) .cmd-log-notice.is-error .cmd-log-notice-time,
 body:not([data-theme='night']) .cmd-log-notice.is-error .cmd-log-notice-text {
   color: rgba(122, 24, 36, 0.95);
-}
-
-body:not([data-theme='night']) .cmd-log-notice.is-hex {
-  border-color: rgba(66, 126, 220, 0.35);
-  background: rgba(116, 162, 236, 0.18);
-}
-
-body:not([data-theme='night']) .cmd-log-notice.is-hex .cmd-log-notice-time,
-body:not([data-theme='night']) .cmd-log-notice.is-hex .cmd-log-notice-text {
-  color: rgba(20, 48, 92, 0.96);
 }
 
 .log-panel-resize-handle {

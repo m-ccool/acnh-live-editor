@@ -911,9 +911,6 @@ function openItemModalForSelectedSlot() {
   }
   renderItemModal();
   openModal(el.itemModal);
-  if (typeof focusSelectedHexInCmd === 'function') {
-    focusSelectedHexInCmd();
-  }
 }
 
 async function applyItemEdits(options = {}) {
