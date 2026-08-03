@@ -1850,10 +1850,22 @@ let _invQsBlurTimerId = null;
 // doesn't race the row's click and swallow the tap (mobile assign bug).
 let _invQsRowPointerActive = false;
 
+function setInvQuickSearchOpen(isOpen) {
+  const input = el.invQuickSearch;
+  const results = el.invQuickSearchResults;
+  if (!results) return;
+
+  results.hidden = false;
+  results.classList.toggle('is-collapsed', !isOpen);
+  results.setAttribute('aria-hidden', String(!isOpen));
+  if (input) input.setAttribute('aria-expanded', String(isOpen));
+}
+
 function initInvQuickSearch() {
   const input = el.invQuickSearch;
   const results = el.invQuickSearchResults;
   if (!input || !results) return;
+  setInvQuickSearchOpen(false);
 
   input.addEventListener('input', () => {
     clearTimeout(_invQsDebounceId);
@@ -1863,24 +1875,21 @@ function initInvQuickSearch() {
   input.addEventListener('focus', () => {
     clearTimeout(_invQsBlurTimerId);
     if (input.value.trim()) {
-      results.hidden = false;
-      input.setAttribute('aria-expanded', 'true');
+      setInvQuickSearchOpen(true);
     }
   });
 
   input.addEventListener('blur', () => {
     _invQsBlurTimerId = setTimeout(() => {
       if (_invQsRowPointerActive) return;
-      results.hidden = true;
-      input.setAttribute('aria-expanded', 'false');
+      setInvQuickSearchOpen(false);
     }, 180);
   });
 
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       input.value = '';
-      results.hidden = true;
-      input.setAttribute('aria-expanded', 'false');
+      setInvQuickSearchOpen(false);
       input.blur();
     }
   });

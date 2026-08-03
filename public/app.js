@@ -531,14 +531,14 @@ function spawnShootingStar(shouldReschedule = false) {
 }
 
 function finishBoot() {
-  window.setTimeout(() => {
+  window.requestAnimationFrame(() => {
     // Remove loading screen from the paint tree after its opacity transition finishes.
     el.loadingScreen.addEventListener('transitionend', () => {
       el.loadingScreen.style.display = 'none';
     }, { once: true });
     el.loadingScreen.classList.add('hidden');
     el.appRoot.classList.remove('app-hidden');
-  }, 700);
+  });
 }
 
 function formatNumber(value) {
@@ -1564,8 +1564,7 @@ async function runInvQuickSearch(rawQuery) {
 
   if (!query) {
     if (typeof setUiLoading === 'function') setUiLoading('search', false);
-    results.hidden = true;
-    input.setAttribute('aria-expanded', 'false');
+    setInvQuickSearchOpen(false);
     return;
   }
 
@@ -1588,8 +1587,7 @@ async function runInvQuickSearch(rawQuery) {
     '<div class="inv-qsr-row is-skeleton" aria-hidden="true"><span class="inv-qsr-img skeleton-block"></span><span class="inv-qsr-name skeleton-line"></span><span class="inv-qsr-cat skeleton-line"></span></div>',
     '<div class="inv-qsr-row is-skeleton" aria-hidden="true"><span class="inv-qsr-img skeleton-block"></span><span class="inv-qsr-name skeleton-line"></span><span class="inv-qsr-cat skeleton-line"></span></div>'
   ].join('');
-  results.hidden = false;
-  input.setAttribute('aria-expanded', 'true');
+  setInvQuickSearchOpen(true);
 
   try {
     const params = new URLSearchParams({ q: query, filter: 'all', limit: String(INV_QS_LIMIT) });
@@ -1623,8 +1621,7 @@ function renderInvQuickSearchResults(items) {
 
   if (!items.length) {
     results.innerHTML = '<div class="inv-qsr-empty">No items found</div>';
-    results.hidden = false;
-    if (input) input.setAttribute('aria-expanded', 'true');
+    setInvQuickSearchOpen(true);
     return;
   }
 
@@ -1647,9 +1644,8 @@ function renderInvQuickSearchResults(items) {
       // If the tap didn't result in a click (e.g. a scroll/drag), the blur
       // handler bailed out earlier — settle the closed state here instead.
       window.setTimeout(() => {
-        if (document.activeElement !== input && !results.hidden) {
-          results.hidden = true;
-          input.setAttribute('aria-expanded', 'false');
+        if (document.activeElement !== input && !results.classList.contains('is-collapsed')) {
+          setInvQuickSearchOpen(false);
         }
       }, 60);
     };
@@ -1670,15 +1666,14 @@ function renderInvQuickSearchResults(items) {
 
   results.innerHTML = '';
   results.appendChild(frag);
-  results.hidden = false;
-  if (input) input.setAttribute('aria-expanded', 'true');
+  setInvQuickSearchOpen(true);
 }
 
 async function quickAssignItem(item) {
   const input = el.invQuickSearch;
   const results = el.invQuickSearchResults;
-  if (input) { input.value = ''; input.setAttribute('aria-expanded', 'false'); }
-  if (results) results.hidden = true;
+  if (input) input.value = '';
+  if (results) setInvQuickSearchOpen(false);
 
   const slot = getSelectedSlot();
   if (!slot) return;

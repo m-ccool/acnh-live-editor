@@ -770,6 +770,7 @@ function renderItemModal() {
 
 function renderItemModalResults() {
   el.modalResultsList.classList.toggle('is-collapsed', !state.modalSearchOpen);
+  el.modalFilterButtons.classList.toggle('is-collapsed', !state.modalSearchOpen);
   renderModalFilterButtons();
 
   const results = state.catalog.modalResults.slice(0, MODAL_SEARCH_LIMIT);

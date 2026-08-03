@@ -1,4 +1,5 @@
 const express = require('express')
+const compression = require('compression')
 const dgram = require('dgram')
 const http = require('http')
 const path = require('path')
@@ -42,6 +43,7 @@ app.use((req, res, next) => {
   next()
 })
 
+app.use(compression())
 app.use(express.static(publicDir, { index: false }))
 app.use(express.json())
 app.use(createApiRouter({ getPreferredLocalIp }))
