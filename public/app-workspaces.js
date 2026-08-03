@@ -1744,6 +1744,18 @@ function renderVillagersPanel(villagers) {
 
   if (badge) badge.textContent = `${occupied.length} / ${MAX_VILLAGER_SLOTS}`;
 
+  // Skip DOM rebuild if roster data has not changed — prevents visible flash
+  // and image reload on every background poll.
+  const signature = JSON.stringify(slotVillagers.map(v => v && [
+    v.slot, v.name, v.gender, v.personalityName, v.speciesName,
+    v.friendship, v.friendshipTier, v.catchphrase, v.movingOut,
+    hasAssociatedVillagerHouse(v)
+  ]));
+  if (roster.dataset.villagerSignature === signature && roster.querySelector('.villager-card:not(.villager-card-skeleton)')) {
+    return;
+  }
+  roster.dataset.villagerSignature = signature;
+
   roster.innerHTML = '';
 
   slotVillagers.forEach((v) => {
@@ -1882,8 +1894,8 @@ async function loadVillagersFromBridge() {
 
 const VILLAGER_REFRESH_KEY = 'acnh-villager-refresh-ms';
 function getVillagerRefreshMs() {
-  const v = parseInt(localStorage.getItem(VILLAGER_REFRESH_KEY) || '30000', 10);
-  return isNaN(v) || v < 0 ? 30000 : v;
+  const v = parseInt(localStorage.getItem(VILLAGER_REFRESH_KEY) || '60000', 10);
+  return isNaN(v) || v < 0 ? 60000 : v;
 }
 
 let _villagerRefreshTimer = null;

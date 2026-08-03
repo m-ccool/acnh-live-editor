@@ -2,6 +2,47 @@
     "github.copilot.chat.codeGeneration.instructions": [
         { "file": "instructions.md" }
     ],
+    "files.watcherExclude": {
+        "**/.git/objects/**": true,
+        "**/.git/subtree-cache/**": true,
+        "**/node_modules/**": true,
+        "**/test-results/**": true,
+        "**/data/nookipedia-items-cache.json": true,
+        "**/data/music-library-cache.json": true,
+        "**/data/villager-backups/**": true,
+        "**/data/save-backups/**": true,
+        "**/data/user-assets/**": true,
+        "**/imports/**": true,
+        "**/public/vendor/**": true,
+        "**/public/assets/items/**": true,
+        "**/.codex-temp/**": true
+    },
+    "search.exclude": {
+        "**/node_modules": true,
+        "**/test-results": true,
+        "**/data/nookipedia-items-cache.json": true,
+        "**/data/music-library-cache.json": true,
+        "**/data/villager-backups": true,
+        "**/data/save-backups": true,
+        "**/data/user-assets": true,
+        "**/imports": true,
+        "**/public/vendor": true,
+        "**/public/assets/items": true,
+        "**/.codex-temp": true
+    },
+    "files.exclude": {
+        "**/test-results": true,
+        "**/.codex-temp": true
+    },
+    "files.associations": {
+        "**/data/nookipedia-items-cache.json": "plaintext",
+        "**/data/music-library-cache.json": "plaintext",
+        "**/imports/catalogue-export.json": "plaintext"
+    },
+    "json.schemas": [],
+    "typescript.tsserver.watchOptions": {
+        "excludeDirectories": ["**/test-results", "**/node_modules", "**/data/villager-backups", "**/data/save-backups"]
+    },
     "chat.tools.terminal.autoApprove": {
         "/^cd C:\\\\Users\\\\mccoo\\\\OneDrive\\\\Developer\\\\acnh-live-editor; node -e \"\nconst https = require\\('https'\\);\nfunction get\\(url\\) \\{\n  return new Promise\\(\\(res, rej\\) => \\{\n    https\\.get\\(url, r => \\{\n      let body = '';\n      r\\.on\\('data', c => body \\+= c\\);\n      r\\.on\\('end', \\(\\) => \\{ res\\(\\{status: r\\.statusCode, raw: body\\.slice\\(0,300\\)\\}\\); \\}\\);\n    \\}\\)\\.on\\('error', e => res\\(\\{err: e\\.message\\}\\)\\);\n  \\}\\);\n\\}\n// Try acnhapi\\.com item list\nget\\('https://acnhapi\\.com/v1/items'\\)\\.then\\(r => console\\.log\\('acnhapi:', r\\.status, r\\.raw\\)\\);\n\"$/": {
             "approve": true,
