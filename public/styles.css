@@ -6816,57 +6816,19 @@ body[data-theme='night'] .item-modal-artbox {
 }
 
 .item-modal-name {
-  margin-bottom: 14px;
+  margin-bottom: 0;
   font-size: 1.02rem;
   font-weight: 500;
 }
 
-.item-modal-payload-block {
-  display: grid;
-  gap: 0;
-}
-
-.item-modal-payload-block.is-expanded .modal-payload-console {
-  max-height: 320px;
-  opacity: 1;
-}
-
-#item-modal .item-modal-payload-block:not(.is-expanded) .modal-payload-console {
-  min-height: 0;
-  max-height: 0;
-  overflow: hidden;
-  padding-block: 0;
-  border-width: 0;
-  opacity: 0;
-}
-
-.item-modal-payload-label {
-  color: var(--text-muted);
-  font-size: 0.88rem;
-  cursor: pointer;
-  border: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 10px;
-  min-height: 34px;
-  border: 1px solid var(--glass-edge-soft);
-  border-radius: 10px;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.012)),
-    var(--surface);
-}
-
 .modal-payload-console {
   margin: 0;
-  min-height: 80px;
-  max-height: 80px;
+  height: clamp(52px, 13vh, 96px);
   overflow: auto;
   padding: 10px 12px;
   font-size: 13px;
   white-space: pre-wrap;
   tab-size: 2;
-  transition: max-height 0.2s var(--ease), opacity 0.16s var(--ease), padding 0.2s var(--ease);
 }
 
 .item-modal-stats-grid {
@@ -6911,6 +6873,10 @@ body:not([data-theme='night']) .item-modal-search-row .trash-button {
 .item-modal-search-stack {
   display: grid;
   gap: 10px;
+}
+
+.item-modal-search-stack:not(:focus-within) .modal-search-filters {
+  display: none;
 }
 
 .item-modal-search-row .trash-button:hover,
@@ -7339,8 +7305,7 @@ body:not([data-theme='night']) .action-btn-solid {
   }
 
   #item-modal .modal-payload-console {
-    min-height: 0;
-    max-height: 112px;
+    height: clamp(52px, 13vh, 96px);
     padding: 10px 12px;
     font-size: 12px;
   }

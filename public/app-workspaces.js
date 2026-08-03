@@ -906,10 +906,6 @@ function openItemModalForSelectedSlot() {
   state.modalSearchOpen = false;
   state.catalog.modalResults = [];
   el.modalSearchInput.value = '';
-  if (el.modalPayloadBlock && el.modalPayloadToggle) {
-    el.modalPayloadBlock.classList.remove('is-expanded');
-    el.modalPayloadToggle.setAttribute('aria-expanded', 'false');
-  }
   renderItemModal();
   openModal(el.itemModal);
   renderSelectedPreview();

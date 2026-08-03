@@ -974,8 +974,6 @@ function cacheDom() {
   el.modalResultsList = document.getElementById('modal-results-list');
   el.modalSearchStack = document.querySelector('.item-modal-search-stack');
   el.modalFilterButtons = document.getElementById('modal-filter-buttons');
-  el.modalPayloadBlock = document.getElementById('item-modal-payload-block');
-  el.modalPayloadToggle = document.getElementById('modal-payload-toggle');
   el.modalSelectedPayload = document.getElementById('modal-selected-payload');
   el.clearItemButton = document.getElementById('clear-item-button');
   el.itemModalApply = document.getElementById('item-modal-apply');
@@ -1611,14 +1609,6 @@ function bindEvents() {
   if (el.itemModalApply) {
     el.itemModalApply.addEventListener('click', () => {
       applyItemEdits({ closeModalAfterWrite: false });
-    });
-  }
-
-  if (el.modalPayloadBlock && el.modalPayloadToggle) {
-    el.modalPayloadToggle.addEventListener('click', () => {
-      const nextExpanded = !el.modalPayloadBlock.classList.contains('is-expanded');
-      el.modalPayloadBlock.classList.toggle('is-expanded', nextExpanded);
-      el.modalPayloadToggle.setAttribute('aria-expanded', nextExpanded ? 'true' : 'false');
     });
   }
 

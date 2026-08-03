@@ -1085,6 +1085,8 @@
 
       <div class="item-modal-layout">
         <div class="item-modal-preview-wrap">
+          <div id="modal-item-name" class="item-modal-name">Empty slot</div>
+
           <div class="item-modal-artbox">
             <img id="modal-item-preview" alt="" />
           </div>
@@ -1121,16 +1123,11 @@
             </button>
           </div>
 
-          <section class="item-modal-payload-block" id="item-modal-payload-block">
-            <button id="modal-payload-toggle" type="button" class="item-modal-payload-label" aria-expanded="false">Selected Payload</button>
-            <pre id="modal-selected-payload" class="code-block modal-payload-console">{}</pre>
-          </section>
+          <pre id="modal-selected-payload" class="code-block modal-payload-console" aria-label="Selected item payload">{}</pre>
         </div>
 
         <div class="item-modal-main">
           <div class="item-modal-summary">
-            <div id="modal-item-name" class="item-modal-name">Empty slot</div>
-
             <div class="item-modal-stats-grid">
               <label class="field-wrap compact-field">
                 <span>Count</span>
