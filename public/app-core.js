@@ -732,8 +732,6 @@ function cacheDom() {
 
   el.catalogStatus = document.getElementById('api-status-pill');
   el.catalogStatusLabel = document.getElementById('catalog-status-label');
-  el.playerSaveBtn = document.getElementById('player-save-btn');
-  el.playerLoadBtn = document.getElementById('player-load-btn');
   el.bridgeStatusInline = document.getElementById('bridge-status-inline');
   el.ryujinxStatusChip = document.getElementById('ryujinx-status-chip');
   el.acnhDataStatusChip = document.getElementById('acnh-data-status-chip');
@@ -1419,8 +1417,6 @@ function clampFloatingRibbonPosition(ribbon, drawer, tab, left, top) {
 function bindEvents() {
   window.addEventListener('resize', renderFloatingRibbonState);
   if (el.deployButton) el.deployButton.addEventListener('click', handleConnectBridgeClick);
-  if (el.playerLoadBtn) el.playerLoadBtn.addEventListener('click', handlePlayerLoadClick);
-  if (el.playerSaveBtn) el.playerSaveBtn.addEventListener('click', handlePlayerSaveClick);
   initPresetBar();
   el.settingsButton.addEventListener('click', () => {
     openModal(el.settingsModal);

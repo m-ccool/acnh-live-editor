@@ -187,7 +187,6 @@ async function refreshBridgeGameData() {
       updateClock();
       state.playerSaveSnapshot = { ...state.player };
       renderPlayer();
-      if (typeof renderSaveLoadButtons === 'function') renderSaveLoadButtons();
       // Clear inject-pending state: bridge read confirms game has the written values
       if (typeof clearInjectPending === 'function') clearInjectPending();
       // Refresh modal inputs if player modal is open
