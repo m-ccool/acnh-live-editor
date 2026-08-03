@@ -1601,6 +1601,9 @@ function bindEvents() {
       }
 
       state.modalSearchOpen = false;
+      if (document.activeElement === el.modalSearchInput) {
+        el.modalSearchInput.blur();
+      }
       renderItemModalResults();
     });
   }
