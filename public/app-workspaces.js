@@ -286,9 +286,10 @@ function renderSelectedPreview() {
   const previewItem = rawPreviewItem
     ? (findItemByLookup(rawPreviewItem.file_name || rawPreviewItem.name, rawPreviewItem.name) || rawPreviewItem)
     : null;
+  const itemModalOpen = el.itemModal && !el.itemModal.classList.contains('hidden');
 
   if (el.selectedItemStickyImg && el.selectedItemStickyName && el.selectedItemSticky) {
-    if (previewItem) {
+    if (previewItem && !itemModalOpen) {
       el.selectedItemStickyImg.src = getPreferredItemPreviewUrl(previewItem);
       el.selectedItemStickyImg.alt = previewItem.name;
       el.selectedItemStickyName.textContent = previewItem.name;
@@ -911,6 +912,7 @@ function openItemModalForSelectedSlot() {
   }
   renderItemModal();
   openModal(el.itemModal);
+  renderSelectedPreview();
 }
 
 async function applyItemEdits(options = {}) {
@@ -1382,6 +1384,9 @@ function closeModal(modal) {
     modal.classList.remove('is-closing');
     modal.classList.add('hidden');
     syncModalState();
+    if (modal === el.itemModal) {
+      renderSelectedPreview();
+    }
   }, MODAL_CLOSE_TRANSITION_MS);
 
   syncModalState();

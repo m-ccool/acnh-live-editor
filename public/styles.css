@@ -3833,24 +3833,30 @@ body:not([data-theme='night']) .inventory-slot-stack-count {
 }
 
 .tabs-panel {
-  padding: 16px;
+  padding: 12px;
 }
 
 .tab-bar {
   display: flex;
-  gap: 2px;
+  gap: 4px;
+  padding: 4px;
   margin-bottom: 0;
+  border: 1px solid var(--glass-edge-soft);
+  border-radius: 14px;
+  background: rgba(8, 12, 26, 0.22);
 }
 
 .tab-btn {
-  min-width: 92px;
-  min-height: 36px;
-  padding: 0 14px;
+  min-width: 0;
+  min-height: 40px;
+  flex: 1 1 0;
+  padding: 0 10px;
   border: 1px solid transparent;
-  border-bottom: 0;
-  border-radius: 12px 12px 0 0;
-  background: rgba(255,255,255,0.0);
+  border-radius: 10px;
+  background: transparent;
   color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
   cursor: pointer;
   transition:
     color 0.28s var(--ease),
@@ -3863,15 +3869,14 @@ body:not([data-theme='night']) .inventory-slot-stack-count {
 
 .tab-btn.is-active {
   color: var(--text);
-  border-color: rgba(255,255,255,0.26);
+  border-color: rgba(255,255,255,0.14);
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.1), rgba(255,255,255,0.02)),
-    rgba(255,255,255,0.03);
+    linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.035)),
+    rgba(255,255,255,0.055);
   box-shadow:
-    0 0 0 1px rgba(255,255,255,0.05),
-    0 0 30px rgba(122,175,255,0.16),
-    0 0 72px rgba(122,175,255,0.12);
-  text-shadow: 0 0 16px rgba(255,255,255,0.14);
+    0 5px 16px rgba(6, 8, 20, 0.2),
+    inset 0 1px 0 rgba(255,255,255,0.12);
+  text-shadow: none;
 }
 
 body:not([data-theme='night']) .shortcut-btn.is-active,
@@ -3893,13 +3898,14 @@ body[data-theme='night'] .tab-btn.is-active {
 }
 
 .tab-panel {
-  min-height: 320px;
+  min-height: 0;
   position: relative;
-  overflow: hidden;
-  padding: 16px;
+  overflow: clip;
+  padding: 16px 4px 4px;
   border: 1px solid var(--glass-edge-soft);
-  border-radius: 0 16px 16px 16px;
-  background: var(--surface);
+  border-top: 0;
+  border-radius: 0 0 14px 14px;
+  background: rgba(10, 14, 30, 0.16);
   transition:
     opacity 0.82s cubic-bezier(.16,.84,.28,1),
     transform 0.82s cubic-bezier(.16,.84,.28,1),
@@ -3908,17 +3914,21 @@ body[data-theme='night'] .tab-btn.is-active {
 
 /* ── Tab compact bar (Village tab) ─────────────────────────────────────── */
 .tab-compact-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 20px;
-  padding: 10px 0 6px;
-  border-bottom: 1px solid rgba(255,255,255,0.07);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 0;
+  border: 0;
 }
 
 .tab-compact-field {
-  display: flex;
-  align-items: baseline;
-  gap: 5px;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--glass-edge-soft);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.035);
   font-size: 0.78rem;
 }
 
@@ -3929,11 +3939,11 @@ body[data-theme='night'] .tab-btn.is-active {
 }
 
 .tab-compact-field strong {
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
-  max-width: 120px;
+  max-width: 100%;
   text-overflow: ellipsis;
   display: inline-block;
   vertical-align: baseline;
@@ -3998,17 +4008,21 @@ body[data-theme='night'] .tab-btn.is-active {
 }
 
 .tab-panel-copy h3 {
-  margin: 0 0 8px;
+  margin: 0;
+  font-size: 1.02rem;
+  letter-spacing: 0;
 }
 
 .tab-panel-copy p {
-  margin: 0;
+  margin: 4px 0 0;
+  max-width: 56ch;
+  font-size: var(--font-size-sm);
   color: var(--text-muted);
 }
 
 .tab-layout {
   display: grid;
-  gap: 18px;
+  gap: 12px;
 }
 
 .tab-dual-grid {
@@ -4017,7 +4031,7 @@ body[data-theme='night'] .tab-btn.is-active {
 }
 
 .tab-dual-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
 }
 
 .tab-card {
@@ -4036,13 +4050,13 @@ body[data-theme='night'] .tab-btn.is-active {
 }
 
 .tab-card {
-  padding: 16px;
+  padding: 14px;
 }
 
 .tab-card h4 {
-  margin: 0 0 14px;
-  font-size: 0.95rem;
-  font-weight: 500;
+  margin: 0 0 10px;
+  font-size: var(--font-size-sm);
+  font-weight: 650;
 }
 
 .tab-list,
@@ -7481,8 +7495,8 @@ body:not([data-theme='night']) .action-btn-solid {
 
 .villager-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: var(--space-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
   width: 100%;
 }
 
@@ -7501,9 +7515,12 @@ body:not([data-theme='night']) .action-btn-solid {
   border: 1px solid var(--glass-edge-soft);
   border-radius: var(--radius-md);
   display: flex;
-  flex-direction: row;
-  gap: 1rem;
-  padding: 1rem;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 10px;
+  text-align: center;
   position: relative;
   box-shadow: var(--glass-shadow);
   backdrop-filter: blur(16px) saturate(125%);
@@ -7532,9 +7549,10 @@ body:not([data-theme='night']) .action-btn-solid {
 }
 
 .villager-card.is-empty.is-editable {
-  opacity: 0.5;
-  justify-content: flex-start;
-  gap: 0.9rem;
+  min-height: 154px;
+  opacity: 0.62;
+  justify-content: center;
+  gap: 8px;
 }
 
 .villager-card.is-house-locked {
@@ -7542,9 +7560,9 @@ body:not([data-theme='night']) .action-btn-solid {
 }
 
 .villager-house-lock {
-  position: absolute;
-  top: 0.45rem;
-  right: 0.6rem;
+  position: static;
+  order: 3;
+  max-width: 100%;
   font-size: 0.64rem;
   border-radius: 999px;
   padding: 0.14rem 0.42rem;
@@ -7574,8 +7592,8 @@ body:not([data-theme='night']) .action-btn-solid {
 }
 
 .villager-avatar {
-  width: 68px;
-  height: 68px;
+  width: 56px;
+  height: 56px;
   flex-shrink: 0;
   border-radius: 50%;
   background: rgba(255,255,255,0.05);
@@ -7593,8 +7611,8 @@ body:not([data-theme='night']) .action-btn-solid {
 }
 
 .villager-avatar-placeholder {
-  width: 68px;
-  height: 68px;
+  width: 56px;
+  height: 56px;
   flex-shrink: 0;
   border-radius: 50%;
   background: rgba(255,255,255,0.07);
@@ -7606,48 +7624,25 @@ body:not([data-theme='night']) .action-btn-solid {
   color: rgba(255,255,255,0.3);
 }
 
-/* Mobile: stack icon on top, info below */
-@media (max-width: 540px) {
-  .villager-card {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 0.6rem;
-    padding: 0.85rem;
-  }
-  .villager-avatar,
-  .villager-avatar-placeholder {
-    width: 80px;
-    height: 80px;
-  }
-  .villager-body {
-    width: 100%;
-  }
-  .villager-name-row {
-    justify-content: center;
-  }
-  .villager-friendship-row {
-    justify-content: center;
-  }
-}
-
 .villager-body {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  width: 100%;
+  gap: 4px;
 }
 
 .villager-name-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+  flex-wrap: nowrap;
 }
 
 .villager-name {
-  font-size: 1.05rem;
+  font-size: 0.92rem;
   font-weight: 700;
   color: #fff;
   white-space: nowrap;
@@ -7661,22 +7656,26 @@ body:not([data-theme='night']) .action-btn-solid {
 }
 
 .villager-species {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: rgba(255,255,255,0.5);
 }
 
 .villager-personality-badge {
   display: inline-block;
-  border-radius: 6px;
-  padding: 0.1em 0.5em;
-  font-size: 0.72rem;
+  border-radius: 999px;
+  padding: 0.14em 0.45em;
+  font-size: 0.64rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   color: #000;
 }
 
 .villager-catchphrase {
-  font-size: 0.82rem;
+  min-height: 1.2em;
+  overflow: hidden;
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: rgba(255,255,255,0.55);
   font-style: italic;
 }
@@ -7684,8 +7683,8 @@ body:not([data-theme='night']) .action-btn-solid {
 .villager-friendship-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-top: 0.2rem;
+  gap: 4px;
+  margin-top: 2px;
 }
 
 .villager-friendship-bar-track {
@@ -7704,7 +7703,7 @@ body:not([data-theme='night']) .action-btn-solid {
 }
 
 .villager-friendship-tier {
-  font-size: 0.72rem;
+  display: none;
   color: rgba(255,255,255,0.45);
   white-space: nowrap;
 }
@@ -7720,6 +7719,34 @@ body:not([data-theme='night']) .action-btn-solid {
   padding: 0.1em 0.45em;
   font-weight: 700;
   letter-spacing: 0.04em;
+}
+
+@media (min-width: 560px) {
+  .tabs-panel { padding: 16px; }
+  .tab-panel { padding: 18px 2px 2px; }
+  .tab-compact-bar { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .villager-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .villager-card {
+    flex-direction: row;
+    align-items: center;
+    padding: 14px;
+    text-align: left;
+  }
+  .villager-card.is-empty.is-editable { min-height: 0; justify-content: flex-start; }
+  .villager-house-lock { position: absolute; top: 8px; right: 8px; }
+  .villager-avatar, .villager-avatar-placeholder { width: 62px; height: 62px; }
+  .villager-body { gap: 5px; }
+  .villager-name-row { justify-content: flex-start; flex-wrap: wrap; gap: 5px; }
+  .villager-name { font-size: 1rem; }
+  .villager-species { font-size: 0.78rem; }
+  .villager-catchphrase { font-size: 0.78rem; }
+  .villager-friendship-tier { display: inline; font-size: 0.68rem; }
+}
+
+@media (min-width: 860px) {
+  .tab-compact-bar { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .tab-dual-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .villager-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 
