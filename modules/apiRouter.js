@@ -25,6 +25,13 @@ const {
 const {
   getMusicLibrary
 } = require('./musicLibrary')
+const {
+  cacheVillagerAssets,
+  getAssetStatus,
+  getCachedAsset,
+  getRemoteAssetUrl,
+  normalizeVillagerName
+} = require('./userAssetCache')
 
 
 function resolveAppVersion() {
@@ -432,21 +439,41 @@ function createApiRouter(options = {}) {
     }
   })
 
+  router.get('/api/user-assets/status', (req, res) => {
+    res.json({ ok: true, ...getAssetStatus() })
+  })
+
+  router.post('/api/user-assets/download', async (req, res) => {
+    try {
+      let names = Array.isArray(req.body && req.body.names) ? req.body.names : []
+      if (!names.length) {
+        const result = await bridgeService.readVillagers()
+        const villagers = result && result.payload && Array.isArray(result.payload.villagers)
+          ? result.payload.villagers
+          : []
+        names = villagers.map((villager) => villager && villager.name)
+      }
+
+      const cache = await cacheVillagerAssets(names)
+      res.json({ ok: true, ...cache })
+    } catch (error) {
+      res.status(502).json({ ok: false, error: error.message })
+    }
+  })
+
   // Proxy villager head icons from Nookipedia CDN (dodo.ac).
   // Path is derived from MediaWiki MD5 hash of the filename — no API key needed.
   // Filename pattern: {DisplayName}_NH_Villager_Icon.png
   router.get('/api/villager-icon/:name', (req, res) => {
-    const name = req.params.name.replace(/[^a-zA-Z0-9 _'\-]/g, '').trim()
+    const name = normalizeVillagerName(req.params.name)
     if (!name) return res.status(400).end()
+    const cachedAsset = getCachedAsset(name, 'icon')
+    if (cachedAsset) {
+      res.setHeader('Cache-Control', 'public, max-age=86400')
+      return res.sendFile(cachedAsset)
+    }
     const https = require('https')
-    const crypto = require('crypto')
-
-    const capitalName = name.charAt(0).toUpperCase() + name.slice(1)
-    const filename = `${capitalName}_NH_Villager_Icon.png`
-    const hash = crypto.createHash('md5').update(filename).digest('hex')
-    const d1 = hash[0]
-    const d2 = hash.slice(0, 2)
-    const iconUrl = `https://dodo.ac/np/images/${d1}/${d2}/${encodeURIComponent(filename)}`
+    const iconUrl = getRemoteAssetUrl(name, 'icon')
 
     https.get(iconUrl, { headers: { 'User-Agent': 'acnh-live-editor/1.0' } }, (upstream) => {
       if (upstream.statusCode !== 200) { upstream.resume(); return res.status(404).end() }
@@ -458,17 +485,15 @@ function createApiRouter(options = {}) {
 
   // Proxy villager full-body art via Wikia CDN (same hash approach as villager-icon).
   router.get('/api/villager-art/:name', (req, res) => {
-    const name = req.params.name.replace(/[^a-zA-Z0-9 _'\-]/g, '').trim()
+    const name = normalizeVillagerName(req.params.name)
     if (!name) return res.status(400).end()
+    const cachedAsset = getCachedAsset(name, 'art')
+    if (cachedAsset) {
+      res.setHeader('Cache-Control', 'public, max-age=86400')
+      return res.sendFile(cachedAsset)
+    }
     const https = require('https')
-    const crypto = require('crypto')
-
-    const capitalName = name.charAt(0).toUpperCase() + name.slice(1)
-    const filename = `${capitalName}_NH.png`
-    const hash = crypto.createHash('md5').update(filename).digest('hex')
-    const d1 = hash[0]
-    const d2 = hash.slice(0, 2)
-    const artUrl = `https://dodo.ac/np/images/${d1}/${d2}/${encodeURIComponent(filename)}`
+    const artUrl = getRemoteAssetUrl(name, 'art')
 
     https.get(artUrl, { headers: { 'User-Agent': 'acnh-live-editor/1.0' } }, (upstream) => {
       if (upstream.statusCode !== 200) { upstream.resume(); return res.status(404).end() }

@@ -567,13 +567,14 @@ document.addEventListener('DOMContentLoaded', init);
     // ── Download-Assets green-dot indicator ──────────────────────
     async function reflectDownloadDot() {
       const dot = document.getElementById('utility-download-dot');
-      if (!dot || !('caches' in window)) return;
+      if (!dot) return;
       try {
-        const cache = await caches.open('acnh-villager-assets-v1');
-        const keys = await cache.keys();
-        dot.classList.toggle('is-ok', keys.length > 0);
+        const response = await apiFetch('/api/user-assets/status', { cache: 'no-store' });
+        const cache = response.ok ? await response.json() : null;
+        const cachedFiles = Number(cache && cache.cachedFiles) || 0;
+        dot.classList.toggle('is-ok', cachedFiles > 0);
         const hint = document.getElementById('utility-download-hint');
-        if (hint) hint.textContent = keys.length > 0 ? `${keys.length} cached` : '';
+        if (hint) hint.textContent = cachedFiles > 0 ? `${cachedFiles} stored` : '';
       } catch (_) { /* ignore */ }
     }
     reflectDownloadDot();
@@ -601,51 +602,33 @@ document.addEventListener('DOMContentLoaded', init);
     }
 
     async function runDownloadAssets(btn) {
-      if (!('caches' in window)) {
-        if (downloadHint) downloadHint.textContent = 'Cache API unavailable';
-        return;
-      }
       btn.classList.add('is-busy');
       const label = btn.querySelector('.utility-action-label');
+      const hint = document.getElementById('utility-download-hint');
       const original = label ? label.textContent : 'Download Assets';
       try {
         const villagers = Array.isArray(window.state?.villagers) ? window.state.villagers : [];
-        // Also probe API for any known villagers list if state is empty
-        const names = Array.from(new Set(villagers.map(v => v && v.name).filter(Boolean)));
-        if (names.length === 0) {
-          const res = await fetch('/api/bridge/read-villagers', { cache: 'no-store' });
-          if (res.ok) {
-            const data = await res.json().catch(() => ({}));
-            const payload = data.payload || data;
-            const bridgeVillagers = Array.isArray(payload.villagers) ? payload.villagers : [];
-            bridgeVillagers.forEach(v => { if (v && v.name) names.push(v.name); });
-          }
-        }
-        const cache = await caches.open('acnh-villager-assets-v1');
-        const urls = [];
-        names.forEach((n) => {
-          const safe = String(n).trim().replace(/[^a-zA-Z0-9 _'\-]/g, '');
-          if (!safe) return;
-          urls.push(`/api/villager-icon/${encodeURIComponent(safe)}?v=4`);
-          urls.push(`/api/villager-art/${encodeURIComponent(safe)}`);
+        const names = Array.from(new Set(villagers.map((villager) => villager && villager.name).filter(Boolean)));
+        if (label) label.textContent = 'Downloading...';
+        const response = await apiFetch('/api/user-assets/download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ names })
         });
-        let done = 0;
-        for (const url of urls) {
-          try {
-            await cache.add(url);
-          } catch (_) { /* ignore individual failures */ }
-          done += 1;
-          if (label) label.textContent = `Cached ${done}/${urls.length}`;
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || result.ok === false) {
+          throw new Error(result.error || `Download failed with status ${response.status}`);
         }
-        if (label) label.textContent = 'Assets cached';
-        if (downloadHint) downloadHint.textContent = `${done} files stored locally`;
+        if (label) label.textContent = 'Assets stored';
+        if (hint) hint.textContent = `${result.cachedFiles} stored`;
         reflectDownloadDot();
         setTimeout(() => {
           if (label) label.textContent = original;
           btn.classList.remove('is-busy');
         }, 2500);
-      } catch (err) {
-        if (label) label.textContent = 'Cache failed';
+      } catch (error) {
+        if (label) label.textContent = 'Download failed';
+        if (hint) hint.textContent = error.message;
         setTimeout(() => {
           if (label) label.textContent = original;
           btn.classList.remove('is-busy');

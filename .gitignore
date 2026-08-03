@@ -6,6 +6,8 @@
 .codex-*.log
 test-results/
 data/save-backups/
+data/user-assets/
+data/user-config.json
 data/nookipedia-items-cache.json
 data/music-library-cache.json
 __pycache__/

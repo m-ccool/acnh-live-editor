@@ -29,6 +29,7 @@ SAVE_ROOT = os.path.expanduser("~/.config/Ryujinx/bis/user/save")
 ACTIVE_SAVE_ID = "0000000000000003"
 ACTIVE_SAVE_DIR = os.path.join(SAVE_ROOT, ACTIVE_SAVE_ID)
 BACKUP_ROOT = os.path.expanduser("~/acnh-live-editor/data/save-backups")
+USER_CONFIG_PATH = os.path.expanduser("~/acnh-live-editor/data/user-config.json")
 
 SLOT_MAP = {
     "slot3_0": (ACTIVE_SAVE_DIR, "0"),
@@ -138,6 +139,12 @@ def cmd_create_backup(label=""):
             main_dat = os.path.join(dst, "main.dat")
             save_timestamps.append(os.path.getmtime(main_dat))
 
+        user_config_included = False
+        if os.path.isfile(USER_CONFIG_PATH):
+            shutil.copy2(USER_CONFIG_PATH, os.path.join(staging_dir, "user-config.json"))
+            total_bytes += os.path.getsize(USER_CONFIG_PATH)
+            user_config_included = True
+
         manifest = {
             "id": backup_id,
             "label": label or "",
@@ -147,6 +154,7 @@ def cmd_create_backup(label=""):
             ).isoformat().replace("+00:00", "Z"),
             "sizeBytes": total_bytes,
             "saveId": ACTIVE_SAVE_ID,
+            "userConfigIncluded": user_config_included,
         }
         with open(os.path.join(staging_dir, "manifest.json"), "w", encoding="utf-8") as f:
             json.dump(manifest, f, indent=2)
@@ -199,7 +207,16 @@ def cmd_restore_backup(backup_id):
         for _, rollback in rollback_paths:
             shutil.rmtree(rollback)
 
-    print(json.dumps({"ok": True, "restoredSlots": restored, "backup": manifest}))
+    backup_user_config = os.path.join(backup_dir, "user-config.json")
+    user_config_restored = False
+    if os.path.isfile(backup_user_config):
+        os.makedirs(os.path.dirname(USER_CONFIG_PATH), exist_ok=True)
+        staging_config = USER_CONFIG_PATH + ".restore-" + uuid.uuid4().hex
+        shutil.copy2(backup_user_config, staging_config)
+        os.replace(staging_config, USER_CONFIG_PATH)
+        user_config_restored = True
+
+    print(json.dumps({"ok": True, "restoredSlots": restored, "userConfigRestored": user_config_restored, "backup": manifest}))
 
 
 def cmd_delete_backup(backup_id):
