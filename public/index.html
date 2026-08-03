@@ -325,21 +325,6 @@
 
         <div class="player-avatar-wrap">
           <button
-            id="player-mailbox-button"
-            class="avatar-mailbox-btn"
-            type="button"
-            aria-label="Mailbox status"
-            title="Mailbox feature coming later"
-          >
-            <img
-              src="./assets/icons/line-md--email.svg"
-              alt=""
-              class="icon-img icon-white"
-              onerror="this.style.display='none';this.parentNode.textContent='✉';"
-            />
-            <span class="avatar-mailbox-dot" aria-hidden="true"></span>
-          </button>
-          <button
             id="player-avatar-button"
             class="avatar-box avatar-button"
             type="button"
@@ -920,6 +905,16 @@
 
         <div class="player-modal-main">
           <section id="player-modal-view-player" class="player-modal-view player-modal-form-panel tab-panel">
+            <div class="player-mailbox-status" role="status" aria-label="Mailbox status unavailable until live mailbox data is connected" title="Mailbox data is not connected yet">
+              <img
+                src="./assets/icons/line-md--email.svg"
+                alt=""
+                class="icon-img icon-white"
+                onerror="this.style.display='none';this.parentNode.textContent='✉';"
+              />
+              <span>Mailbox</span>
+              <span class="player-mailbox-dot" aria-hidden="true"></span>
+            </div>
             <div class="form-grid player-modal-form-grid">
               <label class="field-wrap">
                 <span>Player Name <img src="./assets/icons/line-md--downloading-loop.svg" alt="reload required" class="reload-icon field-reload-icon" title="Takes effect after game reload" /></span>
