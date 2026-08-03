@@ -201,7 +201,6 @@ async function getCatalogItems() {
         catalogCache.lastSuccessfulSyncAt = new Date().toISOString()
         catalogCache.lastSyncError = null
         writeDiskCatalogCache(items, catalogCache.lastSuccessfulSyncAt)
-          .catch((err) => console.warn(`Failed to persist catalog cache: ${err.message}`))
         return items
       })
       .catch((error) => {
@@ -337,8 +336,8 @@ function readDiskCatalogCache() {
   }
 }
 
-async function writeDiskCatalogCache(items, updatedAt) {
-  await fs.promises.mkdir(path.dirname(DISK_CACHE_PATH), { recursive: true })
+function writeDiskCatalogCache(items, updatedAt) {
+  fs.mkdirSync(path.dirname(DISK_CACHE_PATH), { recursive: true })
 
   const payload = {
     updatedAt: String(updatedAt || new Date().toISOString()),
@@ -347,11 +346,7 @@ async function writeDiskCatalogCache(items, updatedAt) {
     items: Array.isArray(items) ? items : []
   }
 
-  // Atomic write via temp file, no indentation (~half the size, non-blocking).
-  const tmpPath = `${DISK_CACHE_PATH}.tmp`
-  await fs.promises.writeFile(tmpPath, JSON.stringify(payload), 'utf8')
-  await fs.promises.rename(tmpPath, DISK_CACHE_PATH)
-
+  fs.writeFileSync(DISK_CACHE_PATH, JSON.stringify(payload, null, 2), 'utf8')
   catalogCache.loadedDiskState = true
   catalogCache.diskState = normalizeDiskCatalogState(payload.items, payload.updatedAt)
 }

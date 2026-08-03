@@ -422,7 +422,9 @@ document.addEventListener('DOMContentLoaded', init);
     if (!panel || !trigger || !backdrop) return;
 
     const demoDataButton = panel.querySelector('[data-utility-action="demo-data"]');
-  if (demoDataButton) demoDataButton.hidden = false;
+    const isGitHubPages = location.hostname.endsWith('github.io') || location.hostname.endsWith('github.io.');
+
+    if (demoDataButton) demoDataButton.hidden = !isGitHubPages;
     renderDemoDataToggle();
 
     // The panel is authored inside #app-root for markup locality, but #app-root
@@ -1789,20 +1791,6 @@ function bindEvents() {
   window.setInterval(refreshCatalogStatus, 15000);
   window.addEventListener('resize', renderMusicRibbonPosition, { passive: true });
   window.addEventListener('resize', renderLogPanelSize, { passive: true });
-
-  // Suspend background polling while tab is hidden to avoid wasted work and
-  // stop the visible refresh flicker when the window regains focus.
-  let _wasHiddenPollWasPaused = false;
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      _wasHiddenPollWasPaused = state.bridge && state.bridge.pollPaused;
-      if (typeof pauseBridgePoll === 'function' && !_wasHiddenPollWasPaused) pauseBridgePoll();
-    } else {
-      if (typeof resumeBridgePoll === 'function' && !_wasHiddenPollWasPaused) resumeBridgePoll();
-      pollBridgeStatus();
-      if (typeof refreshCatalogStatus === 'function') refreshCatalogStatus();
-    }
-  });
 }
 
 function handlePageDragStart(event) {
