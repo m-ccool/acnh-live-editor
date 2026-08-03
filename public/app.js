@@ -223,6 +223,111 @@ async function refreshBridgeGameData() {
   }
 }
 
+function isGitHubPagesHost() {
+  return location.hostname.endsWith('github.io') || location.hostname.endsWith('github.io.');
+}
+
+function renderDemoDataToggle() {
+  const button = document.querySelector('[data-utility-action="demo-data"]');
+  if (!button) return;
+
+  const isActive = state.demoDataActive === true;
+  button.classList.toggle('is-active', isActive);
+  button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  button.title = isActive
+    ? 'Clear the committed GitHub Pages test snapshot'
+    : 'Load the committed GitHub Pages test snapshot';
+  const pill = button.querySelector('.utility-action-pill');
+  if (pill) pill.textContent = isActive ? 'ON' : 'OFF';
+}
+
+async function toggleGitHubPagesDemoData() {
+  if (!isGitHubPagesHost()) {
+    return false;
+  }
+
+  if (state.demoDataActive) {
+    state.demoDataActive = false;
+    clearLiveGameDataDisplay();
+    state.bridge.mode = 'offline';
+    state.bridge.gameDataSource = 'none';
+    state.bridge.inventorySource = 'local-cache';
+    state.bridge.lastGameSaveAt = null;
+    state.bridge.message = 'GitHub Pages test data cleared. Bridge reads and writes are unavailable.';
+    state.bridge.lastAction = 'Cleared committed GitHub Pages test snapshot';
+    renderBridge();
+    renderDerivedPanels();
+    renderDemoDataToggle();
+    persistLocalState();
+    showToast('Test data cleared');
+    return true;
+  }
+
+  try {
+    const response = await fetch('./demo/live-game-snapshot.json', { cache: 'no-store' });
+    if (!response.ok) {
+      throw new Error(`Demo snapshot returned ${response.status}`);
+    }
+
+    const snapshot = await response.json();
+    if (!snapshot || !snapshot.player || !Array.isArray(snapshot.slots) || snapshot.slots.length !== TOTAL_SLOTS) {
+      throw new Error('Demo snapshot is incomplete');
+    }
+
+    if (typeof pauseBridgePoll === 'function') {
+      pauseBridgePoll();
+    }
+
+    const bridgeSlots = normalizeBridgeInventorySlots(snapshot.slots);
+    state.player = {
+      ...state.player,
+      name: sanitizeText(snapshot.player.name, ''),
+      town: sanitizeText(snapshot.player.town, ''),
+      wallet: normalizeWholeNumber(snapshot.player.wallet, 0),
+      bank: normalizeWholeNumber(snapshot.player.bank, 0),
+      miles: normalizeWholeNumber(snapshot.player.miles, 0),
+      avatar: sanitizeText(snapshot.player.avatar, state.player.avatar),
+      gameDate: sanitizeText(snapshot.player.gameDate, ''),
+      gameTime: sanitizeText(snapshot.player.gameTime, '')
+    };
+    state.inventory = buildInventoryFromBridgeSlots(bridgeSlots);
+    state.hasUserSelectedSlot = false;
+    state.selectedSlotIndex = findFirstEmptySlotIndex(state.inventory);
+    state.playerSaveSnapshot = { ...state.player };
+    state.demoDataActive = true;
+    state.bridge.connected = false;
+    state.bridge.mode = 'demo';
+    state.bridge.gameDataSource = 'github-pages-demo';
+    state.bridge.inventorySource = 'github-pages-demo';
+    state.bridge.lastGameSaveAt = snapshot.capturedAt || null;
+    state.bridge.lastGameDataFilePath = null;
+    state.bridge.lastError = null;
+    state.bridge.message = 'GitHub Pages demo snapshot loaded. Bridge writes are unavailable.';
+    state.bridge.lastAction = 'Loaded committed GitHub Pages demo snapshot';
+
+    updateClock();
+    renderPlayer();
+    renderInventory();
+    renderSelectedPreview();
+    renderClipboardState();
+    renderItemModal();
+    renderBridge();
+    renderDerivedPanels();
+    renderDemoDataToggle();
+    persistLocalState();
+    showToast('Demo snapshot loaded');
+    return true;
+  } catch (error) {
+    state.demoDataActive = false;
+    state.bridge.lastError = error.message;
+    state.bridge.lastAction = `Demo snapshot failed: ${error.message}`;
+    renderBridge();
+    renderDemoDataToggle();
+    showToast('Demo snapshot could not be loaded');
+    return false;
+  }
+}
+
 async function refreshBridgeVillagers() {
   if (!state.bridge.connected) {
     state.villagers = [];

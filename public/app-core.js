@@ -228,6 +228,7 @@ const state = {
     library: DEFAULT_MUSIC_LIBRARY.tracks.slice()
   },
   bridgePollIntervalId: null,
+  demoDataActive: false,
   playerSaveSnapshot: null,
   villagers: [],
   pinnedPresets: JSON.parse(localStorage.getItem('acnh-pinned-presets') || 'null') || ['tools','materials'],
@@ -420,6 +421,12 @@ document.addEventListener('DOMContentLoaded', init);
 
     if (!panel || !trigger || !backdrop) return;
 
+    const demoDataButton = panel.querySelector('[data-utility-action="demo-data"]');
+    const isGitHubPages = location.hostname.endsWith('github.io') || location.hostname.endsWith('github.io.');
+
+    if (demoDataButton) demoDataButton.hidden = !isGitHubPages;
+    renderDemoDataToggle();
+
     // The panel is authored inside #app-root for markup locality, but #app-root
     // has a `transform` on it — which makes it a containing block for any
     // position:fixed descendants. That would break the panel's viewport-fixed
@@ -564,6 +571,11 @@ document.addEventListener('DOMContentLoaded', init);
           break;
         case 'cleanup':
           await runCleanupAction(btn);
+          break;
+        case 'demo-data':
+          if (typeof toggleGitHubPagesDemoData === 'function') {
+            await toggleGitHubPagesDemoData();
+          }
           break;
         case 'theme':
           document.getElementById('theme-toggle')?.click();
@@ -2493,6 +2505,13 @@ function renderBridge() {
   }
 
   const block = {
+    testData: state.demoDataActive
+      ? {
+          active: true,
+          source: 'github-pages-demo',
+          capturedAt: bridgeView.lastGameSaveAt
+        }
+      : undefined,
     hex: selectedPayload.hex,
     selectedSlot: selectedPayload.selectedSlot,
     selectedItem: selectedPayload.selectedItem,

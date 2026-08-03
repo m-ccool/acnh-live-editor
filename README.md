@@ -542,6 +542,7 @@ Confirmed in this session:
 
 - Direct live inventory write from the Steam Deck UI through the local bridge into ACNH memory is the supported workflow. Canonical slot VA writes persist on game close.
 - Player data editing (wallet, bank bells, nook miles) writes live through the bridge. Player name and town update local state; live-write support for text fields depends on bridge adapter capability.
+- GitHub Pages has one explicit demo exception: its Controls panel can load `public/demo/live-game-snapshot.json`, a committed capture of the current live player and inventory state. The control is hidden outside `github.io`, pauses bridge polling, and does not enable writes.
 
 Pinned bug:
 
