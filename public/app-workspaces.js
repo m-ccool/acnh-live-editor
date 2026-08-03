@@ -907,8 +907,8 @@ function openItemModalForSelectedSlot() {
   state.catalog.modalResults = [];
   el.modalSearchInput.value = '';
   if (el.modalPayloadBlock && el.modalPayloadToggle) {
-    el.modalPayloadBlock.classList.add('is-expanded');
-    el.modalPayloadToggle.setAttribute('aria-expanded', 'true');
+    el.modalPayloadBlock.classList.remove('is-expanded');
+    el.modalPayloadToggle.setAttribute('aria-expanded', 'false');
   }
   renderItemModal();
   openModal(el.itemModal);

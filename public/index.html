@@ -1089,6 +1089,38 @@
             <img id="modal-item-preview" alt="" />
           </div>
 
+          <div class="item-modal-search-row">
+            <div class="item-modal-search-stack">
+              <input
+                id="modal-search-input"
+                class="search-input item-search-input"
+                type="text"
+                placeholder="⌕  Search items..."
+                autocomplete="off"
+              />
+              <div id="modal-results-list" class="modal-results-list"></div>
+              <div id="modal-filter-buttons" class="modal-search-filters" role="group" aria-label="Item search filters">
+                <button type="button" class="modal-filter-btn" data-modal-filter="Tool">tools</button>
+                <button type="button" class="modal-filter-btn" data-modal-filter="Material">materials</button>
+                <button type="button" class="modal-filter-btn" data-modal-filter="Sea creature">aquatic</button>
+                <button type="button" class="modal-filter-btn" data-modal-filter="Bug">bugs</button>
+                <button type="button" class="modal-filter-btn" data-modal-filter="Fossil">fossils</button>
+                <button type="button" class="modal-filter-btn" data-modal-filter="Flora">flora</button>
+                <button type="button" class="modal-filter-btn" data-modal-filter="Furniture">furniture</button>
+                <button type="button" class="modal-filter-btn" data-modal-filter="Clothing">clothes</button>
+              </div>
+            </div>
+
+            <button id="clear-item-button" type="button" class="trash-button" aria-label="Clear slot">
+              <img
+                src="./assets/icons/line-md--trash.svg"
+                alt=""
+                class="icon-img icon-white"
+                onerror="this.style.display='none';this.parentNode.textContent='🗑';"
+              />
+            </button>
+          </div>
+
           <section class="item-modal-payload-block" id="item-modal-payload-block">
             <button id="modal-payload-toggle" type="button" class="item-modal-payload-label" aria-expanded="false">Selected Payload</button>
             <pre id="modal-selected-payload" class="code-block modal-payload-console">{}</pre>
@@ -1122,39 +1154,6 @@
             </div>
 
           </div>
-
-          <div class="item-modal-search-row">
-            <div class="item-modal-search-stack">
-              <input
-                id="modal-search-input"
-                class="search-input item-search-input"
-                type="text"
-                placeholder="⌕  Search items..."
-                autocomplete="off"
-              />
-              <div id="modal-results-list" class="modal-results-list"></div>
-              <div id="modal-filter-buttons" class="modal-search-filters" role="group" aria-label="Item search filters">
-                <button type="button" class="modal-filter-btn" data-modal-filter="Tool">tools</button>
-                <button type="button" class="modal-filter-btn" data-modal-filter="Material">materials</button>
-                <button type="button" class="modal-filter-btn" data-modal-filter="Sea creature">aquatic</button>
-                <button type="button" class="modal-filter-btn" data-modal-filter="Bug">bugs</button>
-                <button type="button" class="modal-filter-btn" data-modal-filter="Fossil">fossils</button>
-                <button type="button" class="modal-filter-btn" data-modal-filter="Flora">flora</button>
-                <button type="button" class="modal-filter-btn" data-modal-filter="Furniture">furniture</button>
-                <button type="button" class="modal-filter-btn" data-modal-filter="Clothing">clothes</button>
-              </div>
-            </div>
-
-            <button id="clear-item-button" type="button" class="trash-button" aria-label="Clear slot">
-              <img
-                src="./assets/icons/line-md--trash.svg"
-                alt=""
-                class="icon-img icon-white"
-                onerror="this.style.display='none';this.parentNode.textContent='🗑';"
-              />
-            </button>
-          </div>
-
         </div>
       </div>
     </div>
