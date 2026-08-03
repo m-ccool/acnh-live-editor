@@ -11,6 +11,7 @@
   --text: #f5f5f7;
   --text-muted: #d5d8e3;
   --good: #62d66f;
+  --indicator-green: var(--good);
   --warn: #ffd166;
   --danger: #ff5f73;
   --shadow: 0 24px 80px rgba(10, 8, 22, 0.24);
@@ -49,6 +50,7 @@
   --dur-modal: 340ms;
   --scale-press: 0.96;
   --good-glow: rgba(98, 214, 111, 0.55);
+  --indicator-green-glow: var(--good-glow);
   --warn-glow: rgba(255, 209, 102, 0.5);
   --danger-glow: rgba(255, 95, 115, 0.5);
   --backdrop-blur: 26px;
@@ -6136,8 +6138,8 @@ body[data-theme='night'] .player-modal-bust-frame {
   height: 40px;
   padding: 0 18px;
   border-radius: 14px;
-  border: 1px solid rgba(134, 241, 202, 0.32);
-  background: linear-gradient(180deg, rgba(134, 241, 202, 0.22), rgba(134, 241, 202, 0.08));
+  border: 1px solid color-mix(in srgb, var(--indicator-green) 48%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--indicator-green) 31%, transparent), color-mix(in srgb, var(--indicator-green) 12%, transparent));
   color: var(--text);
   font-size: 0.88rem;
   font-weight: 600;
@@ -6149,8 +6151,9 @@ body[data-theme='night'] .player-modal-bust-frame {
 }
 
 .modal-save-button:hover {
-  border-color: rgba(134, 241, 202, 0.5);
-  background: linear-gradient(180deg, rgba(134, 241, 202, 0.3), rgba(134, 241, 202, 0.12));
+  border-color: color-mix(in srgb, var(--indicator-green) 70%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--indicator-green) 42%, transparent), color-mix(in srgb, var(--indicator-green) 18%, transparent));
+  box-shadow: 0 0 16px color-mix(in srgb, var(--indicator-green-glow) 38%, transparent);
 }
 
 .modal-save-button:active {

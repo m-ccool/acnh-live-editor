@@ -1594,6 +1594,15 @@ function bindEvents() {
         }
       }, 0);
     });
+
+    document.addEventListener('pointerdown', (event) => {
+      if (el.itemModal.classList.contains('hidden') || el.modalSearchStack.contains(event.target)) {
+        return;
+      }
+
+      state.modalSearchOpen = false;
+      renderItemModalResults();
+    });
   }
 
   [el.modalInputCount, el.modalInputUses, el.modalInputFlag0, el.modalInputFlag1].forEach((input) => {
