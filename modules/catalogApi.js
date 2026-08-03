@@ -50,7 +50,7 @@ function searchCatalogItems(options = {}) {
   const limit = Number(options.limit || 12)
   const localItems = readLocalItems()
   const cachedItems = getCachedCatalogItems()
-  const useExpandedCatalog = query.length >= 2
+  const useExpandedCatalog = query.length >= 2 || filter.toLowerCase() !== 'all'
   const searchItems = useExpandedCatalog
     ? mergeCatalogItems(cachedItems, localItems)
     : localItems

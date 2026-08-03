@@ -372,6 +372,34 @@ document.addEventListener('DOMContentLoaded', init);
   document.addEventListener('focusin', schedule);
 })();
 
+// Brief visual haptic for deliberate control presses. It stays outside the
+// target so it cannot interfere with scrolling, dragging, or focus behavior.
+(function setupTouchFeedback() {
+  if (typeof document === 'undefined' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  const interactiveSelector = [
+    'button:not(:disabled)',
+    '[role="button"]:not([aria-disabled="true"])',
+    '[role="tab"]:not([aria-disabled="true"])',
+    '.inventory-slot:not(:disabled)',
+    '.villager-card',
+    '.selected-item-sticky'
+  ].join(',');
+
+  document.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0 || event.isPrimary === false) return;
+    const target = event.target instanceof Element ? event.target.closest(interactiveSelector) : null;
+    if (!target || target.matches('input, textarea, select') || target.closest('.log-panel-resize-handle')) return;
+
+    const burst = document.createElement('span');
+    burst.className = 'touch-feedback-burst';
+    burst.style.left = `${event.clientX}px`;
+    burst.style.top = `${event.clientY}px`;
+    document.body.appendChild(burst);
+    burst.addEventListener('animationend', () => burst.remove(), { once: true });
+  }, { passive: true });
+})();
+
 // ── Utility panel (topbar controls popover) ──────────────────────
 // Wires the single hamburger trigger to a slide-in panel that dispatches
 // actions to the (now hidden) legacy action buttons. Keeps all existing

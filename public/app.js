@@ -1430,7 +1430,8 @@ function queueModalSearch(immediate) {
 async function runModalSearch() {
   const token = ++modalSearchToken;
   const query = String(state.modalSearchQuery || '').trim();
-  const shouldUseRemoteSearch = query.length >= REMOTE_SEARCH_MIN_QUERY_LENGTH;
+  const activeFilter = String(state.modalSearchFilter || 'all');
+  const shouldUseRemoteSearch = query.length >= REMOTE_SEARCH_MIN_QUERY_LENGTH || activeFilter !== 'all';
 
   if (!shouldUseRemoteSearch) {
     state.catalog.modalLoading = false;
@@ -1445,7 +1446,7 @@ async function runModalSearch() {
   try {
     const params = new URLSearchParams({
       q: query,
-      filter: state.modalSearchFilter || 'all',
+      filter: activeFilter,
       limit: String(MODAL_SEARCH_LIMIT)
     });
     const response = await apiFetch(`/api/items/search?${params.toString()}`, { cache: 'no-store' });

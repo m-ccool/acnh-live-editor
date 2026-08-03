@@ -156,6 +156,46 @@ button,
   transition: transform var(--dur-instant) var(--ease-out);
 }
 
+.touch-feedback-burst {
+  position: fixed;
+  z-index: 10000;
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgba(214, 224, 255, 0.38);
+  border-radius: 50%;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(0.35);
+  background:
+    radial-gradient(circle, rgba(255, 238, 220, 0.48) 0%, rgba(164, 181, 255, 0.24) 30%, transparent 68%);
+  box-shadow: 0 0 14px rgba(181, 193, 255, 0.34);
+  animation: touch-feedback-burst 420ms var(--ease-out) forwards;
+}
+
+.touch-feedback-burst::after {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  content: '';
+  transform: translate(-65%, -45%) scale(0.2);
+  background: radial-gradient(circle, rgba(255, 246, 231, 0.38) 0%, rgba(145, 174, 255, 0.18) 42%, transparent 70%);
+  filter: blur(1px);
+  animation: touch-feedback-trail 460ms 70ms var(--ease-out) forwards;
+}
+
+@keyframes touch-feedback-burst {
+  0% { opacity: 0.9; transform: translate(-50%, -50%) scale(0.35); }
+  65% { opacity: 0.32; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(5.2); }
+}
+
+@keyframes touch-feedback-trail {
+  0% { opacity: 0; transform: translate(-65%, -45%) scale(0.2); }
+  24% { opacity: 0.6; }
+  100% { opacity: 0; transform: translate(20%, 40%) scale(4.4); }
+}
+
 /* ── Backdrop-filter compositor perf ─────────────────────────────
    Visual look preserved. `contain: paint` limits repaint area to each
    surface so the browser doesn't recompute blur over the entire page
