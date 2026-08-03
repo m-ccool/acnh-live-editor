@@ -2532,7 +2532,10 @@ body:not([data-theme='night']) .cheats-ribbon-tab {
   left: 0;
   width: 100%;
   box-sizing: border-box;
+  max-height: calc(100vh - 81px);
   margin: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   opacity: 0;
   visibility: hidden;
   pointer-events: none;

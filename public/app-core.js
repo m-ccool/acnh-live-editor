@@ -801,6 +801,18 @@ function cacheDom() {
 
     function togglePanel() {
       const isOpen = el.cheatsRibbon.classList.toggle('is-open');
+      if (isOpen && el.cheatsRibbon.classList.contains('is-detached')) {
+        const position = clampFloatingRibbonPosition(
+          el.cheatsRibbon,
+          el.cheatsRibbonDrawer,
+          el.cheatsRibbonToggle,
+          state.floatingRibbons.cheats.left,
+          state.floatingRibbons.cheats.top
+        );
+        el.cheatsRibbon.style.left = `${position.left}px`;
+        el.cheatsRibbon.style.top = `${position.top}px`;
+        state.floatingRibbons.cheats = { ...state.floatingRibbons.cheats, ...position };
+      }
       el.cheatsRibbonToggle.setAttribute('aria-expanded', String(isOpen));
       el.cheatsRibbonDrawer.setAttribute('aria-hidden', String(!isOpen));
       el.cheatsRibbonToggle.setAttribute(
@@ -849,8 +861,14 @@ function cacheDom() {
         el.cheatsRibbon.classList.add('is-detached', 'is-dragging');
         el.cheatsRibbonDrawer.setAttribute('aria-hidden', 'true');
       }
-      const nextLeft = Math.min(Math.max(event.clientX - cheatsDrag.grabOffsetX, 8), window.innerWidth - 64);
-      const nextTop = Math.min(Math.max(event.clientY - cheatsDrag.grabOffsetY, 8), window.innerHeight - 64);
+      const position = clampFloatingRibbonPosition(
+        el.cheatsRibbon,
+        el.cheatsRibbonDrawer,
+        el.cheatsRibbonToggle,
+        event.clientX - cheatsDrag.grabOffsetX,
+        event.clientY - cheatsDrag.grabOffsetY
+      );
+      const { left: nextLeft, top: nextTop } = position;
       el.cheatsRibbon.style.left = `${nextLeft.toFixed(0)}px`;
       el.cheatsRibbon.style.top = `${nextTop.toFixed(0)}px`;
       state.floatingRibbons.cheats = { detached: true, dockedRight: false, left: nextLeft, top: nextTop };
@@ -1369,20 +1387,39 @@ function initPresetSaveBtn() {
 
 function renderFloatingRibbonState() {
   const ribbons = state.floatingRibbons || DEFAULT_FLOATING_RIBBONS;
-  const apply = (ribbon, config) => {
+  const apply = (ribbon, drawer, tab, config) => {
     if (!ribbon || !config) return;
     ribbon.classList.toggle('is-detached', config.detached === true);
     ribbon.classList.toggle('is-docked-right', config.dockedRight === true);
     if (config.detached === true) {
-      ribbon.style.left = `${Number(config.left) || 8}px`;
-      ribbon.style.top = `${Number(config.top) || 8}px`;
+      const position = clampFloatingRibbonPosition(ribbon, drawer, tab, config.left, config.top);
+      ribbon.style.left = `${position.left}px`;
+      ribbon.style.top = `${position.top}px`;
+      config.left = position.left;
+      config.top = position.top;
     }
   };
-  apply(el.cheatsRibbon, ribbons.cheats);
-  apply(el.musicRibbon, ribbons.music);
+  apply(el.cheatsRibbon, el.cheatsRibbonDrawer, el.cheatsRibbonToggle, ribbons.cheats);
+  apply(el.musicRibbon, el.musicRibbonDrawer, el.musicRibbonToggle, ribbons.music);
+}
+
+function clampFloatingRibbonPosition(ribbon, drawer, tab, left, top) {
+  const inset = 8;
+  const width = Math.min(ribbon.getBoundingClientRect().width || 330, window.innerWidth - (inset * 2));
+  const tabHeight = tab.getBoundingClientRect().height || 56;
+  const drawerHeight = drawer.offsetHeight || 0;
+  const height = Math.min(window.innerHeight - (inset * 2), tabHeight + (drawerHeight ? drawerHeight + 9 : 0));
+  const maxLeft = Math.max(inset, window.innerWidth - width - inset);
+  const maxTop = Math.max(inset, window.innerHeight - height - inset);
+
+  return {
+    left: Math.min(Math.max(Number(left) || inset, inset), maxLeft),
+    top: Math.min(Math.max(Number(top) || inset, inset), maxTop)
+  };
 }
 
 function bindEvents() {
+  window.addEventListener('resize', renderFloatingRibbonState);
   if (el.deployButton) el.deployButton.addEventListener('click', handleConnectBridgeClick);
   if (el.playerLoadBtn) el.playerLoadBtn.addEventListener('click', handlePlayerLoadClick);
   if (el.playerSaveBtn) el.playerSaveBtn.addEventListener('click', handlePlayerSaveClick);

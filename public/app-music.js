@@ -175,6 +175,18 @@ function renderMusic() {
 
   if (el.musicRibbon) {
     el.musicRibbon.classList.toggle('is-open', state.music.drawerOpen);
+    if (state.music.drawerOpen && el.musicRibbon.classList.contains('is-detached')) {
+      const position = clampFloatingRibbonPosition(
+        el.musicRibbon,
+        el.musicRibbonDrawer,
+        el.musicRibbonToggle,
+        state.floatingRibbons.music.left,
+        state.floatingRibbons.music.top
+      );
+      el.musicRibbon.style.left = `${position.left}px`;
+      el.musicRibbon.style.top = `${position.top}px`;
+      state.floatingRibbons.music = { ...state.floatingRibbons.music, ...position };
+    }
   }
 
   if (el.musicRibbonDrawer) {
@@ -392,8 +404,14 @@ function handleMusicRibbonDragMove(event) {
     el.musicRibbonDrawer.setAttribute('aria-hidden', 'true');
   }
 
-  const nextLeft = Math.min(Math.max(event.clientX - musicRibbonDrag.grabOffsetX, 8), window.innerWidth - 64);
-  const nextTop = Math.min(Math.max(event.clientY - musicRibbonDrag.grabOffsetY, 8), window.innerHeight - 64);
+  const position = clampFloatingRibbonPosition(
+    el.musicRibbon,
+    el.musicRibbonDrawer,
+    el.musicRibbonToggle,
+    event.clientX - musicRibbonDrag.grabOffsetX,
+    event.clientY - musicRibbonDrag.grabOffsetY
+  );
+  const { left: nextLeft, top: nextTop } = position;
   el.musicRibbon.style.left = `${nextLeft.toFixed(0)}px`;
   el.musicRibbon.style.top = `${nextTop.toFixed(0)}px`;
   state.floatingRibbons.music = { detached: true, dockedRight: false, left: nextLeft, top: nextTop };
