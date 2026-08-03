@@ -1572,9 +1572,9 @@ body[data-theme='night'] .deploy-toast {
 
 .music-ribbon-drawer {
   position: relative;
-  /* Drawer stops exactly where the tab starts — no body-strip peek. */
-  width: calc(100% - var(--music-tab-size));
-  margin-right: var(--music-tab-size);
+  width: calc(100% - 38px);
+  box-sizing: border-box;
+  margin-right: 38px;
   padding: 16px 18px 14px;
   border: 1px solid var(--glass-edge);
   border-radius: 28px;
@@ -1587,6 +1587,8 @@ body[data-theme='night'] .deploy-toast {
     inset 0 -1px 0 rgba(255,255,255,0.015);
   backdrop-filter: blur(var(--backdrop-blur)) saturate(var(--backdrop-sat)) contrast(1.02);
   -webkit-backdrop-filter: blur(var(--backdrop-blur)) saturate(var(--backdrop-sat)) contrast(1.02);
+  contain: paint;
+  isolation: isolate;
   transition:
     border-color var(--transition-base),
     box-shadow var(--transition-base),
@@ -1655,10 +1657,15 @@ body[data-theme='night'] .deploy-toast {
 }
 
 .music-ribbon.is-dragging .music-ribbon-tab,
-.music-ribbon.is-dragging .music-ribbon-tab:hover {
+.music-ribbon.is-dragging .music-ribbon-tab:hover,
+.cheats-ribbon.is-dragging .cheats-ribbon-tab,
+.cheats-ribbon.is-dragging .cheats-ribbon-tab:hover {
   cursor: grabbing;
   transform: translateY(-50%);
   transition: none;
+  box-shadow:
+    0 24px 48px rgba(16, 14, 34, 0.34),
+    inset 0 1px 0 rgba(255,255,255,0.16);
 }
 
 .music-ribbon.is-dragging .music-ribbon-drawer {
@@ -1862,6 +1869,7 @@ body:not([data-theme='night']) .music-ribbon-tab:hover {
 }
 
 .music-library-field select {
+  box-sizing: border-box;
   width: 100%;
   min-height: 40px;
   padding: 0 36px 0 14px;
@@ -2068,13 +2076,12 @@ body[data-theme='night'] .log-panel {
 }
 
 .cmd-log-notifications {
-  display: grid;
-  gap: 6px;
-  margin: 0 0 10px;
-  max-height: 108px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding-right: 2px;
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  z-index: 2;
+  pointer-events: auto;
 }
 
 .cmd-log-notifications[hidden] {
@@ -2083,14 +2090,35 @@ body[data-theme='night'] .log-panel {
 
 .cmd-log-notice {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   min-height: 24px;
   padding: 4px 8px;
-  border-radius: 10px;
+  border-radius: 6px;
   border: 1px solid rgba(255,255,255,0.08);
-  background: rgba(255,255,255,0.04);
+  background: rgba(8, 18, 15, 0.92);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.24);
+}
+
+.cmd-log-notice.is-new {
+  animation: cmd-notification-fade-up 0.46s cubic-bezier(0.2, 1.2, 0.3, 1) both;
+}
+
+.cmd-log-notice.is-dismissing {
+  pointer-events: none;
+  animation: cmd-notification-dismiss 0.3s ease-in both;
+}
+
+@keyframes cmd-notification-fade-up {
+  from { opacity: 0; transform: translateY(18px) scale(0.96); }
+  72% { opacity: 1; transform: translateY(-2px) scale(1.01); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes cmd-notification-dismiss {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(-16px) scale(0.97); }
 }
 
 .cmd-log-notice-time {
@@ -2109,6 +2137,25 @@ body[data-theme='night'] .log-panel {
   text-overflow: ellipsis;
 }
 
+.cmd-log-notice-close {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.cmd-log-notice-close:hover,
+.cmd-log-notice-close:focus-visible {
+  background: rgba(255, 255, 255, 0.12);
+}
+
 .cmd-log-notice.is-error {
   border-color: rgba(255, 124, 124, 0.4);
   background: rgba(188, 38, 38, 0.22);
@@ -2117,7 +2164,7 @@ body[data-theme='night'] .log-panel {
 
 .cmd-log-notice.is-error .cmd-log-notice-time,
 .cmd-log-notice.is-error .cmd-log-notice-text {
-  color: rgba(255, 210, 210, 0.98);
+  color: #ff7070;
 }
 
 body:not([data-theme='night']) .cmd-log-notice {
@@ -2205,32 +2252,68 @@ body:not([data-theme='night']) .cmd-log-notice.is-error .cmd-log-notice-text {
   font-family: "Cascadia Code", "SFMono-Regular", Consolas, Menlo, monospace;
   text-shadow: 0 0 10px rgba(186, 247, 192, 0.1);
   white-space: pre-wrap;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(186, 247, 192, 0.26) rgba(7, 14, 13, 0.88);
+  scrollbar-width: none;
   transform: translateZ(0);
   transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
 }
 
 .code-block::-webkit-scrollbar {
-  width: 5px;
-}
-.code-block::-webkit-scrollbar-track {
-  background: rgba(7, 14, 13, 0.88);
-  border-radius: 999px;
-}
-.code-block::-webkit-scrollbar-thumb {
-  background: rgba(186, 247, 192, 0.26);
-  border-radius: 999px;
+  display: none;
 }
 
 #bridge-status {
-  height: clamp(108px, var(--log-console-height), 42vh);
-  min-height: 108px;
+  height: clamp(52px, var(--log-console-height), 42vh);
+  min-height: 52px;
   max-height: none;
+  cursor: pointer;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: height 0.46s cubic-bezier(0.2, 1.7, 0.34, 1);
+}
+
+#bridge-status:focus,
+#bridge-status:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+#bridge-status.is-expanding {
+  animation: cmd-log-open-bounce 0.54s cubic-bezier(0.2, 1.7, 0.34, 1);
+}
+
+#bridge-status.is-collapsing {
+  animation: cmd-log-close-bounce 0.48s cubic-bezier(0.42, 0, 0.64, 1.7);
+}
+
+@keyframes cmd-log-open-bounce {
+  0% { transform: translateZ(0) scaleY(0.96); }
+  58% { transform: translateZ(0) scaleY(1.05); }
+  78% { transform: translateZ(0) scaleY(0.985); }
+  100% { transform: translateZ(0) scaleY(1); }
+}
+
+@keyframes cmd-log-close-bounce {
+  0% { transform: translateZ(0) scaleY(1); }
+  55% { transform: translateZ(0) scaleY(0.94); }
+  78% { transform: translateZ(0) scaleY(1.018); }
+  100% { transform: translateZ(0) scaleY(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #bridge-status {
+    transition: none;
+  }
+
+  #bridge-status.is-expanding,
+  #bridge-status.is-collapsing,
+  .cmd-log-notice.is-new,
+  .cmd-log-notice.is-dismissing {
+    animation: none;
+  }
 }
 
 .corner-icon-button {
-  position: static;
+  position: relative;
   flex: 0 0 auto;
   width: 28px;
   height: 28px;
@@ -2238,6 +2321,29 @@ body:not([data-theme='night']) .cmd-log-notice.is-error .cmd-log-notice-text {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+#log-copy-button.is-copied::after {
+  content: "Copied";
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 7px);
+  padding: 4px 7px;
+  border: 1px solid rgba(186, 247, 192, 0.28);
+  border-radius: 4px;
+  background: rgba(8, 18, 15, 0.96);
+  color: var(--console-text);
+  font-size: 0.66rem;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: cmd-copy-toast 0.9s ease-out both;
+}
+
+@keyframes cmd-copy-toast {
+  0% { opacity: 0; transform: translateY(5px) scale(0.94); }
+  20%, 72% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-4px) scale(0.98); }
 }
 
 .player-panel {
@@ -2291,10 +2397,20 @@ body:not([data-theme='night']) .cmd-log-notice.is-error .cmd-log-notice-text {
   left: 0;
 }
 
+.music-ribbon:not(.is-open):not(.is-detached) .music-ribbon-drawer,
+.cheats-ribbon:not(.is-open):not(.is-detached) .cheats-ribbon-drawer {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.018)),
+    rgba(26, 31, 65, 0.96);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
 .cheats-ribbon-drawer {
   position: relative;
   /* Drawer stops exactly where the tab starts — no body-strip peek. */
   width: calc(100% - 38px);
+  box-sizing: border-box;
   margin-right: 38px;
   min-height: 176px;
   padding: 16px 18px 14px;
@@ -2382,6 +2498,104 @@ body:not([data-theme='night']) .cheats-ribbon-tab {
   box-shadow:
     0 16px 34px rgba(60, 130, 88, 0.16),
     inset 0 1px 0 rgba(255,255,255,0.16);
+}
+
+/* Detached ribbons retain their tab as a compact button and reveal the drawer
+   beneath it as a small floating card when opened. */
+.music-ribbon.is-detached,
+.cheats-ribbon.is-detached {
+  width: min(330px, calc(100vw - 24px));
+  transform: none;
+  z-index: 70;
+  transition: left 0.3s cubic-bezier(0.2, 1.45, 0.36, 1), top 0.3s cubic-bezier(0.2, 1.45, 0.36, 1);
+}
+
+.music-ribbon.is-detached .music-ribbon-tab,
+.cheats-ribbon.is-detached .cheats-ribbon-tab {
+  position: relative;
+  top: auto;
+  right: auto;
+  left: auto;
+  transform: none;
+  border-radius: 14px;
+}
+
+.music-ribbon.is-detached .music-ribbon-tab:hover,
+.cheats-ribbon.is-detached .cheats-ribbon-tab:hover {
+  transform: translateY(-1px);
+}
+
+.music-ribbon.is-detached .music-ribbon-drawer,
+.cheats-ribbon.is-detached .cheats-ribbon-drawer {
+  position: absolute;
+  top: calc(100% + 9px);
+  left: 0;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-8px) scale(0.98);
+  transform-origin: top left;
+  transition:
+    opacity 0.2s ease,
+    transform 0.34s cubic-bezier(0.2, 1.45, 0.36, 1),
+    visibility 0s linear 0.34s;
+}
+
+.music-ribbon.is-detached.is-open .music-ribbon-drawer,
+.cheats-ribbon.is-detached.is-open .cheats-ribbon-drawer {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+  transition-delay: 0s;
+}
+
+.music-ribbon.is-docked-right:not(.is-detached),
+.cheats-ribbon.is-docked-right:not(.is-detached) {
+  left: auto;
+  right: calc(-1 * (var(--music-ribbon-width) - var(--music-tab-size)));
+}
+
+.cheats-ribbon.is-docked-right:not(.is-detached) {
+  right: calc(-1 * (var(--cheats-ribbon-width) - var(--cheats-tab-size)));
+}
+
+.music-ribbon.is-docked-right:not(.is-detached).is-open,
+.cheats-ribbon.is-docked-right:not(.is-detached).is-open {
+  right: 0;
+}
+
+.music-ribbon.is-docked-right:not(.is-detached) .music-ribbon-tab,
+.cheats-ribbon.is-docked-right:not(.is-detached) .cheats-ribbon-tab {
+  right: auto;
+  left: 0;
+  border-right: none;
+  border-left: 1px solid rgba(255,255,255,0.13);
+  border-radius: 18px 0 0 18px;
+}
+
+.cheats-ribbon.is-docked-right:not(.is-detached) .cheats-ribbon-tab {
+  border-left-color: rgba(98,214,111,0.35);
+}
+
+.music-ribbon.is-docked-right:not(.is-detached) .music-ribbon-drawer,
+.cheats-ribbon.is-docked-right:not(.is-detached) .cheats-ribbon-drawer {
+  margin-right: 0;
+  margin-left: 38px;
+}
+
+.music-ribbon.is-snapping,
+.cheats-ribbon.is-snapping {
+  animation: ribbon-dock-bounce 0.46s cubic-bezier(0.2, 1.55, 0.36, 1);
+}
+
+@keyframes ribbon-dock-bounce {
+  0% { transform: translateY(-50%) scale(1); }
+  58% { transform: translateY(-50%) scale(1.08); }
+  100% { transform: translateY(-50%) scale(1); }
 }
 
 .cheats-drawer-shell {

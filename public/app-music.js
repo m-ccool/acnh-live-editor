@@ -357,12 +357,16 @@ function handleMusicRibbonDragStart(event) {
   if (!el.musicRibbon || !el.musicRibbonToggle) return;
   if (event.button !== 0) return;
 
+  const rect = el.musicRibbonToggle.getBoundingClientRect();
   musicRibbonDrag.pointerId = event.pointerId;
   musicRibbonDrag.active = true;
   musicRibbonDrag.moved = false;
   musicRibbonDrag.suppressClick = false;
-  musicRibbonDrag.startY = event.clientY;
-  musicRibbonDrag.startTopVh = normalizeMusicRibbonTopVh(state.music.ribbonTopVh);
+  musicRibbonDrag.startedDetached = el.musicRibbon.classList.contains('is-detached');
+  musicRibbonDrag.startClientX = event.clientX;
+  musicRibbonDrag.startClientY = event.clientY;
+  musicRibbonDrag.grabOffsetX = event.clientX - rect.left;
+  musicRibbonDrag.grabOffsetY = event.clientY - rect.top;
 
   if (typeof el.musicRibbonToggle.setPointerCapture === 'function') {
     el.musicRibbonToggle.setPointerCapture(event.pointerId);
@@ -372,25 +376,27 @@ function handleMusicRibbonDragStart(event) {
 function handleMusicRibbonDragMove(event) {
   if (!musicRibbonDrag.active || musicRibbonDrag.pointerId !== event.pointerId) return;
 
-  const deltaY = event.clientY - musicRibbonDrag.startY;
-  if (!musicRibbonDrag.moved && Math.abs(deltaY) < 6) {
+  const deltaX = event.clientX - musicRibbonDrag.startClientX;
+  const deltaY = event.clientY - musicRibbonDrag.startClientY;
+  const dragThreshold = musicRibbonDrag.startedDetached ? 6 : 16;
+  if (!musicRibbonDrag.moved && Math.abs(deltaX) + Math.abs(deltaY) < dragThreshold) {
     return;
   }
 
   if (!musicRibbonDrag.moved) {
     musicRibbonDrag.moved = true;
     musicRibbonDrag.suppressClick = true;
-
-    if (el.musicRibbon) {
-      el.musicRibbon.classList.add('is-dragging');
-    }
+    state.music.drawerOpen = false;
+    el.musicRibbon.classList.remove('is-open', 'is-docked-right');
+    el.musicRibbon.classList.add('is-detached', 'is-dragging');
+    el.musicRibbonDrawer.setAttribute('aria-hidden', 'true');
   }
 
-  const viewportHeight = Math.max(window.innerHeight || 0, 1);
-  state.music.ribbonTopVh = normalizeMusicRibbonTopVh(
-    musicRibbonDrag.startTopVh + ((deltaY / viewportHeight) * 100)
-  );
-  renderMusicRibbonPosition();
+  const nextLeft = Math.min(Math.max(event.clientX - musicRibbonDrag.grabOffsetX, 8), window.innerWidth - 64);
+  const nextTop = Math.min(Math.max(event.clientY - musicRibbonDrag.grabOffsetY, 8), window.innerHeight - 64);
+  el.musicRibbon.style.left = `${nextLeft.toFixed(0)}px`;
+  el.musicRibbon.style.top = `${nextTop.toFixed(0)}px`;
+  state.floatingRibbons.music = { detached: true, dockedRight: false, left: nextLeft, top: nextTop };
   event.preventDefault();
 }
 
@@ -409,11 +415,31 @@ function handleMusicRibbonDragEnd(event) {
 
   const shouldPersist = musicRibbonDrag.moved;
 
+  if (musicRibbonDrag.moved) {
+    const rect = el.musicRibbon.getBoundingClientRect();
+    const snapLeft = event.clientX < 72;
+    const snapRight = event.clientX > window.innerWidth - 72;
+    if (snapLeft || snapRight) {
+      const topVh = normalizeMusicRibbonTopVh(((rect.top + (rect.height / 2)) / window.innerHeight) * 100);
+      el.musicRibbon.classList.remove('is-detached');
+      el.musicRibbon.classList.toggle('is-docked-right', snapRight);
+      el.musicRibbon.classList.add('is-snapping');
+      el.musicRibbon.style.left = '';
+      state.music.ribbonTopVh = topVh;
+      state.floatingRibbons.music = { detached: false, dockedRight: snapRight, left: 0, top: topVh };
+      renderMusicRibbonPosition();
+      window.setTimeout(() => el.musicRibbon.classList.remove('is-snapping'), 500);
+    }
+  }
+
   musicRibbonDrag.pointerId = null;
   musicRibbonDrag.active = false;
   musicRibbonDrag.moved = false;
-  musicRibbonDrag.startY = 0;
-  musicRibbonDrag.startTopVh = normalizeMusicRibbonTopVh(state.music.ribbonTopVh);
+  musicRibbonDrag.startedDetached = false;
+  musicRibbonDrag.startClientX = 0;
+  musicRibbonDrag.startClientY = 0;
+  musicRibbonDrag.grabOffsetX = 0;
+  musicRibbonDrag.grabOffsetY = 0;
 
   if (shouldPersist) {
     persistLocalState();
@@ -422,6 +448,7 @@ function handleMusicRibbonDragEnd(event) {
 
 function renderMusicRibbonPosition() {
   if (!el.musicRibbon) return;
+  if (el.musicRibbon.classList.contains('is-detached')) return;
 
   const normalizedTopVh = normalizeMusicRibbonTopVh(state.music.ribbonTopVh);
   state.music.ribbonTopVh = normalizedTopVh;

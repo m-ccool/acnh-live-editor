@@ -61,21 +61,14 @@ npm run dev
 
 The app starts on `http://localhost:3000` by default.
 
-### Standard Startup (PowerShell)
+### Canonical Steam Deck Startup
 
-Use this command set to stop any existing local server first, then start a fresh dev server:
+The Steam Deck is the only supported runtime host. It runs the UI server and bridge locally; use `http://10.0.0.233:3000` from a phone or another LAN device.
 
-```powershell
-$ports = 3000, 32840
-foreach ($port in $ports) {
-  $pids = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique
-  if ($pids) { $pids | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue } }
-}
-cd C:\Users\mccoo\OneDrive\Developer\acnh-live-editor
-npm run dev
+```bash
+cd ~/acnh-live-editor
+bash scripts/steamdeck-launch-app.sh
 ```
-
-The floating debug button in the existing Windows UI now runs this same local restart flow from the page, then waits for the app to come back before reloading.
 
 ## Environment Variables
 
@@ -116,20 +109,16 @@ NOOKIPEDIA_ACCEPT_VERSION=1.7.0
 - `npm run sync:nookipedia`: fetch and cache the live Nookipedia catalog
 - `npm run bridge:steamdeck`: run the Steam Deck bridge client
 
-## Steam Deck Bridge Client
+## Steam Deck Runtime
 
-Start local app on your PC:
+Steam Deck is the single runtime host for the UI, Express API, bridge listener, and Ryujinx memory adapter. The launcher starts both on-demand services and opens the local UI; the same UI is reachable on the LAN at `http://10.0.0.233:3000`.
 
-```bash
-npm run dev
-```
+`.steamdeck-bridge.env` must use same-Deck values:
 
-For this repo's current bridge setup, the Windows UI is at `http://10.0.0.25:3000`.
-
-Then run the bridge client on Steam Deck after `.steamdeck-bridge.env` is in place:
-
-```bash
-bash scripts/steamdeck-run-bridge.sh
+```env
+SAME_DECK_MODE=1
+BRIDGE_TARGET_HOST=127.0.0.1
+BRIDGE_TARGET_PORT=32840
 ```
 
 New bridge launch (simple session start):
@@ -216,16 +205,12 @@ journalctl --user -u acnh-live-server -n 100 --no-pager
 journalctl --user -u acnh-live-bridge -n 100 --no-pager
 ```
 
-#### Mode Selection In `.steamdeck-bridge.env`
+#### Runtime Topology
 
-- Same-deck mode (recommended for Deck-only editing):
-  - `SAME_DECK_MODE=1`
-  - `BRIDGE_TARGET_HOST=127.0.0.1`
-  - `BRIDGE_TARGET_PORT=32840`
-- Cross-machine mode (Deck bridge connecting to Windows host):
-  - `SAME_DECK_MODE=0`
-  - `BRIDGE_TARGET_HOST=10.0.0.25`
-  - `BRIDGE_TARGET_PORT=32840`
+- Supported topology: Steam Deck hosts the UI and bridge listener locally.
+- The bridge client connects to `127.0.0.1:32840`.
+- LAN clients use `http://10.0.0.233:3000`.
+- Windows does not host the UI or bridge listener.
 
 #### Daily Update + Relaunch (Steam Deck)
 
@@ -250,14 +235,14 @@ bash scripts/steamdeck-launch-app.sh
 Run these checks before treating a run as valid:
 
 - Visual check: in the Deck bridge panel, status must reach `CONNECTED` and remain stable (not loop `CLOSED`/`ERROR`).
-- Backend check: on Windows UI (`http://10.0.0.25:3000`), `/api/bridge/status` must report the Deck device and bridge connection.
+- Backend check: on the Deck UI (`http://10.0.0.233:3000`), `/api/bridge/status` must report a local bridge connection.
 - Live data check: `/api/bridge/read-game-data` must return a real `player` payload from live memory.
 - Fail-closed check: if any check fails, treat bridge data as unavailable/error and do not accept fallback/test data as live truth.
 
 If it keeps retrying and does not connect:
 
-1. On PC, start the app server (`npm run dev`) and confirm bridge port `32840` is open.
-2. On Steam Deck, verify `.steamdeck-bridge.env` contains `BRIDGE_TARGET_HOST=10.0.0.25` and `BRIDGE_TARGET_PORT=32840`.
+1. On Steam Deck, start the app with `bash scripts/steamdeck-launch-app.sh` and confirm bridge port `32840` is open locally.
+2. On Steam Deck, verify `.steamdeck-bridge.env` contains `SAME_DECK_MODE=1`, `BRIDGE_TARGET_HOST=127.0.0.1`, and `BRIDGE_TARGET_PORT=32840`.
 3. On Steam Deck, reinstall launcher/services with `bash scripts/install-steamdeck-launcher.sh`.
 4. Relaunch with `bash scripts/steamdeck-launch-app.sh` and watch the panel detail line for connection errors.
 
@@ -272,7 +257,7 @@ Notes:
 
 Optional environment variables:
 
-- `BRIDGE_TARGET_HOST`, `BRIDGE_TARGET_PORT`: PC bridge listener endpoint. The confirmed current values are `10.0.0.25` and `32840`.
+- `BRIDGE_TARGET_HOST`, `BRIDGE_TARGET_PORT`: local Deck bridge endpoint. The canonical values are `127.0.0.1` and `32840`.
 - `BRIDGE_DEVICE_NAME`: label shown in `/api/status`.
 - `BRIDGE_HEARTBEAT_MS`: heartbeat interval (default `5000`).
 - `BRIDGE_RECONNECT_DELAY_MS`: reconnect delay (default `3000`).
@@ -371,11 +356,11 @@ Why rerun the launcher installer after pull:
 
 ### Next-Step Wiring (Live Memory)
 
-Confirmed current MVP bridge path:
+Confirmed current MVP runtime path:
 
-- Windows UI: `http://10.0.0.25:3000`
-- Steam Deck bridge target: `10.0.0.25:32840`
-- Steam Deck launcher entry point: `bash scripts/steamdeck-run-bridge.sh`
+- Steam Deck UI: `http://10.0.0.233:3000`
+- Steam Deck bridge target: `127.0.0.1:32840`
+- Steam Deck launcher entry point: `bash scripts/steamdeck-launch-app.sh`
 - Live reader chain: `steamdeck-bridge-client.js` -> `bridge_memory_tool.py` -> `acnh_memory_reader.py`
 
 Scope guard for Steam Deck MVP:
@@ -400,12 +385,12 @@ Scope guard for Steam Deck MVP:
 
 ### Objective
 
-- Keep MVP focused on reliable live bridge reads/writes between Steam Deck Ryujinx memory and the existing Windows UI.
+- Keep MVP focused on reliable live bridge reads/writes between Steam Deck Ryujinx memory and the Steam Deck-hosted UI.
 
 ### MVP Now
 
 - Active bridge chain: `scripts/steamdeck-run-bridge.sh` -> `scripts/steamdeck-bridge-client.js` -> `scripts/steamdeck-adapters/bridge_memory_tool.py` -> `scripts/steamdeck-adapters/acnh_memory_reader.py`.
-- Runtime target: Windows UI at `http://10.0.0.25:3000` and Steam Deck bridge target `10.0.0.25:32840`.
+- Runtime target: Steam Deck UI at `http://10.0.0.233:3000` and local bridge target `127.0.0.1:32840`.
 
 ### Completed
 
@@ -472,9 +457,9 @@ Minimal `main.js` for Electron: launch the Express server in-process, then open 
 
 ---
 
-> **Current runtime target:** `http://10.0.0.25:3000` (Windows) ↔ Steam Deck bridge `10.0.0.25:32840`
+> **Current runtime target:** Steam Deck UI `http://10.0.0.233:3000` ↔ local bridge `127.0.0.1:32840`
 - UI panels render bridge/game-data payloads.
-- Live inventory write from Windows UI through bridge into Ryujinx memory confirmed functional (`84bdeef`, 2026-04-23). Save persists; in-game display refresh is a pinned bug (see Known Bugs).
+- Live inventory writes from the Steam Deck UI through the local bridge are the supported workflow. Save persists; in-game display refresh remains a pinned bug (see Known Bugs).
 - Inventory slot editing UI fully wired: click slot → item modal → assign item + count → Apply writes to live memory.
 - Player data editing modal fully wired: wallet, bank bells, nook miles, player name, and town all write live through bridge into Ryujinx procmem (text fields via UTF-16LE write, confirmed 2026-04-27).
 - Stack count badge styled and positioned over item icon in inventory slots.
@@ -487,8 +472,8 @@ Minimal `main.js` for Electron: launch the Express server in-process, then open 
 
 ### Blocked
 
-- Live RAM readback into the existing Windows UI is confirmed for inventory and player data on Steam Deck Ryujinx.
-- Direct live inventory write confirmation from the Windows UI into active ACNH memory still needs final validation.
+- Live RAM readback into the Steam Deck-hosted UI is the canonical inventory and player-data validation path.
+- Direct live inventory write confirmation from the Steam Deck UI into active ACNH memory remains the required validation surface.
 
 ### Response Schema
 
@@ -544,18 +529,18 @@ This order is optimized for smaller diffs, lower context cost, and faster Codex 
 
 Confirmed in this repo:
 
-- Scope is pinned to bridge reliability, correct IP usage, Steam Deck connectivity, and Ryujinx live-memory reads/writes feeding the existing Windows UI.
+- Scope is pinned to Steam Deck-hosted UI reliability, local bridge connectivity, and Ryujinx live-memory reads/writes.
 - Branch workflow for new testing is `dev` first, then promote to `master` after working validation.
-- The Windows UI bridge address is `http://10.0.0.25:3000`.
-- The Steam Deck bridge target is `10.0.0.25:32840`.
+- The Steam Deck UI address is `http://10.0.0.233:3000`.
+- The Steam Deck bridge target is `127.0.0.1:32840`.
 - The active live bridge chain is `scripts/steamdeck-run-bridge.sh` -> `scripts/steamdeck-bridge-client.js` -> `scripts/steamdeck-adapters/bridge_memory_tool.py` -> `scripts/steamdeck-adapters/acnh_memory_reader.py`.
-- Direct live RAM readback from the Ryujinx process into the Windows UI is confirmed for player data and inventory data.
+- Direct live RAM readback from the Ryujinx process into the Steam Deck UI is the required validation path for player data and inventory data.
 - Backend verification data is isolated from the primary UI and bridge path.
 - Enforcement and fail-closed data policy are defined in `AGENTS.md`.
 
 Confirmed in this session:
 
-- Direct live inventory write from the Windows UI through the bridge into ACNH memory on Steam Deck is confirmed working (commit `84bdeef`, 2026-04-23). Canonical slot VA write is functional; save persists on game close.
+- Direct live inventory write from the Steam Deck UI through the local bridge into ACNH memory is the supported workflow. Canonical slot VA writes persist on game close.
 - Player data editing (wallet, bank bells, nook miles) writes live through the bridge. Player name and town update local state; live-write support for text fields depends on bridge adapter capability.
 
 Pinned bug:
@@ -568,9 +553,9 @@ Pinned bug:
 2. Commit and push the current local bridge changes on `dev` before updating Steam Deck. If you use GitHub Desktop, confirm the commit exists and `Push origin` has completed before pulling on Deck.
 3. On Steam Deck, run `python3 scripts/steamdeck-adapters/bridge_memory_tool.py read_game_data` and confirm it returns JSON with a real `player` object from live memory.
 4. If that command does not return live data, calibrate the reader in `.steamdeck-bridge.env` with the confirmed Ryujinx process and memory offsets needed by `acnh_memory_reader.py`.
-5. Once local live reads work on Steam Deck, run `bash scripts/steamdeck-run-bridge.sh` and confirm the Deck client connects to `10.0.0.25:32840`.
-6. On Windows, request `/api/bridge/read-game-data` from the app backend and confirm it returns the same live player payload coming from the Deck.
-7. After backend readback is confirmed, refresh the existing UI and confirm the player and inventory panels render that returned live payload without UI code changes.
+5. Start the Deck services with `bash scripts/steamdeck-launch-app.sh` and confirm the local bridge connects to `127.0.0.1:32840`.
+6. On Steam Deck, request `/api/bridge/read-game-data` from the app backend and confirm it returns the live player payload.
+7. Refresh `http://10.0.0.233:3000` and confirm the player and inventory panels render that returned live payload without UI code changes.
 8. Keep both repos on `dev` while validating new work. Before any `master` commit or promotion, ensure local `dev` is up to date with `origin/dev`.
 9. Switch both repos to `master` only after the validated promotion is explicitly requested and pushed.
 

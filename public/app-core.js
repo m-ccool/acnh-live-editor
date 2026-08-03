@@ -11,7 +11,7 @@ const THEME_SUNRISE = 'sunrise';
 const THEME_NIGHT = 'night';
 const DEFAULT_MUSIC_RIBBON_TOP_VH = 56;
 const DEFAULT_LOG_PANEL_HEIGHT_VH = 13;
-const DEFAULT_LOG_PANEL_COLLAPSED_VH = 4.8;
+const DEFAULT_LOG_PANEL_COLLAPSED_VH = 3.5;
 const DEFAULT_MUSIC_LIBRARY = Object.freeze({
   defaultNightTrackId: 'ambient-4am-rainy',
   defaultSunriseTrackId: 'sunrise-animal-crossing-theme',
@@ -60,6 +60,10 @@ const DEFAULT_MUSIC_STATE = Object.freeze({
   hasInteracted: false,
   errorMessage: ''
 });
+const DEFAULT_FLOATING_RIBBONS = Object.freeze({
+  music: { detached: false, dockedRight: false, left: 0, top: 0 },
+  cheats: { detached: false, dockedRight: false, left: 0, top: 0 }
+});
 const DEFAULT_QUICK_CHEATS = Object.freeze({
   halfSpeed: false,
   doubleSpeed: false,
@@ -105,14 +109,26 @@ const musicRibbonDrag = {
   active: false,
   moved: false,
   suppressClick: false,
-  startY: 0,
-  startTopVh: DEFAULT_MUSIC_RIBBON_TOP_VH
+  startedDetached: false,
+  startClientX: 0,
+  startClientY: 0,
+  grabOffsetX: 0,
+  grabOffsetY: 0
 };
 const logPanelDrag = {
   pointerId: null,
   active: false,
   startY: 0,
   startHeightVh: DEFAULT_LOG_PANEL_HEIGHT_VH
+};
+const consoleDrag = {
+  pointerId: null,
+  active: false,
+  moved: false,
+  startX: 0,
+  startY: 0,
+  scrollTop: 0,
+  scrollLeft: 0
 };
 
 const DEFAULT_PLAYER = {
@@ -205,6 +221,7 @@ const state = {
   logPanelHeightVh: DEFAULT_LOG_PANEL_HEIGHT_VH,
   logPanelExpanded: false,
   logPanelFocusedDefault: false,
+  floatingRibbons: JSON.parse(JSON.stringify(DEFAULT_FLOATING_RIBBONS)),
   quickCheats: { ...DEFAULT_QUICK_CHEATS },
   music: {
     ...DEFAULT_MUSIC_STATE,
@@ -643,6 +660,7 @@ async function init() {
   cacheDom();
   bindEvents();
   restoreLocalState();
+  renderFloatingRibbonState();
   applyTheme(false);
   renderMusicRibbonPosition();
   renderUiLoadingState();
@@ -777,9 +795,9 @@ function cacheDom() {
   el.selectedItemStickyImg = document.getElementById('selected-item-sticky-img');
   el.selectedItemStickyName = document.getElementById('selected-item-sticky-name');
 
-  // Cheats sidebar ribbon toggle + vertical drag (mirrors music ribbon drag)
+  // Cheats sidebar ribbon can detach into a compact floating card and snap back to an edge.
   if (el.cheatsRibbon && el.cheatsRibbonToggle && el.cheatsRibbonDrawer) {
-    const cheatsDrag = { active: false, moved: false, suppressClick: false, pointerId: null, startY: 0, startTopVh: 32 };
+    const cheatsDrag = { active: false, moved: false, suppressClick: false, startedDetached: false, pointerId: null, startClientX: 0, startClientY: 0, grabOffsetX: 0, grabOffsetY: 0 };
 
     function togglePanel() {
       const isOpen = el.cheatsRibbon.classList.toggle('is-open');
@@ -803,13 +821,16 @@ function cacheDom() {
 
     el.cheatsRibbonToggle.addEventListener('pointerdown', (event) => {
       if (event.button !== 0) return;
+      const rect = el.cheatsRibbonToggle.getBoundingClientRect();
       cheatsDrag.pointerId = event.pointerId;
       cheatsDrag.active = true;
       cheatsDrag.moved = false;
       cheatsDrag.suppressClick = false;
-      cheatsDrag.startY = event.clientY;
-      const currentTop = parseFloat(el.cheatsRibbon.style.top) || 32;
-      cheatsDrag.startTopVh = currentTop;
+      cheatsDrag.startedDetached = el.cheatsRibbon.classList.contains('is-detached');
+      cheatsDrag.startClientX = event.clientX;
+      cheatsDrag.startClientY = event.clientY;
+      cheatsDrag.grabOffsetX = event.clientX - rect.left;
+      cheatsDrag.grabOffsetY = event.clientY - rect.top;
       if (typeof el.cheatsRibbonToggle.setPointerCapture === 'function') {
         el.cheatsRibbonToggle.setPointerCapture(event.pointerId);
       }
@@ -817,16 +838,22 @@ function cacheDom() {
 
     el.cheatsRibbonToggle.addEventListener('pointermove', (event) => {
       if (!cheatsDrag.active || cheatsDrag.pointerId !== event.pointerId) return;
-      const deltaY = event.clientY - cheatsDrag.startY;
-      if (!cheatsDrag.moved && Math.abs(deltaY) < 6) return;
+      const deltaX = event.clientX - cheatsDrag.startClientX;
+      const deltaY = event.clientY - cheatsDrag.startClientY;
+      const dragThreshold = cheatsDrag.startedDetached ? 6 : 16;
+      if (!cheatsDrag.moved && Math.abs(deltaX) + Math.abs(deltaY) < dragThreshold) return;
       if (!cheatsDrag.moved) {
         cheatsDrag.moved = true;
         cheatsDrag.suppressClick = true;
-        el.cheatsRibbon.classList.add('is-dragging');
+        el.cheatsRibbon.classList.remove('is-open', 'is-docked-right');
+        el.cheatsRibbon.classList.add('is-detached', 'is-dragging');
+        el.cheatsRibbonDrawer.setAttribute('aria-hidden', 'true');
       }
-      const vh = Math.max(window.innerHeight || 1, 1);
-      const nextVh = Math.min(90, Math.max(8, cheatsDrag.startTopVh + ((deltaY / vh) * 100)));
-      el.cheatsRibbon.style.top = `${nextVh.toFixed(2)}vh`;
+      const nextLeft = Math.min(Math.max(event.clientX - cheatsDrag.grabOffsetX, 8), window.innerWidth - 64);
+      const nextTop = Math.min(Math.max(event.clientY - cheatsDrag.grabOffsetY, 8), window.innerHeight - 64);
+      el.cheatsRibbon.style.left = `${nextLeft.toFixed(0)}px`;
+      el.cheatsRibbon.style.top = `${nextTop.toFixed(0)}px`;
+      state.floatingRibbons.cheats = { detached: true, dockedRight: false, left: nextLeft, top: nextTop };
       event.preventDefault();
     });
 
@@ -836,8 +863,27 @@ function cacheDom() {
       if (typeof el.cheatsRibbonToggle.releasePointerCapture === 'function') {
         try { el.cheatsRibbonToggle.releasePointerCapture(event.pointerId); } catch (_) {}
       }
+      if (cheatsDrag.moved) {
+        const rect = el.cheatsRibbon.getBoundingClientRect();
+        const snapLeft = event.clientX < 72;
+        const snapRight = event.clientX > window.innerWidth - 72;
+        if (snapLeft || snapRight) {
+          const topVh = Math.min(90, Math.max(8, ((rect.top + (rect.height / 2)) / window.innerHeight) * 100));
+          el.cheatsRibbon.classList.remove('is-detached');
+          el.cheatsRibbon.classList.toggle('is-docked-right', snapRight);
+          el.cheatsRibbon.classList.add('is-snapping');
+          el.cheatsRibbon.style.left = '';
+          el.cheatsRibbon.style.top = `${topVh.toFixed(2)}vh`;
+          state.floatingRibbons.cheats = { detached: false, dockedRight: snapRight, left: 0, top: topVh };
+          window.setTimeout(() => el.cheatsRibbon.classList.remove('is-snapping'), 500);
+        }
+        persistLocalState();
+      }
       cheatsDrag.active = false;
       cheatsDrag.pointerId = null;
+      cheatsDrag.startedDetached = false;
+      cheatsDrag.startClientX = 0;
+      cheatsDrag.startClientY = 0;
     }
     el.cheatsRibbonToggle.addEventListener('pointerup', endDrag);
     el.cheatsRibbonToggle.addEventListener('pointercancel', endDrag);
@@ -1321,6 +1367,21 @@ function initPresetSaveBtn() {
 
 // ── End Preset Manager ──────────────────────────────────────────────────────
 
+function renderFloatingRibbonState() {
+  const ribbons = state.floatingRibbons || DEFAULT_FLOATING_RIBBONS;
+  const apply = (ribbon, config) => {
+    if (!ribbon || !config) return;
+    ribbon.classList.toggle('is-detached', config.detached === true);
+    ribbon.classList.toggle('is-docked-right', config.dockedRight === true);
+    if (config.detached === true) {
+      ribbon.style.left = `${Number(config.left) || 8}px`;
+      ribbon.style.top = `${Number(config.top) || 8}px`;
+    }
+  };
+  apply(el.cheatsRibbon, ribbons.cheats);
+  apply(el.musicRibbon, ribbons.music);
+}
+
 function bindEvents() {
   if (el.deployButton) el.deployButton.addEventListener('click', handleConnectBridgeClick);
   if (el.playerLoadBtn) el.playerLoadBtn.addEventListener('click', handlePlayerLoadClick);
@@ -1571,17 +1632,41 @@ function bindEvents() {
         }
         el.logCopyButton.classList.add('is-copied');
         window.setTimeout(() => el.logCopyButton.classList.remove('is-copied'), 900);
-        showToast('Copied!', 1400);
       } catch (_) {}
     });
   }
 
   if (el.bridgeStatus) {
     el.bridgeStatus.addEventListener('click', () => {
-      state.logPanelExpanded = true;
+      if (consoleDrag.moved) {
+        consoleDrag.moved = false;
+        return;
+      }
+      const isOpening = !state.logPanelExpanded;
+      state.logPanelExpanded = isOpening;
+      if (isOpening) {
+        state.logPanelHeightVh = normalizeLogPanelHeightVh(Math.max(
+          state.logPanelHeightVh,
+          DEFAULT_LOG_PANEL_HEIGHT_VH
+        ));
+      }
+      el.bridgeStatus.classList.remove('is-expanding', 'is-collapsing');
+      void el.bridgeStatus.offsetWidth;
+      el.bridgeStatus.classList.add(isOpening ? 'is-expanding' : 'is-collapsing');
       renderLogPanelSize();
       focusCmdOutput();
     });
+    el.bridgeStatus.addEventListener('animationend', () => {
+      el.bridgeStatus.classList.remove('is-expanding', 'is-collapsing');
+    });
+    el.bridgeStatus.addEventListener('pointerdown', handleConsoleDragStart);
+    el.bridgeStatus.addEventListener('pointermove', handleConsoleDragMove);
+    el.bridgeStatus.addEventListener('pointerup', handleConsoleDragEnd);
+    el.bridgeStatus.addEventListener('pointercancel', handleConsoleDragEnd);
+  }
+
+  if (el.cmdLogNotifications) {
+    el.cmdLogNotifications.addEventListener('click', dismissCmdLogNotifications);
   }
 
   document.querySelectorAll('[data-close-modal]').forEach((button) => {
@@ -1803,8 +1888,44 @@ function shouldIgnoreDragScrollTarget(target) {
     '.settings-debug-box',
     '.search-input',
     '.field-wrap',
+    '#bridge-status',
     '.log-panel-resize-handle'
   ].join(','));
+}
+
+function handleConsoleDragStart(event) {
+  if (event.pointerType === 'touch' || event.button !== 0) return;
+  consoleDrag.pointerId = event.pointerId;
+  consoleDrag.active = true;
+  consoleDrag.moved = false;
+  consoleDrag.startX = event.clientX;
+  consoleDrag.startY = event.clientY;
+  consoleDrag.scrollTop = el.bridgeStatus.scrollTop;
+  consoleDrag.scrollLeft = el.bridgeStatus.scrollLeft;
+  el.bridgeStatus.setPointerCapture(event.pointerId);
+  event.stopPropagation();
+}
+
+function handleConsoleDragMove(event) {
+  if (!consoleDrag.active || consoleDrag.pointerId !== event.pointerId) return;
+  const deltaX = event.clientX - consoleDrag.startX;
+  const deltaY = event.clientY - consoleDrag.startY;
+  if (!consoleDrag.moved && Math.abs(deltaX) + Math.abs(deltaY) < 3) return;
+  consoleDrag.moved = true;
+  el.bridgeStatus.scrollTop = consoleDrag.scrollTop - deltaY;
+  el.bridgeStatus.scrollLeft = consoleDrag.scrollLeft - deltaX;
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function handleConsoleDragEnd(event) {
+  if (!consoleDrag.active || consoleDrag.pointerId !== event.pointerId) return;
+  if (el.bridgeStatus.hasPointerCapture(event.pointerId)) {
+    el.bridgeStatus.releasePointerCapture(event.pointerId);
+  }
+  consoleDrag.pointerId = null;
+  consoleDrag.active = false;
+  event.stopPropagation();
 }
 
 function handleLogPanelResizeStart(event) {
@@ -2105,16 +2226,31 @@ function pushCmdLogNotification(message, level) {
     second: '2-digit'
   });
 
-  state.cmdLogNotifications.unshift({
+  const notification = {
     dedupeKey,
     level: notificationLevel,
     text,
-    timestamp
-  });
+    timestamp,
+    isNew: true
+  };
+  state.cmdLogNotifications.unshift(notification);
 
   if (state.cmdLogNotifications.length > 10) {
     state.cmdLogNotifications.length = 10;
   }
+}
+
+function dismissCmdLogNotifications() {
+  if (!state.cmdLogNotifications.length) return;
+  const notification = state.cmdLogNotifications[0];
+  if (notification.isDismissing) return;
+  notification.isDismissing = true;
+  renderCmdLogNotifications();
+  window.setTimeout(() => {
+    const index = state.cmdLogNotifications.indexOf(notification);
+    if (index !== -1) state.cmdLogNotifications.splice(index, 1);
+    renderCmdLogNotifications();
+  }, 300);
 }
 
 function syncCmdLogNotifications(bridgeView) {
@@ -2139,7 +2275,9 @@ function syncCmdLogNotifications(bridgeView) {
 function renderCmdLogNotifications() {
   if (!el.cmdLogNotifications) return;
 
-  const notifications = Array.isArray(state.cmdLogNotifications) ? state.cmdLogNotifications : [];
+  const notifications = Array.isArray(state.cmdLogNotifications)
+    ? state.cmdLogNotifications.slice(0, 1)
+    : [];
   if (!notifications.length) {
     el.cmdLogNotifications.hidden = true;
     el.cmdLogNotifications.innerHTML = '';
@@ -2149,12 +2287,15 @@ function renderCmdLogNotifications() {
   const html = notifications
     .map((entry) => {
       const levelClass = entry.level === 'error' ? 'is-error' : 'is-info';
-      return `<div class="cmd-log-notice ${levelClass}"><span class="cmd-log-notice-time">${escapeHtml(entry.timestamp || '--:--:--')}</span><span class="cmd-log-notice-text">${escapeHtml(entry.text || '')}</span></div>`;
+      const animationClass = entry.isNew ? 'is-new' : '';
+      const dismissClass = entry.isDismissing ? 'is-dismissing' : '';
+      return `<div class="cmd-log-notice ${levelClass} ${animationClass} ${dismissClass}"><span class="cmd-log-notice-time">${escapeHtml(entry.timestamp || '--:--:--')}</span><span class="cmd-log-notice-text">${escapeHtml(entry.text || '')}</span><button class="cmd-log-notice-close" type="button" aria-label="Dismiss notification">×</button></div>`;
     })
     .join('');
 
   el.cmdLogNotifications.hidden = false;
   el.cmdLogNotifications.innerHTML = html;
+  notifications.forEach((entry) => { entry.isNew = false; });
 }
 
 function renderBridge() {
@@ -2297,11 +2438,11 @@ function renderBridge() {
   }
 
   const block = {
+    hex: selectedPayload.hex,
     selectedSlot: selectedPayload.selectedSlot,
     selectedItem: selectedPayload.selectedItem,
     itemId: selectedPayload.itemId,
     internalId: selectedPayload.internalId,
-    hex: selectedPayload.hex,
     count: selectedPayload.count,
     uses: selectedPayload.uses,
     flag0: selectedPayload.flag0,

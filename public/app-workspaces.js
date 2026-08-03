@@ -1211,6 +1211,7 @@ function persistLocalState() {
     activeTab: state.activeTab,
     activeFilter: state.activeFilter,
     logPanelHeightVh: state.logPanelHeightVh,
+    floatingRibbons: state.floatingRibbons,
     quickCheats: state.quickCheats,
     theme: state.theme,
     music: {
@@ -1266,6 +1267,19 @@ function restoreLocalState() {
 
     if (typeof saved.logPanelHeightVh === 'number' && Number.isFinite(saved.logPanelHeightVh)) {
       state.logPanelHeightVh = normalizeLogPanelHeightVh(saved.logPanelHeightVh);
+    }
+
+    if (saved.floatingRibbons && typeof saved.floatingRibbons === 'object') {
+      ['music', 'cheats'].forEach((key) => {
+        const savedRibbon = saved.floatingRibbons[key];
+        if (!savedRibbon || typeof savedRibbon !== 'object') return;
+        state.floatingRibbons[key] = {
+          detached: savedRibbon.detached === true,
+          dockedRight: savedRibbon.dockedRight === true,
+          left: Number.isFinite(savedRibbon.left) ? savedRibbon.left : 0,
+          top: Number.isFinite(savedRibbon.top) ? savedRibbon.top : 0
+        };
+      });
     }
 
     if (saved.quickCheats && typeof saved.quickCheats === 'object') {

@@ -12,7 +12,7 @@
 **Type:** Animal Crossing: New Horizons live memory editor — item catalog, villager data, and inventory read/write via Steam Deck bridge
 **Owner:** Solo full-stack developer (freelance, 12+ yrs, systems admin background)
 **Repo:** `m-ccool/acnh-live-editor` (GitHub, branch `dev`)
-**Primary validation target:** `http://10.0.0.25:3000` (Windows Wi-Fi UI)
+**Primary validation target:** `http://10.0.0.233:3000` (Steam Deck LAN UI)
 
 ---
 
@@ -77,21 +77,21 @@ This is a **mobile-first responsive PWA** targeting phone, tablet, desktop, and 
 
 | Fact | Value |
 |---|---|
-| Windows UI address | `http://10.0.0.25:3000` |
-| Windows Wi-Fi IP | `10.0.0.25` |
+| Canonical UI address | `http://10.0.0.233:3000` |
 | App port | `3000` |
 | Bridge port | `32840` |
 | Steam Deck IP | `10.0.0.233` |
 | Steam Deck SSH user | `deck` |
 | Steam Deck SSH key | `C:/Users/mccoo/.ssh/id_ed25519_steamdeck` |
-| Bridge target host | `10.0.0.25` (set in `.steamdeck-bridge.env`) |
+| Bridge target host | `127.0.0.1` (set in `.steamdeck-bridge.env`) |
 | Bridge target port | `32840` |
 | Node on Steam Deck | `/home/deck/.nvm/versions/node/v24.14.1/bin/node` |
 | Bridge systemd service | `~/.config/systemd/user/acnh-live-bridge.service` |
-| Bridge status | CONNECTED: `10.0.0.233` → `10.0.0.25:32840` (verified May 4 2026) |
+| Bridge status | Same-Deck: `127.0.0.1:32840` |
 
 - `.steamdeck-bridge.env` is gitignored — must be set directly on Steam Deck; do not commit it.
 - Catalog state is `Offline` until `NOOKIPEDIA_API_KEY` is set in `.env`.
+- Steam Deck is the only supported runtime host: it serves the UI at `http://10.0.0.233:3000` and hosts the bridge locally at `127.0.0.1:32840`. Windows is not a UI or bridge host.
 
 ---
 
@@ -110,16 +110,11 @@ This is a **mobile-first responsive PWA** targeting phone, tablet, desktop, and 
 
 ## 7. Build and Dev
 
-**Start server (Windows/PowerShell):**
+**Start server (Steam Deck):**
 
-```powershell
-$ports = 3000, 32840
-foreach ($port in $ports) {
-  $pids = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique
-  if ($pids) { $pids | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue } }
-}
-cd C:\Users\mccoo\OneDrive\Developer\acnh-live-editor
-npm run dev
+```bash
+cd ~/acnh-live-editor
+bash scripts/steamdeck-launch-app.sh
 ```
 
 ---
@@ -134,7 +129,7 @@ npm run dev
 - End every technical answer with exactly 3 numbered follow-up questions
 - Apply one step title + one fenced code block per step in command responses
 - Expand acronyms in parentheses on first use in a response
-- Use the Windows UI browser window as the primary validation surface
+- Use the Steam Deck UI at `http://10.0.0.233:3000` as the primary validation surface
 
 ### Must never
 - Expand scope beyond the active request — no redesigns, refactors, cleanup, or unrelated MVP ideas
@@ -235,7 +230,7 @@ Constraints:
 - Do NOT redesign existing UI
 - Do NOT add dependencies without justification
 - Preserve existing data structures and API shapes
-- Primary validation target: http://10.0.0.25:3000
+- Primary validation target: http://10.0.0.233:3000
 ```
 
 ---
