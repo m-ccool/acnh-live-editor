@@ -879,7 +879,8 @@
                 id="player-modal-bust"
                 class="player-modal-bust-image"
                 alt="Player bust preview"
-                src="./assets/icons/player-silhouette.svg"
+                src="./assets/items/Bob_NH.png"
+                onerror="this.src='./assets/items/Bob_NH.png'"
               />
             </div>
 
@@ -1093,10 +1094,10 @@
             <img id="modal-item-preview" alt="" />
           </div>
 
-          <details class="item-modal-payload-block">
-            <summary class="item-modal-payload-label">Selected Payload</summary>
+          <section class="item-modal-payload-block" id="item-modal-payload-block">
+            <button id="modal-payload-toggle" type="button" class="item-modal-payload-label" aria-expanded="false">Selected Payload</button>
             <pre id="modal-selected-payload" class="code-block modal-payload-console">{}</pre>
-          </details>
+          </section>
         </div>
 
         <div class="item-modal-main">
@@ -1125,7 +1126,6 @@
               </label>
             </div>
 
-            <div class="item-modal-stat-line"><span>Hex:</span><strong id="modal-hex">00000000</strong></div>
           </div>
 
           <div class="item-modal-search-row">

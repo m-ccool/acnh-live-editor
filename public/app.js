@@ -1493,7 +1493,12 @@ function getSelectedPreviewItem() {
 
 function renderPlayerModal() {
   if (el.playerModalBust) {
-    el.playerModalBust.src = state.player.avatar || './assets/icons/player-silhouette.svg';
+    const avatar = String(state.player.avatar || '').trim();
+    const useBobBust = !avatar || /player-silhouette\.svg$/i.test(avatar);
+    el.playerModalBust.src = useBobBust ? './assets/items/Bob_NH.png' : avatar;
+    el.playerModalBust.onerror = () => {
+      el.playerModalBust.src = './assets/items/Bob_NH.png';
+    };
   }
 
   if (el.playerModalBustName) {

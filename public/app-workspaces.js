@@ -820,7 +820,6 @@ function renderItemModal() {
   if (activeInput !== el.modalInputUses) el.modalInputUses.value = String(slot.uses);
   if (activeInput !== el.modalInputFlag0) el.modalInputFlag0.value = String(slot.flag0);
   if (activeInput !== el.modalInputFlag1) el.modalInputFlag1.value = String(slot.flag1);
-  el.modalHex.textContent = slot.hex || deriveHexFromItem(item) || '00000000';
 
   if (item) {
     el.modalItemPreview.src = getPreferredItemPreviewUrl(item);
@@ -906,8 +905,15 @@ function openItemModalForSelectedSlot() {
   state.modalSearchOpen = false;
   state.catalog.modalResults = [];
   el.modalSearchInput.value = '';
+  if (el.modalPayloadBlock && el.modalPayloadToggle) {
+    el.modalPayloadBlock.classList.add('is-expanded');
+    el.modalPayloadToggle.setAttribute('aria-expanded', 'true');
+  }
   renderItemModal();
   openModal(el.itemModal);
+  if (typeof focusSelectedHexInCmd === 'function') {
+    focusSelectedHexInCmd();
+  }
 }
 
 async function applyItemEdits(options = {}) {

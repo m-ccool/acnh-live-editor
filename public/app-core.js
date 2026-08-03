@@ -902,12 +902,13 @@ function cacheDom() {
   el.modalInputUses = document.getElementById('modal-input-uses');
   el.modalInputFlag0 = document.getElementById('modal-input-flag0');
   el.modalInputFlag1 = document.getElementById('modal-input-flag1');
-  el.modalHex = document.getElementById('modal-hex');
   el.modalSearchFocusButton = document.getElementById('modal-search-focus-button');
   el.modalSearchInput = document.getElementById('modal-search-input');
   el.modalResultsList = document.getElementById('modal-results-list');
   el.modalSearchStack = document.querySelector('.item-modal-search-stack');
   el.modalFilterButtons = document.getElementById('modal-filter-buttons');
+  el.modalPayloadBlock = document.getElementById('item-modal-payload-block');
+  el.modalPayloadToggle = document.getElementById('modal-payload-toggle');
   el.modalSelectedPayload = document.getElementById('modal-selected-payload');
   el.clearItemButton = document.getElementById('clear-item-button');
   el.itemModalApply = document.getElementById('item-modal-apply');
@@ -1512,6 +1513,14 @@ function bindEvents() {
     });
   }
 
+  if (el.modalPayloadBlock && el.modalPayloadToggle) {
+    el.modalPayloadToggle.addEventListener('click', () => {
+      const nextExpanded = !el.modalPayloadBlock.classList.contains('is-expanded');
+      el.modalPayloadBlock.classList.toggle('is-expanded', nextExpanded);
+      el.modalPayloadToggle.setAttribute('aria-expanded', nextExpanded ? 'true' : 'false');
+    });
+  }
+
   el.clearItemButton.addEventListener('click', clearSelectedSlot);
 
   if (el.inventoryCard) {
@@ -1561,6 +1570,14 @@ function bindEvents() {
         window.setTimeout(() => el.logCopyButton.classList.remove('is-copied'), 900);
         showToast('Copied!', 1400);
       } catch (_) {}
+    });
+  }
+
+  if (el.cmdLogNotifications) {
+    el.cmdLogNotifications.addEventListener('click', (event) => {
+      const row = event.target && event.target.closest ? event.target.closest('.cmd-log-notice.is-hex') : null;
+      if (!row) return;
+      focusSelectedHexInCmd();
     });
   }
 
@@ -1840,6 +1857,17 @@ function renderLogPanelSize() {
   el.bridgeStatus.style.setProperty('--log-console-height', `${state.logPanelHeightVh.toFixed(2)}vh`);
 }
 
+function focusSelectedHexInCmd() {
+  if (!el.bridgeStatus) return;
+  state.logPanelHeightVh = normalizeLogPanelHeightVh(Math.max(state.logPanelHeightVh, 34));
+  renderLogPanelSize();
+  el.bridgeStatus.scrollTop = 0;
+  if (!el.bridgeStatus.hasAttribute('tabindex')) {
+    el.bridgeStatus.setAttribute('tabindex', '-1');
+  }
+  el.bridgeStatus.focus({ preventScroll: true });
+}
+
 async function loadData() {
   try {
     const itemsResponse = await apiFetch('/api/items', { cache: 'no-store' });
@@ -2109,9 +2137,13 @@ function renderCmdLogNotifications() {
   if (!el.cmdLogNotifications) return;
 
   const notifications = Array.isArray(state.cmdLogNotifications) ? state.cmdLogNotifications : [];
+  const selectedSlot = typeof getSelectedSlot === 'function' ? getSelectedSlot() : null;
+  const selectedHex = selectedSlot && selectedSlot.hex ? String(selectedSlot.hex).trim() : '00000000';
+  const selectedHexNotice = `<button type="button" class="cmd-log-notice is-hex" title="Focus command log"><span class="cmd-log-notice-time">HEX</span><span class="cmd-log-notice-text">${escapeHtml(selectedHex)}</span></button>`;
+
   if (!notifications.length) {
-    el.cmdLogNotifications.hidden = true;
-    el.cmdLogNotifications.innerHTML = '';
+    el.cmdLogNotifications.hidden = false;
+    el.cmdLogNotifications.innerHTML = selectedHexNotice;
     return;
   }
 
@@ -2123,7 +2155,7 @@ function renderCmdLogNotifications() {
     .join('');
 
   el.cmdLogNotifications.hidden = false;
-  el.cmdLogNotifications.innerHTML = html;
+  el.cmdLogNotifications.innerHTML = `${selectedHexNotice}${html}`;
 }
 
 function renderBridge() {
