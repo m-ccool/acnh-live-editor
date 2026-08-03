@@ -759,9 +759,6 @@ function cacheDom() {
   el.pauseBridgeButton = document.getElementById('pause-bridge-button');
   el.writeBridgeButton = document.getElementById('write-bridge-button');
 
-  el.selectedItemArtbox = document.getElementById('selected-item-artbox');
-  el.selectedPreviewImage = document.getElementById('selected-preview-image');
-  el.selectedItemName = document.getElementById('selected-item-name');
   el.openSelectedSearchButton = null; // replaced by inv-quick-search input
   el.invQuickSearch = document.getElementById('inv-quick-search');
   el.invQuickSearchResults = document.getElementById('inv-quick-search-results');
@@ -770,7 +767,6 @@ function cacheDom() {
   el.pasteSelectedButton = document.getElementById('paste-selected-button');
 
   el.playerPanel = document.getElementById('player-panel');
-  el.playerPanelEnd = document.getElementById('player-panel-end');
   el.cheatsRibbon = document.getElementById('cheats-ribbon');
   el.cheatsRibbonDrawer = document.getElementById('cheats-ribbon-drawer');
   el.cheatsRibbonToggle = document.getElementById('cheats-ribbon-toggle');
@@ -844,29 +840,9 @@ function cacheDom() {
     el.cheatsRibbonToggle.addEventListener('pointercancel', endDrag);
   }
 
-  // Sticky selected-item bar — show when artbox scrolled off, hide when panel ends
-  if (el.selectedItemArtbox && el.playerPanelEnd && el.selectedItemSticky) {
-    let artboxVisible = true;
-    let panelEndVisible = true;
-    const updateStickyBar = () => {
-      const hasItem = el.selectedItemStickyName && el.selectedItemStickyName.textContent !== 'Empty slot';
-      const show = hasItem && !artboxVisible;
-      el.selectedItemSticky.hidden = !show;
-    };
-    new IntersectionObserver(entries => {
-      artboxVisible = entries[0].isIntersecting;
-      updateStickyBar();
-    }, { threshold: 0.1 }).observe(el.selectedItemArtbox);
-    new IntersectionObserver(entries => {
-      panelEndVisible = entries[0].isIntersecting;
-      updateStickyBar();
-    }, { threshold: 0 }).observe(el.playerPanelEnd);
-    window._updateStickyBar = updateStickyBar;
-
-    // Sticky pill click → trigger artbox click (opens edit modal)
-    el.selectedItemSticky.addEventListener('click', () => {
-      if (el.selectedItemArtbox) el.selectedItemArtbox.click();
-    });
+  // Sticky selected-item bar now serves as the sole preview surface.
+  if (el.selectedItemSticky) {
+    el.selectedItemSticky.hidden = true;
   }
 
   el.inventoryCard = document.getElementById('inventory-card');
@@ -1474,7 +1450,9 @@ function bindEvents() {
 
   // inv-quick-search: inline search input with direct slot assignment
   initInvQuickSearch();
-  el.selectedItemArtbox.addEventListener('click', () => openItemModalForSelectedSlot());
+  if (el.selectedItemSticky) {
+    el.selectedItemSticky.addEventListener('click', () => openItemModalForSelectedSlot());
+  }
 
   if (el.copySelectedButton) {
     el.copySelectedButton.addEventListener('click', handleSelectedClipboardButton);

@@ -287,14 +287,18 @@ function renderSelectedPreview() {
     ? (findItemByLookup(rawPreviewItem.file_name || rawPreviewItem.name, rawPreviewItem.name) || rawPreviewItem)
     : null;
 
-  if (previewItem) {
-    el.selectedPreviewImage.src = getPreferredItemPreviewUrl(previewItem);
-    el.selectedPreviewImage.alt = previewItem.name;
-    el.selectedItemName.textContent = previewItem.name;
-  } else {
-    el.selectedPreviewImage.removeAttribute('src');
-    el.selectedPreviewImage.alt = '';
-    el.selectedItemName.textContent = 'Empty slot';
+  if (el.selectedItemStickyImg && el.selectedItemStickyName && el.selectedItemSticky) {
+    if (previewItem) {
+      el.selectedItemStickyImg.src = getPreferredItemPreviewUrl(previewItem);
+      el.selectedItemStickyImg.alt = previewItem.name;
+      el.selectedItemStickyName.textContent = previewItem.name;
+      el.selectedItemSticky.hidden = false;
+    } else {
+      el.selectedItemStickyImg.removeAttribute('src');
+      el.selectedItemStickyImg.alt = '';
+      el.selectedItemStickyName.textContent = 'Empty slot';
+      el.selectedItemSticky.hidden = true;
+    }
   }
 }
 
@@ -321,14 +325,13 @@ function renderClipboardState() {
       : '/assets/icons/line-md--clipboard.svg';
   }
 
-  if (el.selectedItemArtbox) {
-    el.selectedItemArtbox.classList.toggle('is-holding-slot', canPaste);
-    el.selectedItemArtbox.title = canPaste
+  if (el.selectedItemSticky) {
+    el.selectedItemSticky.title = canPaste
       ? `Holding ${state.copiedSlotPayload.selectedItem || 'empty slot'} - tap a pocket slot to place it`
-      : 'Edit selected item';
-    el.selectedItemArtbox.setAttribute('aria-label', canPaste
+      : 'Selected item preview';
+    el.selectedItemSticky.setAttribute('aria-label', canPaste
       ? `Holding ${state.copiedSlotPayload.selectedItem || 'empty slot'}`
-      : 'Edit selected item');
+      : 'Selected item preview');
   }
 }
 
